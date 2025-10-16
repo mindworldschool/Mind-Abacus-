@@ -10,13 +10,10 @@
    ======================================== */
 .mws-trainer {
   display: grid;
-  grid-template-columns: 1fr 360px;
+  grid-template-columns: 1fr 340px;
   gap: 16px;
   align-items: start;
-  max-height: calc(100vh - 120px);
-  width: 90vw;
-  max-width: 90vw;
-  margin: 0 auto;
+  height: calc(100vh - 180px);
 }
 
 /* Левая колонка с примером и ответом */
@@ -26,8 +23,7 @@
   border-radius: var(--radius-large);
   box-shadow: var(--shadow-soft);
   padding: 16px 24px;
-  min-height: auto;
-  max-height: calc(100vh - 140px);
+  height: calc(100vh - 180px);
 }
 
 /* Режим столбик (по умолчанию) */
@@ -47,14 +43,14 @@
 @media (max-width: 900px){
   .mws-trainer { 
     grid-template-columns: 1fr;
-    width: 95vw;
-    max-width: 95vw;
+    height: auto;
   }
   
   .trainer-main,
   .trainer-main--column {
     flex-direction: column;
     gap: 24px;
+    height: auto;
   }
   
   .answer-section {
@@ -72,27 +68,24 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  min-height: auto;
   flex: 1;
-  overflow-y: auto;
+  overflow: visible;
 }
 
 /* В режиме столбик - занимает оставшееся место */
 .trainer-main--column #area-example {
   flex: 1;
-  min-height: auto;
-  max-height: calc(100vh - 200px);
+  height: 100%;
 }
 
 /* В режиме в строку - компактнее */
 .trainer-main--inline #area-example {
-  min-height: auto;
   width: 100%;
 }
 
 .example--column {
   display: grid;
-  grid-auto-rows: minmax(20px, auto);
+  grid-auto-rows: minmax(18px, auto);
   row-gap: 0;
   align-content: center;
   width: 100%;
@@ -110,9 +103,9 @@
   color: var(--gold);
   font-weight: 700;
   text-align: center;
-  font-size: clamp(24px, 3.5vw, 48px);
-  line-height: 0.95;
-  padding: 2px 0;
+  font-size: clamp(22px, 3vw, 42px);
+  line-height: 0.85;
+  padding: 1px 0;
 }
 
 .example__line--inline {
@@ -186,7 +179,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: calc(100vh - 140px);
+  height: calc(100vh - 180px);
   overflow-y: auto;
 }
 
@@ -640,16 +633,16 @@
 @media (max-width: 640px) {
   .trainer-main {
     padding: 20px 16px;
-    min-height: auto;
+    height: auto;
   }
   
   #area-example {
-    min-height: auto;
+    height: auto;
   }
   
   .example__line {
-    font-size: clamp(22px, 6vw, 40px);
-    line-height: 0.95;
+    font-size: clamp(20px, 5vw, 36px);
+    line-height: 0.85;
   }
   
   .answer-section #answer-input {
