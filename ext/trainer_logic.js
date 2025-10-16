@@ -40,22 +40,22 @@ export function mountTrainerUI(container, { t, state }) {
     </div>
     
     <div id="panel-controls">
-      <!-- Счетчик примеров -->
-      <div class="examples-counter">
-        <span class="examples-counter__label">Примеры:</span>
-        <span class="examples-counter__value"><span id="stats-completed">0</span> / <span id="stats-total">${getExampleCount(state.settings)}</span></span>
-      </div>
-      
-      <!-- Капсула с результатами -->
-      <div class="results-capsule">
-        <div class="results-capsule__side results-capsule__side--correct">
-          <div class="results-capsule__icon">✓</div>
-          <div class="results-capsule__value" id="stats-correct">0</div>
+      <!-- Капсула с результатами И счетчиком примеров -->
+      <div class="results-capsule-extended">
+        <div class="results-capsule-extended__header">
+          <span class="results-capsule-extended__label">Примеры:</span>
+          <span class="results-capsule-extended__counter"><span id="stats-completed">0</span> / <span id="stats-total">${getExampleCount(state.settings)}</span></span>
         </div>
-        <div class="results-capsule__divider"></div>
-        <div class="results-capsule__side results-capsule__side--incorrect">
-          <div class="results-capsule__icon">✗</div>
-          <div class="results-capsule__value" id="stats-incorrect">0</div>
+        <div class="results-capsule">
+          <div class="results-capsule__side results-capsule__side--correct">
+            <div class="results-capsule__icon">✓</div>
+            <div class="results-capsule__value" id="stats-correct">0</div>
+          </div>
+          <div class="results-capsule__divider"></div>
+          <div class="results-capsule__side results-capsule__side--incorrect">
+            <div class="results-capsule__icon">✗</div>
+            <div class="results-capsule__value" id="stats-incorrect">0</div>
+          </div>
         </div>
       </div>
       
