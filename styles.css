@@ -700,3 +700,31 @@ body {
 .game-screen .step-indicator {
   margin-bottom: 12px;
 }
+/* ДОБАВЬ ЭТО В КОНЕЦ ФАЙЛА styles.css */
+
+/* Расширяем экран тренировки на 90% ширины */
+.game-screen .app-main,
+.game-screen .screen__body {
+  width: 90vw;
+  max-width: 90vw;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Убираем лишние отступы в экране игры */
+.game-screen .screen__header {
+  display: none;
+}
+
+.game-screen .screen__body {
+  margin-top: 8px;
+}
+
+/* Адаптация под высоту экрана */
+.game-screen {
+  min-height: auto;
+}
+
+.game-screen .step-indicator {
+  margin-bottom: 12px;
+}
