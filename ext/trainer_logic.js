@@ -32,7 +32,7 @@ export function mountTrainerUI(container, { t, state }) {
       
       <div class="answer-section">
         <input type="number" id="answer-input" placeholder="?" />
-        <button class="btn btn--primary" id="btn-submit">Ответить</button>
+        <button class="btn btn--primary" id="btn-submit">${t('trainer.submit')}</button>
       </div>
     </div>
     
@@ -40,7 +40,7 @@ export function mountTrainerUI(container, { t, state }) {
       <!-- Объединенная капсула: счетчик примеров + результаты -->
       <div class="results-capsule-unified">
         <div class="results-unified__counter">
-          <span class="results-unified__counter-label">Примеры:</span>
+          <span class="results-unified__counter-label">${t('trainer.examples')}:</span>
           <span class="results-unified__counter-value">
             <span id="stats-completed">0</span> / <span id="stats-total">${getExampleCount(state.settings)}</span>
           </span>
@@ -65,8 +65,8 @@ export function mountTrainerUI(container, { t, state }) {
           <div class="progress-bar__incorrect" id="progress-incorrect" style="width: 0%;"></div>
         </div>
         <div class="progress-label">
-          <span class="progress-label__correct">Правильно: <strong id="percent-correct">0%</strong></span>
-          <span class="progress-label__incorrect">Ошибки: <strong id="percent-incorrect">0%</strong></span>
+          <span class="progress-label__correct">${t('trainer.correct')}: <strong id="percent-correct">0%</strong></span>
+          <span class="progress-label__incorrect">${t('trainer.incorrect')}: <strong id="percent-incorrect">0%</strong></span>
         </div>
       </div>
       
@@ -83,7 +83,7 @@ export function mountTrainerUI(container, { t, state }) {
       <!-- Кнопка показать абакус -->
       <div class="panel-card panel-card--compact">
         <button class="btn btn--secondary btn--fullwidth" id="btn-toggle-abacus">
-          🧮 Показать абакус
+          🧮 ${t('trainer.showAbacus')}
         </button>
       </div>
       
@@ -224,10 +224,10 @@ export function mountTrainerUI(container, { t, state }) {
     
     if (abacusVisible) {
       abacusContainer.classList.add('visible');
-      btn.textContent = '🧮 Скрыть абакус';
+      btn.textContent = `🧮 ${t('trainer.hideAbacus')}`;
     } else {
       abacusContainer.classList.remove('visible');
-      btn.textContent = '🧮 Показать абакус';
+      btn.textContent = `🧮 ${t('trainer.showAbacus')}`;
     }
   }
   
