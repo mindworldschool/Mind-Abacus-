@@ -191,7 +191,15 @@ export const dictionaries = {
       "success": "Correct",
       "mistakes": "Mistakes",
       "cta": "Start new setup"
-    }
+    },
+    "trainer": {
+  "submit": "Submit",
+  "examples": "Examples",
+  "correct": "Correct",
+  "incorrect": "Incorrect",
+  "showAbacus": "Show abacus",
+  "hideAbacus": "Hide abacus"
+}
   },
   "es": {
     "language": "Español",
@@ -384,7 +392,15 @@ export const dictionaries = {
       "success": "Correctos",
       "mistakes": "Errores",
       "cta": "Iniciar nueva configuración"
-    }
+    },
+    "trainer": {
+  "submit": "Responder",
+  "examples": "Ejemplos",
+  "correct": "Correcto",
+  "incorrect": "Errores",
+  "showAbacus": "Mostrar ábaco",
+  "hideAbacus": "Ocultar ábaco"
+}
   },
   "ru": {
     "language": "Русский",
@@ -577,7 +593,15 @@ export const dictionaries = {
       "success": "Верно",
       "mistakes": "Ошибки",
       "cta": "Запустить новое задание"
-    }
+    },
+    "trainer": {
+  "submit": "Ответить",
+  "examples": "Примеры",
+  "correct": "Правильно",
+  "incorrect": "Ошибки",
+  "showAbacus": "Показать абакус",
+  "hideAbacus": "Скрыть абакус"
+}
   },
   "ua": {
     "language": "Українська",
@@ -770,7 +794,15 @@ export const dictionaries = {
       "success": "Правильно",
       "mistakes": "Помилки",
       "cta": "Почати нове налаштування"
-    }
+    },
+    "trainer": {
+  "submit": "Відповісти",
+  "examples": "Приклади",
+  "correct": "Правильно",
+  "incorrect": "Помилки",
+  "showAbacus": "Показати абакус",
+  "hideAbacus": "Сховати абакус"
+}
   }
 };
 
