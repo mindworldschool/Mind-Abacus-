@@ -10,9 +10,10 @@
    ======================================== */
 .mws-trainer {
   display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: 20px;
+  grid-template-columns: 1fr 360px;
+  gap: 16px;
   align-items: start;
+  max-height: calc(100vh - 150px);
 }
 
 /* Левая колонка с примером и ответом */
@@ -21,8 +22,9 @@
   background: var(--color-surface);
   border-radius: var(--radius-large);
   box-shadow: var(--shadow-soft);
-  padding: 40px;
-  min-height: 500px;
+  padding: 20px 32px;
+  min-height: auto;
+  max-height: calc(100vh - 170px);
 }
 
 /* Режим столбик (по умолчанию) */
@@ -71,7 +73,8 @@
 /* В режиме столбик - занимает оставшееся место */
 .trainer-main--column #area-example {
   flex: 1;
-  min-height: 400px;
+  min-height: 200px;
+  max-height: calc(100vh - 250px);
 }
 
 /* В режиме в строку - компактнее */
@@ -83,7 +86,7 @@
 .example--column {
   display: grid;
   grid-auto-rows: minmax(24px, auto);
-  row-gap: 12px;
+  row-gap: 2px;
   align-content: center;
   width: 100%;
 }
@@ -100,7 +103,8 @@
   color: var(--gold);
   font-weight: 700;
   text-align: center;
-  font-size: clamp(32px, 5vw, 72px);
+  font-size: clamp(28px, 4vw, 56px);
+  line-height: 1.1;
 }
 
 .example__line--inline {
@@ -180,14 +184,16 @@
 #panel-controls {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  max-height: calc(100vh - 170px);
+  overflow-y: auto;
 }
 
 .panel-card {
   background: var(--color-surface);
   border-radius: var(--radius-medium);
   box-shadow: var(--shadow-soft);
-  padding: 16px 20px;
+  padding: 12px 16px;
 }
 
 .panel-card--compact {
@@ -195,27 +201,32 @@
 }
 
 /* ========================================
-   Счетчик примеров
+   Капсула результатов с счетчиком
    ======================================== */
-.examples-counter {
+.results-capsule-extended {
   background: var(--color-surface);
   border-radius: var(--radius-medium);
   box-shadow: var(--shadow-soft);
-  padding: 16px 20px;
+  overflow: hidden;
+}
+
+.results-capsule-extended__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255, 124, 0, 0.08);
+  border-bottom: 1px solid rgba(255, 124, 0, 0.15);
 }
 
-.examples-counter__label {
-  font-size: 16px;
+.results-capsule-extended__label {
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-text);
 }
 
-.examples-counter__value {
-  font-size: 20px;
+.results-capsule-extended__counter {
+  font-size: 18px;
   font-weight: 700;
   color: var(--color-primary);
   font-family: "Baloo 2", cursive;
@@ -227,10 +238,6 @@
 .results-capsule {
   display: flex;
   align-items: stretch;
-  background: var(--color-surface);
-  border-radius: var(--radius-medium);
-  box-shadow: var(--shadow-soft);
-  overflow: hidden;
 }
 
 .results-capsule__side {
@@ -239,8 +246,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 20px 16px;
-  gap: 8px;
+  padding: 16px 12px;
+  gap: 6px;
 }
 
 .results-capsule__side--correct {
@@ -252,7 +259,7 @@
 }
 
 .results-capsule__icon {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
 }
 
@@ -265,7 +272,7 @@
 }
 
 .results-capsule__value {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
   font-family: "Baloo 2", cursive;
 }
@@ -290,16 +297,16 @@
   background: var(--color-surface);
   border-radius: var(--radius-medium);
   box-shadow: var(--shadow-soft);
-  padding: 16px 20px;
+  padding: 12px 16px;
 }
 
 .progress-bar {
-  height: 12px;
+  height: 10px;
   background: rgba(125, 115, 58, 0.1);
   border-radius: 999px;
   overflow: hidden;
   display: flex;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .progress-bar__correct {
@@ -343,22 +350,22 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   background: linear-gradient(135deg, #fb923c, #f97316);
   border-radius: var(--radius-medium);
-  padding: 18px 24px;
+  padding: 14px 20px;
   box-shadow: 0 8px 20px rgba(249, 115, 22, 0.3);
 }
 
 .timer-icon {
   color: #fff;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
 }
 
 .timer-capsule #timer {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   color: #fff;
   font-family: "Baloo 2", cursive;
@@ -373,8 +380,8 @@
 }
 
 #btn-toggle-abacus {
-  padding: 16px 20px;
-  font-size: 16px;
+  padding: 12px 16px;
+  font-size: 15px;
   font-weight: 600;
   border-radius: var(--radius-medium);
 }
