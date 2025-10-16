@@ -872,3 +872,67 @@
     margin-inline: auto;
   }
 }
+/* ========================================
+   Фикс адаптива белого блока тренировки
+   ======================================== */
+
+/* Контейнер сцены тренировки */
+.mws-trainer {
+  width: 100%;
+  min-height: calc(100vh - 140px); /* вычитаем высоту шапки и отступ */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 20px;
+}
+
+/* Главная белая карточка */
+.trainer-main {
+  width: 90vw;              /* 90% ширины окна */
+  height: 85vh;             /* 85% высоты окна — чтобы влезала */
+  max-width: 1400px;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  margin: 0 auto;
+  padding: clamp(24px, 4vh, 48px) clamp(24px, 5vw, 64px);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  overflow: hidden;
+}
+
+/* Левая часть с примерами тянется на всю высоту */
+.trainer-main--column #area-example {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+/* Адаптация под мобильные устройства */
+@media (max-width: 900px) {
+  .mws-trainer {
+    grid-template-columns: 1fr;
+    min-height: calc(100vh - 100px);
+    padding: 0;
+  }
+
+  .trainer-main {
+    width: 100vw;
+    height: auto;
+    min-height: calc(100vh - 140px);
+    flex-direction: column;
+    border-radius: 0;
+    padding: 6vh 5vw;
+  }
+
+  #area-example {
+    flex: 1 1 auto;
+  }
+}
