@@ -772,11 +772,44 @@ input[type="number"]::-webkit-inner-spin-button {
     text-align: center;
   }
  }
-/* Расширяем экран тренировки на 90% ширины */
-.game-screen .app-main,
-.game-screen .screen__body {
+/* ========================================
+   РАСШИРЕНИЕ экрана тренировки на 90%
+   ======================================== */
+.game-screen .app-main {
   width: 90vw;
   max-width: 90vw;
-  margin-left: auto;
-  margin-right: auto;
+  margin: 20px auto;
+}
+
+.game-screen .screen {
+  width: 100%;
+  max-width: none;
+}
+
+.game-screen .screen__header {
+  display: none;
+}
+
+.game-screen .screen__body {
+  margin: 0;
+  padding: 0;
+}
+
+.game-screen .step-indicator {
+  margin-bottom: 12px;
+}
+
+/* Адаптив */
+@media (max-width: 900px) {
+  .game-screen .app-main {
+    width: 95vw;
+    max-width: 95vw;
+  }
+}
+
+@media (max-width: 640px) {
+  .game-screen .app-main {
+    width: 98vw;
+    max-width: 98vw;
+  }
 }
