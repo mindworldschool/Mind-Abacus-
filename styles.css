@@ -11,12 +11,11 @@
 
 /* Убираем лишние отступы в экране игры */
 .game-screen .screen__header {
-  margin-bottom: 16px;
+  display: none;
 }
 
-.game-screen .screen__title {
-  margin: 0;
-  font-size: 1.6rem;
+.game-screen .screen__body {
+  margin-top: 8px;
 }
 
 /* Адаптация под высоту экрана */
@@ -24,6 +23,6 @@
   min-height: auto;
 }
 
-.game-screen .screen__body {
-  margin-top: 0;
+.game-screen .step-indicator {
+  margin-bottom: 12px;
 }
