@@ -14,18 +14,7 @@ export function renderGame(container, { t, state, navigate }) {
   const indicator = createStepIndicator("game", t);
   section.appendChild(indicator);
   
-  // Заголовок (БЕЗ описания)
-  const header = document.createElement("div");
-  header.className = "screen__header";
-  
-  const heading = document.createElement("h2");
-  heading.className = "screen__title";
-  heading.textContent = t("game.title");
-  
-  header.appendChild(heading);
-  section.appendChild(header);
-  
-  // Тело экрана (здесь будет тренажёр)
+  // Тело экрана (здесь будет тренажёр) БЕЗ заголовка
   const body = document.createElement("div");
   body.className = "screen__body";
   section.appendChild(body);
