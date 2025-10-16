@@ -1,0 +1,75 @@
+{
+  "language": "Русский",
+  "header": {
+    "title": "Abacuc v1",
+    "tagline": "Тренажёр ментальной арифметики",
+    "steps": {
+      "settings": "Настройки",
+      "confirmation": "Подтверждение",
+      "game": "Тренировка",
+      "results": "Результаты"
+    }
+  },
+  "footer": "MindWorld School © 2025",
+  "buttons": {
+    "back": "Назад",
+    "continue": "Продолжить",
+    "start": "Начать тренировку",
+    "finish": "Завершить",
+    "new": "Новое задание"
+  },
+  "settings": {
+    "title": "Параметры тренировки",
+    "description": "Выберите, как хотите потренироваться сегодня.",
+    "modeLabel": "Режим",
+    "modeOptions": [
+      { "value": "abacus", "label": "На абакусе" },
+      { "value": "mental", "label": "Устно" }
+    ],
+    "digitsLabel": "Диапазон чисел",
+    "digitsOptions": [
+      { "value": "1", "label": "Однозначные" },
+      { "value": "2", "label": "Двузначные" },
+      { "value": "3", "label": "Трёхзначные" }
+    ],
+    "speedLabel": "Темп",
+    "speedOptions": [
+      { "value": "slow", "label": "Медленный" },
+      { "value": "standard", "label": "Средний" },
+      { "value": "fast", "label": "Быстрый" }
+    ],
+    "roundsLabel": "Количество примеров",
+    "roundsHint": "10 примеров за подход — отличная разминка.",
+    "dictationLabel": "Включить голосовой диктант",
+    "dictationHint": "Зачитывает числа вслух во время сессии.",
+    "submit": "Продолжить"
+  },
+  "confirmation": {
+    "title": "Проверьте настройки",
+    "description": "Убедитесь, что параметры сессии подходят.",
+    "list": {
+      "mode": "Режим",
+      "digits": "Диапазон чисел",
+      "speed": "Темп",
+      "rounds": "Примеры",
+      "dictation": "Диктант"
+    },
+    "dictation": {
+      "on": "Включён",
+      "off": "Выключен"
+    }
+  },
+  "game": {
+    "title": "Тренировочная сессия",
+    "description": "Решите примеры и нажмите завершение, когда будете готовы.",
+    "helper": "10 примеров за подход. Держите темп!",
+    "cta": "Завершить сессию"
+  },
+  "results": {
+    "title": "Итоги сессии",
+    "description": "Так прошла попытка.",
+    "success": "Верно",
+    "mistakes": "Ошибки",
+    "cta": "Запустить новое задание"
+  }
+}
