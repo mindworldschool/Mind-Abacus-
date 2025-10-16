@@ -21,8 +21,6 @@ export function mountTrainerUI(container, { t, state }) {
   const displayMode = state.settings.inline ? 'inline' : 'column';
   
   console.log('📐 РЕЖИМ ОТОБРАЖЕНИЯ:', displayMode);
-  console.log('📐 КЛАСС БУДЕТ:', `mws-trainer--${displayMode}`);
-  console.log('📐 КЛАСС trainer-main БУДЕТ:', `trainer-main--${displayMode}`);
   
   // Создаём основной layout
   const layout = document.createElement("div");
@@ -33,28 +31,29 @@ export function mountTrainerUI(container, { t, state }) {
       <div id="area-example" class="example-view"></div>
       
       <div class="answer-section">
-        <div class="answer-label">Ответ:</div>
-        <input type="number" id="answer-input" placeholder="" />
+        <input type="number" id="answer-input" placeholder="?" />
         <button class="btn btn--primary" id="btn-submit">Ответить</button>
       </div>
     </div>
     
     <div id="panel-controls">
-      <!-- Капсула с результатами И счетчиком примеров -->
-      <div class="results-capsule-extended">
-        <div class="results-capsule-extended__header">
-          <span class="results-capsule-extended__label">Примеры:</span>
-          <span class="results-capsule-extended__counter"><span id="stats-completed">0</span> / <span id="stats-total">${getExampleCount(state.settings)}</span></span>
+      <!-- Объединенная капсула: счетчик примеров + результаты -->
+      <div class="results-capsule-unified">
+        <div class="results-unified__counter">
+          <span class="results-unified__counter-label">Примеры:</span>
+          <span class="results-unified__counter-value">
+            <span id="stats-completed">0</span> / <span id="stats-total">${getExampleCount(state.settings)}</span>
+          </span>
         </div>
-        <div class="results-capsule">
-          <div class="results-capsule__side results-capsule__side--correct">
-            <div class="results-capsule__icon">✓</div>
-            <div class="results-capsule__value" id="stats-correct">0</div>
+        
+        <div class="results-unified__stats">
+          <div class="results-unified__stat results-unified__stat--correct">
+            <div class="results-unified__stat-icon">✓</div>
+            <div class="results-unified__stat-value" id="stats-correct">0</div>
           </div>
-          <div class="results-capsule__divider"></div>
-          <div class="results-capsule__side results-capsule__side--incorrect">
-            <div class="results-capsule__icon">✗</div>
-            <div class="results-capsule__value" id="stats-incorrect">0</div>
+          <div class="results-unified__stat results-unified__stat--incorrect">
+            <div class="results-unified__stat-icon">✗</div>
+            <div class="results-unified__stat-value" id="stats-incorrect">0</div>
           </div>
         </div>
       </div>
@@ -94,13 +93,6 @@ export function mountTrainerUI(container, { t, state }) {
   `;
   
   container.appendChild(layout);
-  
-  // ПРОВЕРКА: выводим реальные классы элементов
-  setTimeout(() => {
-    const trainerMain = container.querySelector('.trainer-main');
-    console.log('✅ РЕАЛЬНЫЕ КЛАССЫ .trainer-main:', trainerMain?.className);
-    console.log('✅ РЕАЛЬНЫЕ КЛАССЫ .mws-trainer:', container.querySelector('.mws-trainer')?.className);
-  }, 100);
   
   // Инициализация компонентов
   const exampleView = new ExampleView(document.getElementById('area-example'));
