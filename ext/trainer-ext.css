@@ -797,3 +797,78 @@
   display: flex;
   gap: 16px;
 }
+/* ====== Белая карточка тренировки: ширина/высота по экрану ====== */
+:root{
+  /* можно подстроить, это «на сколько меньше 100%» */
+  --trainer-w: 90vw;     /* ширина карточки ≈ на 10% меньше экрана */
+  --trainer-h: 90svh;    /* высота карточки ≈ на 10% меньше экрана (safe vh) */
+  --panel-w: 360px;      /* ширина правой панели (как в макете) */
+}
+
+/* Растянем контейнер сцены на высоту окна, выровняем по центру */
+.mws-trainer{
+  width: 100%;
+  min-height: 100svh;                                 /* на всю высоту экрана */
+  display: grid;
+  grid-template-columns: minmax(0,1fr) var(--panel-w);
+  align-items: center;                                 /* центруем по вертикали */
+  gap: 16px;
+}
+
+/* Главная белая карточка (слева) — изначально большая */
+.trainer-main{
+  width: min(100%, var(--trainer-w));                 /* 90% ширины экрана, но не больше колонки */
+  min-height: var(--trainer-h);                       /* 90% высоты окна */
+  height: auto;                                       /* если контента больше — карточка может расти */
+  margin-inline: auto;                                /* центрируем по сетке */
+  padding: clamp(16px, 5vh, 48px) clamp(16px, 6vw, 64px); /* адаптивные внутренние отступы */
+  border-radius: 20px;
+}
+
+/* В колонном режиме тянем внутренности по высоте карточки */
+.trainer-main--column{
+  align-items: stretch;                               /* вместо center — растягиваем по высоте */
+}
+
+/* Левая область с примерами — занимает всё доступное */
+.trainer-main--column #area-example{
+  flex: 1 1 auto;
+  min-height: auto;                                   /* убираем жёсткий минимум */
+  max-height: none;                                   /* даём занять высоту карточки */
+}
+
+/* Блок ответа справа — остаётся фиксированным по ширине */
+.trainer-main--column .answer-section{
+  flex: 0 0 320px;
+}
+
+/* ====== Мобильная адаптация ====== */
+@media (max-width: 900px){
+  .mws-trainer{
+    grid-template-columns: 1fr;                       /* одна колонка */
+    align-items: stretch;                             
+    min-height: 100svh;
+  }
+
+  .trainer-main{
+    width: 100vw;                                     /* на телефоне — во всю ширину */
+    min-height: 92svh;                                /* чуть меньше высоты окна */
+    border-radius: 12px;
+    padding: clamp(16px, 6vh, 40px) clamp(16px, 5vw, 32px);
+  }
+
+  .trainer-main--column{
+    align-items: stretch;
+  }
+
+  #area-example{
+    flex: 1 1 auto;
+  }
+
+  .answer-section{
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 420px;
+    margin-inline: auto;
+  }
+}
