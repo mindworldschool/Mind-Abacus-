@@ -1114,3 +1114,124 @@ body.game-screen .timer-capsule {
     max-width: 420px !important;
   }
 }
+/* =========================================================
+   PATCH v9 — адаптив по количеству действий и разрядности
+   ========================================================= */
+
+/* Основной контейнер */
+body.game-screen .trainer-main {
+  display: grid !important;
+  grid-template-columns: 1fr clamp(220px, 28vw, 320px) !important;
+  align-items: start !important;
+  justify-content: center !important;
+  gap: clamp(16px, 3vw, 32px) !important;
+  padding: clamp(16px, 2vh, 36px) clamp(24px, 3vw, 48px) !important;
+}
+
+/* Левая зона с примером */
+body.game-screen #area-example {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  padding-left: clamp(10px, 1vw, 24px) !important;
+  padding-right: clamp(10px, 1vw, 16px) !important;
+}
+
+/* Столбец примеров */
+body.game-screen .example--column {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  gap: 0.4vh !important;
+}
+
+/* Базовая адаптация */
+body.game-screen .example__line {
+  font-family: "Baloo 2", system-ui, sans-serif !important;
+  color: var(--color-muted) !important;
+  font-weight: 700 !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  line-height: 1.1 !important;
+  margin: 0 !important;
+  /* базовый расчёт на 15 строк по высоте */
+  font-size: calc((80vh - 10vh) / 15) !important;
+}
+
+/* === 🔢 Коррекция по количеству действий (высота) === */
+[data-actions="1"] .example__line { font-size: calc((80vh - 10vh) / 2) !important; }
+[data-actions="2"] .example__line { font-size: calc((80vh - 10vh) / 3) !important; }
+[data-actions="3"] .example__line { font-size: calc((80vh - 10vh) / 4) !important; }
+[data-actions="4"] .example__line { font-size: calc((80vh - 10vh) / 5) !important; }
+[data-actions="5"] .example__line { font-size: calc((80vh - 10vh) / 6) !important; }
+[data-actions="6"] .example__line { font-size: calc((80vh - 10vh) / 7) !important; }
+[data-actions="7"] .example__line { font-size: calc((80vh - 10vh) / 8) !important; }
+[data-actions="8"] .example__line { font-size: calc((80vh - 10vh) / 9) !important; }
+[data-actions="9"] .example__line { font-size: calc((80vh - 10vh) / 10) !important; }
+[data-actions="10"] .example__line { font-size: calc((80vh - 10vh) / 11) !important; }
+[data-actions="11"] .example__line { font-size: calc((80vh - 10vh) / 12) !important; }
+[data-actions="12"] .example__line { font-size: calc((80vh - 10vh) / 13) !important; }
+[data-actions="13"] .example__line { font-size: calc((80vh - 10vh) / 14) !important; }
+[data-actions="14"] .example__line { font-size: calc((80vh - 10vh) / 15) !important; }
+[data-actions="15"] .example__line { font-size: calc((80vh - 10vh) / 15) !important; }
+
+/* === 🧮 Коррекция по количеству разрядов (ширина) === */
+/* если число длиннее — шрифт уменьшается пропорционально */
+[data-digits="1"] .example__line { font-size: calc(var(--base-font, (80vh - 10vh) / 10)) !important; }
+[data-digits="2"] .example__line { font-size: calc((80vh - 10vh) / 11) !important; }
+[data-digits="3"] .example__line { font-size: calc((80vh - 10vh) / 12) !important; }
+[data-digits="4"] .example__line { font-size: calc((80vh - 10vh) / 13) !important; }
+[data-digits="5"] .example__line { font-size: calc((80vh - 10vh) / 14) !important; }
+[data-digits="6"] .example__line { font-size: calc((80vh - 10vh) / 15) !important; }
+[data-digits="7"] .example__line { font-size: calc((80vh - 10vh) / 16) !important; }
+[data-digits="8"] .example__line { font-size: calc((80vh - 10vh) / 17) !important; }
+[data-digits="9"] .example__line { font-size: calc((80vh - 10vh) / 18) !important; }
+
+/* Блок с ответом — компактнее и правее */
+body.game-screen .answer-section {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  width: 100% !important;
+  max-width: 320px !important;
+}
+
+body.game-screen .answer-label {
+  margin-top: 0 !important;
+  font-size: clamp(22px, 2vw, 28px) !important;
+}
+
+body.game-screen #answer-input {
+  width: 88% !important;
+  height: clamp(60px, 7vh, 72px) !important;
+  font-size: clamp(28px, 3vw, 42px) !important;
+  text-align: center !important;
+  border-radius: 10px !important;
+}
+
+/* Мобильная адаптация */
+@media (max-width: 900px) {
+  body.game-screen .trainer-main {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+
+  body.game-screen .example__line {
+    font-size: calc((75vh - 8vh) / 15) !important;
+  }
+
+  body.game-screen #answer-input {
+    width: 95% !important;
+  }
+}
