@@ -1,4 +1,4 @@
-// ext/components/AbacusNew.js - Абакус с красивой SVG графикой
+// ext/components/AbacusNew.js - Абакус с красивой SVG графикой (ИСПРАВЛЕНО)
 
 /**
  * Abacus - компонент интерактивного абакуса (соробана) с SVG графикой
@@ -49,16 +49,15 @@ export class Abacus {
   render() {
     const width = this.digitCount * 72 + 40;
     
+    // ИСПРАВЛЕНО: убрана лишняя обёртка abacus-wrapper
     this.container.innerHTML = `
-      <div class="abacus-wrapper">
-        <svg id="abacus-svg" width="${width}" height="300" style="user-select: none;">
-          ${this.renderDefs()}
-          ${this.renderFrame()}
-          ${this.renderRods()}
-          ${this.renderMiddleBar()}
-          ${this.renderBeads()}
-        </svg>
-      </div>
+      <svg id="abacus-svg" width="${width}" height="300" style="user-select: none;">
+        ${this.renderDefs()}
+        ${this.renderFrame()}
+        ${this.renderRods()}
+        ${this.renderMiddleBar()}
+        ${this.renderBeads()}
+      </svg>
     `;
   }
   
@@ -292,9 +291,11 @@ export class Abacus {
       if (deltaY > threshold && this.beads[this.dragging.col].heaven !== 'down') {
         this.beads[this.dragging.col].heaven = 'down';
         this.render();
+        this.attachEventListeners(); // Перепривязка после ре-рендера
       } else if (deltaY < -threshold && this.beads[this.dragging.col].heaven !== 'up') {
         this.beads[this.dragging.col].heaven = 'up';
         this.render();
+        this.attachEventListeners(); // Перепривязка после ре-рендера
       }
     } else {
       // Нижние бусины
@@ -322,6 +323,7 @@ export class Abacus {
       if (changed) {
         this.beads[this.dragging.col].earth = earthBeads;
         this.render();
+        this.attachEventListeners(); // Перепривязка после ре-рендера
       }
     }
     
@@ -393,6 +395,7 @@ export class Abacus {
     });
     
     this.render();
+    this.attachEventListeners(); // Перепривязка после ре-рендера
     console.log(`🧮 Установлено значение: ${value}`);
   }
   
@@ -405,6 +408,7 @@ export class Abacus {
       this.beads[col].earth = ['down', 'down', 'down', 'down'];
     }
     this.render();
+    this.attachEventListeners(); // Перепривязка после ре-рендера
     console.log('🧮 Абакус сброшен');
   }
   
