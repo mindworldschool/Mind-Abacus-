@@ -1,318 +1,214 @@
-// Abacus.js - Абакус на чистом JavaScript
+// ext/components/Abacus.js - Интерактивный соробан
 
-class Abacus {
-  constructor(containerId, options = {}) {
-    this.container = document.getElementById(containerId);
-    this.digitCount = options.digitCount || 2;
-    this.visible = options.visible !== false;
+/**
+ * Abacus - компонент интерактивного абакуса (соробана)
+ * Структура: каждая стойка имеет 1 верхнюю бусину (Heaven, 5) и 4 нижние (Earth, 1+1+1+1)
+ * Формула значения: S = 5 * U + L, где U = верхняя (0 или 1), L = нижние (0-4)
+ */
+export class Abacus {
+  /**
+   * @param {HTMLElement} container - Контейнер для монтирования
+   * @param {number} digits - Разрядность (количество стоек = digits + 1)
+   */
+  constructor(container, digits = 1) {
+    this.container = container;
+    this.digits = digits;
+    this.columns = digits + 1; // ВАЖНО: всегда на 1 больше разрядности!
     
-    this.beads = {};
-    this.dragging = null;
-    this.dragStartY = null;
-    
-    this.init();
-  }
-  
-  init() {
-    // Инициализация бусин
-    for (let col = 0; col < this.digitCount; col++) {
-      this.beads[col] = {
-        heaven: 'up',
-        earth: ['down', 'down', 'down', 'down']
-      };
-    }
+    // Состояние каждой стойки: { upper: 0|1, lower: 0-4 }
+    this.state = Array.from({ length: this.columns }, () => ({
+      upper: 0, // 0 = внизу (не активна), 1 = вверху (активна)
+      lower: 0  // 0-4 бусины снизу активны
+    }));
     
     this.render();
-    this.attachEventListeners();
   }
   
+  /**
+   * Рендеринг абакуса
+   */
   render() {
-    if (!this.visible) {
-      this.container.innerHTML = '';
-      return;
+    this.container.innerHTML = '';
+    this.container.className = 'abacus';
+    
+    // Создаём стойки
+    for (let colIndex = 0; colIndex < this.columns; colIndex++) {
+      const column = this.createColumn(colIndex);
+      this.container.appendChild(column);
     }
     
-    const width = this.digitCount * 72 + 40;
+    console.log(`🧮 Абакус отрендерен: ${this.columns} стоек (разрядность ${this.digits})`);
+  }
+  
+  /**
+   * Создание одной стойки
+   * @param {number} colIndex - Индекс стойки
+   * @returns {HTMLElement}
+   */
+  createColumn(colIndex) {
+    const col = document.createElement('div');
+    col.className = 'abacus__column';
+    col.dataset.col = colIndex;
     
-    this.container.innerHTML = `
-      <div class="abacus-wrapper">
-        <svg id="abacus-svg" width="${width}" height="300" style="user-select: none;">
-          ${this.renderDefs()}
-          ${this.renderFrame()}
-          ${this.renderRods()}
-          ${this.renderMiddleBar()}
-          ${this.renderBeads()}
-        </svg>
-      </div>
-    `;
-  }
-  
-  renderDefs() {
-    return `
-      <defs>
-        <filter id="beadShadow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
-          <feOffset dx="0" dy="3" result="offsetblur"/>
-          <feComponentTransfer>
-            <feFuncA type="linear" slope="0.6"/>
-          </feComponentTransfer>
-          <feMerge>
-            <feMergeNode/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
-        
-        <filter id="frameShadow" x="-10%" y="-10%" width="120%" height="120%">
-          <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
-          <feOffset dx="0" dy="4" result="offsetblur"/>
-          <feComponentTransfer>
-            <feFuncA type="linear" slope="0.5"/>
-          </feComponentTransfer>
-          <feMerge>
-            <feMergeNode/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
-        
-        <linearGradient id="topFrameGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stop-color="#A0522D" stop-opacity="1" />
-          <stop offset="50%" stop-color="#8B4513" stop-opacity="1" />
-          <stop offset="100%" stop-color="#6B3410" stop-opacity="1" />
-        </linearGradient>
-        
-        <linearGradient id="metalBarGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stop-color="#949494" stop-opacity="1" />
-          <stop offset="30%" stop-color="#ababab" stop-opacity="1" />
-          <stop offset="50%" stop-color="#757575" stop-opacity="1" />
-          <stop offset="70%" stop-color="#8c8c8c" stop-opacity="1" />
-          <stop offset="100%" stop-color="#606060" stop-opacity="1" />
-        </linearGradient>
-        
-        <radialGradient id="beadGradient" cx="45%" cy="40%">
-          <stop offset="0%" stop-color="#ffb366" stop-opacity="1" />
-          <stop offset="50%" stop-color="#ff7c00" stop-opacity="1" />
-          <stop offset="100%" stop-color="#cc6300" stop-opacity="1" />
-        </radialGradient>
-      </defs>
-    `;
-  }
-  
-  renderFrame() {
-    const width = this.digitCount * 72 + 20;
-    return `
-      <rect x="10" y="10" width="${width}" height="30" fill="url(#topFrameGradient)" filter="url(#frameShadow)" rx="5"/>
-      <rect x="15" y="13" width="${width - 10}" height="4" fill="rgba(255, 255, 255, 0.15)" rx="2"/>
-      <rect x="10" y="264" width="${width}" height="30" fill="url(#topFrameGradient)" filter="url(#frameShadow)" rx="5"/>
-      <rect x="15" y="267" width="${width - 10}" height="4" fill="rgba(255, 255, 255, 0.15)" rx="2"/>
-    `;
-  }
-  
-  renderRods() {
-    let rods = '';
-    for (let col = 0; col < this.digitCount; col++) {
-      const x = 50 + col * 72;
-      rods += `<line x1="${x}" y1="40" x2="${x}" y2="264" stroke="#654321" stroke-width="8"/>`;
+    // Верхняя часть (Heaven bead)
+    const upperSection = document.createElement('div');
+    upperSection.className = 'abacus__upper';
+    
+    const upperBead = document.createElement('div');
+    upperBead.className = 'bead bead--upper';
+    upperBead.dataset.col = colIndex;
+    upperBead.dataset.type = 'upper';
+    upperBead.textContent = '5';
+    
+    if (this.state[colIndex].upper === 1) {
+      upperBead.classList.add('bead--engaged');
     }
-    return rods;
-  }
-  
-  renderMiddleBar() {
-    const width = this.digitCount * 72 + 20;
-    return `
-      <rect x="10" y="91" width="${width}" height="10" fill="url(#metalBarGradient)" rx="2"/>
-      <rect x="15" y="92" width="${width - 10}" height="2" fill="rgba(255, 255, 255, 0.6)" rx="1"/>
-      <rect x="10" y="101" width="${width}" height="2" fill="rgba(0, 0, 0, 0.3)" rx="1"/>
-    `;
-  }
-  
-  renderBeads() {
-    let beadsHTML = '';
     
-    for (let col = 0; col < this.digitCount; col++) {
-      const x = 50 + col * 72;
-      const beadHeight = 36;
-      const beadWidth = 32;
-      const gapFromBar = 1;
+    upperBead.addEventListener('click', () => this.toggleUpper(colIndex));
+    upperSection.appendChild(upperBead);
+    
+    // Разделитель (bar)
+    const bar = document.createElement('div');
+    bar.className = 'abacus__bar';
+    
+    // Нижняя часть (Earth beads)
+    const lowerSection = document.createElement('div');
+    lowerSection.className = 'abacus__lower';
+    
+    for (let i = 0; i < 4; i++) {
+      const lowerBead = document.createElement('div');
+      lowerBead.className = 'bead bead--lower';
+      lowerBead.dataset.col = colIndex;
+      lowerBead.dataset.index = i;
+      lowerBead.textContent = '1';
       
-      // Небесная бусина
-      const heavenY = this.beads[col].heaven === 'down' 
-        ? 91 - beadHeight/2 - gapFromBar
-        : 40 + beadHeight/2 + gapFromBar;
-      
-      beadsHTML += this.renderBead(x, heavenY, beadWidth, beadHeight, col, 'heaven', 0);
-      
-      // Земные бусины
-      const earthActive = this.beads[col].earth;
-      const upCount = earthActive.filter(p => p === 'up').length;
-      const downCount = 4 - upCount;
-      
-      for (let index = 0; index < 4; index++) {
-        let earthY;
-        if (earthActive[index] === 'up') {
-          const activeIndex = earthActive.slice(0, index).filter(p => p === 'up').length;
-          earthY = 101 + beadHeight/2 + gapFromBar + activeIndex * beadHeight;
-        } else {
-          const inactiveIndex = earthActive.slice(0, index).filter(p => p === 'down').length;
-          earthY = 264 - beadHeight/2 - gapFromBar - (downCount - 1 - inactiveIndex) * beadHeight;
-        }
-        
-        beadsHTML += this.renderBead(x, earthY, beadWidth, beadHeight, col, 'earth', index);
+      // Проверяем, активна ли эта бусина
+      if (i < this.state[colIndex].lower) {
+        lowerBead.classList.add('bead--engaged');
       }
+      
+      lowerBead.addEventListener('click', () => this.toggleLower(colIndex, i));
+      lowerSection.appendChild(lowerBead);
     }
     
-    return beadsHTML;
+    col.append(upperSection, bar, lowerSection);
+    return col;
   }
   
-  renderBead(x, y, width, height, col, type, index) {
-    const hw = width;
-    const hh = height / 2;
-    const cutSize = 12;
-    const sideRoundness = 2;
-    
-    const path = `
-      M ${x - cutSize} ${y - hh}
-      L ${x + cutSize} ${y - hh}
-      Q ${x + cutSize + 2} ${y - hh + 2} ${x + hw - sideRoundness} ${y - sideRoundness}
-      Q ${x + hw} ${y} ${x + hw - sideRoundness} ${y + sideRoundness}
-      Q ${x + cutSize + 2} ${y + hh - 2} ${x + cutSize} ${y + hh}
-      L ${x - cutSize} ${y + hh}
-      Q ${x - cutSize - 2} ${y + hh - 2} ${x - hw + sideRoundness} ${y + sideRoundness}
-      Q ${x - hw} ${y} ${x - hw + sideRoundness} ${y - sideRoundness}
-      Q ${x - cutSize - 2} ${y - hh + 2} ${x - cutSize} ${y - hh}
-      Z
-    `;
-    
-    return `
-      <g class="bead" data-col="${col}" data-type="${type}" data-index="${index}" style="cursor: grab;">
-        <path d="${path}" fill="url(#beadGradient)" filter="url(#beadShadow)"/>
-        <line x1="${x - width}" y1="${y}" x2="${x + width}" y2="${y}" stroke="rgba(0, 0, 0, 0.075)" stroke-width="2"/>
-      </g>
-    `;
+  /**
+   * Переключение верхней бусины
+   * @param {number} colIndex - Индекс стойки
+   */
+  toggleUpper(colIndex) {
+    this.state[colIndex].upper = this.state[colIndex].upper === 0 ? 1 : 0;
+    this.updateColumn(colIndex);
+    console.log(`🧮 Стойка ${colIndex}: верхняя = ${this.state[colIndex].upper}`);
   }
   
-  attachEventListeners() {
-    const svg = this.container.querySelector('#abacus-svg');
-    if (!svg) return;
+  /**
+   * Переключение нижних бусин
+   * @param {number} colIndex - Индекс стойки
+   * @param {number} beadIndex - Индекс бусины (0-3)
+   */
+  toggleLower(colIndex, beadIndex) {
+    const current = this.state[colIndex].lower;
     
-    svg.addEventListener('mousedown', (e) => this.handleMouseDown(e));
-    document.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-    document.addEventListener('mouseup', () => this.handleMouseUp());
-    
-    // Touch события для мобильных
-    svg.addEventListener('touchstart', (e) => this.handleMouseDown(e.touches[0]));
-    document.addEventListener('touchmove', (e) => this.handleMouseMove(e.touches[0]));
-    document.addEventListener('touchend', () => this.handleMouseUp());
-  }
-  
-  handleMouseDown(e) {
-    const beadGroup = e.target.closest('.bead');
-    if (!beadGroup) return;
-    
-    const col = parseInt(beadGroup.dataset.col);
-    const type = beadGroup.dataset.type;
-    const index = parseInt(beadGroup.dataset.index);
-    
-    const rect = this.container.querySelector('#abacus-svg').getBoundingClientRect();
-    this.dragStartY = e.clientY - rect.top;
-    this.dragging = { col, type, index };
-    
-    e.preventDefault();
-  }
-  
-  handleMouseMove(e) {
-    if (!this.dragging || this.dragStartY === null) return;
-    
-    const rect = this.container.querySelector('#abacus-svg').getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const deltaY = y - this.dragStartY;
-    const threshold = 10;
-    
-    if (this.dragging.type === 'heaven') {
-      if (deltaY > threshold) {
-        this.beads[this.dragging.col].heaven = 'down';
-        this.render();
-      } else if (deltaY < -threshold) {
-        this.beads[this.dragging.col].heaven = 'up';
-        this.render();
-      }
+    // Если кликнули на уже активную бусину -> сбрасываем всё до неё
+    if (beadIndex < current) {
+      this.state[colIndex].lower = beadIndex;
     } else {
-      const earthBeads = [...this.beads[this.dragging.col].earth];
-      
-      if (deltaY < -threshold) {
-        // Тянем ВВЕРХ
-        for (let i = 0; i <= this.dragging.index; i++) {
-          earthBeads[i] = 'up';
-        }
-        this.beads[this.dragging.col].earth = earthBeads;
-        this.render();
-      } else if (deltaY > threshold) {
-        // Тянем ВНИЗ
-        for (let i = this.dragging.index; i < 4; i++) {
-          earthBeads[i] = 'down';
-        }
-        this.beads[this.dragging.col].earth = earthBeads;
-        this.render();
-      }
+      // Если кликнули на неактивную -> активируем до неё включительно
+      this.state[colIndex].lower = beadIndex + 1;
     }
     
-    e.preventDefault();
+    this.updateColumn(colIndex);
+    console.log(`🧮 Стойка ${colIndex}: нижние = ${this.state[colIndex].lower}`);
   }
   
-  handleMouseUp() {
-    this.dragging = null;
-    this.dragStartY = null;
+  /**
+   * Обновление визуала одной стойки
+   * @param {number} colIndex
+   */
+  updateColumn(colIndex) {
+    const column = this.container.querySelector(`.abacus__column[data-col="${colIndex}"]`);
+    if (!column) return;
+    
+    // Обновляем верхнюю бусину
+    const upperBead = column.querySelector('.bead--upper');
+    if (this.state[colIndex].upper === 1) {
+      upperBead.classList.add('bead--engaged');
+    } else {
+      upperBead.classList.remove('bead--engaged');
+    }
+    
+    // Обновляем нижние бусины
+    const lowerBeads = column.querySelectorAll('.bead--lower');
+    lowerBeads.forEach((bead, index) => {
+      if (index < this.state[colIndex].lower) {
+        bead.classList.add('bead--engaged');
+      } else {
+        bead.classList.remove('bead--engaged');
+      }
+    });
   }
   
-  calculateValue() {
-    let total = 0;
-    for (let col = 0; col < this.digitCount; col++) {
-      const multiplier = Math.pow(10, this.digitCount - col - 1);
-      let colValue = 0;
+  /**
+   * Получить значение стойки (S = 5*U + L)
+   * @param {number} colIndex
+   * @returns {number}
+   */
+  getColumnValue(colIndex) {
+    const { upper, lower } = this.state[colIndex];
+    return 5 * upper + lower;
+  }
+  
+  /**
+   * Получить полное число с абакуса (читаем справа налево)
+   * @returns {number}
+   */
+  getValue() {
+    let result = 0;
+    for (let i = 0; i < this.columns; i++) {
+      const power = this.columns - 1 - i; // позиция разряда
+      result += this.getColumnValue(i) * Math.pow(10, power);
+    }
+    return result;
+  }
+  
+  /**
+   * Установить значение на абакусе
+   * @param {number} value - Число для отображения
+   */
+  setValue(value) {
+    const digits = String(value).padStart(this.columns, '0').split('');
+    
+    digits.forEach((digit, index) => {
+      const num = parseInt(digit, 10);
       
-      if (this.beads[col].heaven === 'down') {
-        colValue += 5;
+      // Раскладываем на 5*U + L
+      if (num >= 5) {
+        this.state[index].upper = 1;
+        this.state[index].lower = num - 5;
+      } else {
+        this.state[index].upper = 0;
+        this.state[index].lower = num;
       }
       
-      this.beads[col].earth.forEach(position => {
-        if (position === 'up') colValue += 1;
-      });
-      
-      total += colValue * multiplier;
-    }
-    return total;
+      this.updateColumn(index);
+    });
+    
+    console.log(`🧮 Установлено значение: ${value}`);
   }
   
+  /**
+   * Сброс абакуса (все бусины в исходное положение)
+   */
   reset() {
-    for (let col = 0; col < this.digitCount; col++) {
-      this.beads[col].heaven = 'up';
-      this.beads[col].earth = ['down', 'down', 'down', 'down'];
-    }
-    this.render();
+    this.state.forEach((col, index) => {
+      col.upper = 0;
+      col.lower = 0;
+      this.updateColumn(index);
+    });
+    console.log('🧮 Абакус сброшен');
   }
-  
-  setDigitCount(count) {
-    this.digitCount = count;
-    this.beads = {};
-    this.init();
-  }
-  
-  show() {
-    this.visible = true;
-    this.render();
-  }
-  
-  hide() {
-    this.visible = false;
-    this.render();
-  }
-  
-  toggle() {
-    this.visible = !this.visible;
-    this.render();
-  }
-}
-
-// Экспорт для использования в других файлах
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = Abacus;
 }
