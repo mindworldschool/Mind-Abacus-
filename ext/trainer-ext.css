@@ -209,6 +209,8 @@
   gap: 12px;
   max-height: calc(100vh - 170px);
   overflow-y: auto;
+  position: relative;
+  z-index: 10;
 }
 
 .panel-card {
@@ -395,7 +397,7 @@
 }
 
 /* ========================================
-   Плавающий абакус (правый нижний угол)
+   Плавающий абакус (SVG версия)
    ======================================== */
 .abacus-wrapper {
   position: fixed;
@@ -408,13 +410,25 @@
   padding: 16px;
   max-width: 90vw;
   max-height: 80vh;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  will-change: opacity, transform;
+  transition: box-shadow 0.3s ease;
+  -webkit-overflow-scrolling: touch;
 }
 
 .abacus-wrapper.visible {
   display: block;
   animation: slideInFromBottom 0.4s ease-out;
+}
+
+.abacus-wrapper:hover {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
 }
 
 @keyframes slideInFromBottom {
@@ -471,108 +485,58 @@
   transform: scale(0.95);
 }
 
-/* ========================================
-   Абакус (Соробан)
-   ======================================== */
-.abacus {
-  display: inline-flex;
-  gap: 18px;
-  padding: 20px;
-  background: linear-gradient(135deg, #f3e9da, #efe5d6);
-  border-radius: var(--radius-medium);
-  box-shadow: inset 0 -4px 10px rgba(0, 0, 0, 0.1);
+/* Внутренний контейнер для SVG */
+#floating-abacus-container {
+  display: flex;
   justify-content: center;
-  width: 100%;
-}
-
-.abacus__column {
-  position: relative;
-  width: 56px;
-  height: 280px;
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  background: linear-gradient(to bottom, rgba(192, 166, 127, 0.1), rgba(192, 166, 127, 0.2));
-  border-radius: 12px;
-  padding: 8px 0;
-}
-
-.abacus__upper {
-  flex: 0 0 60px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 8px;
-}
-
-.abacus__bar {
-  width: 100%;
-  height: 6px;
-  background: linear-gradient(to right, #c0a67f, #b89968, #c0a67f);
-  border-radius: 3px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  margin: 8px 0;
-}
-
-.abacus__lower {
-  flex: 1;
-  display: flex;
-  flex-direction: column-reverse;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 4px;
-  padding-top: 8px;
-}
-
-.bead {
-  width: 42px;
-  height: 30px;
-  border-radius: 15px;
-  background: linear-gradient(135deg, #ffcc66, #ffb84d);
-  box-shadow: 
-    0 4px 8px rgba(0, 0, 0, 0.2),
-    inset 0 2px 4px rgba(255, 255, 255, 0.4);
-  cursor: grab;
   user-select: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 13px;
-  color: #8b6f47;
-  transition: transform 0.3s linear;
-  position: relative;
+  -webkit-user-select: none;
 }
 
-.bead:hover {
-  background: linear-gradient(135deg, #ffd700, #ffc107);
-  box-shadow: 
-    0 6px 12px rgba(0, 0, 0, 0.25),
-    inset 0 2px 6px rgba(255, 255, 255, 0.5);
+/* SVG элемент абакуса */
+#abacus-svg {
+  display: block;
+  margin: 0 auto;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  will-change: transform;
 }
 
-.bead:active {
+/* Курсор для бусин при наведении */
+#abacus-svg .bead {
+  cursor: grab;
+}
+
+#abacus-svg .bead:active {
   cursor: grabbing;
 }
 
-.bead--upper {
-  background: linear-gradient(135deg, #ff9966, #ff7744);
+/* Предотвращаем выделение текста внутри абакуса */
+.abacus-wrapper * {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
-.bead--upper:hover {
-  background: linear-gradient(135deg, #ffaa77, #ff8855);
+/* Кастомный scrollbar */
+.abacus-wrapper::-webkit-scrollbar {
+  width: 6px;
 }
 
-.bead--engaged {
-  background: linear-gradient(135deg, #4ade80, #22c55e);
-  box-shadow: 
-    0 6px 12px rgba(34, 197, 94, 0.4),
-    inset 0 2px 6px rgba(255, 255, 255, 0.6);
-  color: #166534;
+.abacus-wrapper::-webkit-scrollbar-track {
+  background: rgba(192, 166, 127, 0.1);
+  border-radius: 3px;
 }
 
-.bead--engaged:hover {
-  background: linear-gradient(135deg, #86efac, #4ade80);
+.abacus-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(192, 166, 127, 0.4);
+  border-radius: 3px;
+}
+
+.abacus-wrapper::-webkit-scrollbar-thumb:hover {
+  background: rgba(192, 166, 127, 0.6);
 }
 
 /* ========================================
@@ -681,8 +645,8 @@
     max-width: none;
   }
   
-  .abacus {
-    transform: scale(0.75);
+  #abacus-svg {
+    transform: scale(0.85);
     transform-origin: center;
   }
 }
@@ -740,26 +704,54 @@
   .leo-modal__text {
     font-size: 16px;
   }
-  
-  .abacus {
-    transform: scale(0.6);
-  }
-  
-  .abacus__column {
-    width: 48px;
-    height: 240px;
-  }
-  
-  .bead {
-    width: 36px;
-    height: 26px;
-    font-size: 11px;
-  }
 }
 
 @media (max-width: 480px) {
-  .abacus {
+  .abacus-wrapper {
+    right: 5px;
+    bottom: 5px;
+    left: 5px;
+    padding: 10px;
+    max-height: 70vh;
+  }
+  
+  #abacus-svg {
+    transform: scale(0.7);
+    transform-origin: center;
+  }
+  
+  .abacus-title {
+    font-size: 16px;
+  }
+  
+  .abacus-close-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 360px) {
+  #abacus-svg {
     transform: scale(0.6);
+  }
+}
+
+@media (max-width: 768px) {
+  #abacus-svg {
+    transform: scale(0.85);
+    transform-origin: center;
+  }
+}
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .abacus-wrapper {
+    max-height: 85vh;
+    bottom: 5px;
+  }
+  
+  #abacus-svg {
+    transform: scale(0.65);
   }
 }
 
@@ -1018,312 +1010,3 @@ body.game-screen .timer-capsule {
     margin-top: 20px !important;
   }
 }
-/* ========================================
-   CSS ПАТЧ для нового SVG абакуса
-   Добавить в конец файла trainer-ext.css
-   ======================================== */
-
-/* ========================================
-   Плавающий абакус с SVG (обновлённые стили)
-   ======================================== */
-.abacus-wrapper {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  z-index: 1000;
-  background: linear-gradient(135deg, #f3e9da, #efe5d6);
-  border-radius: var(--radius-medium);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-  padding: 16px;
-  max-width: 90vw;
-  max-height: 80vh;
-  overflow: auto;
-  display: none;
-  user-select: none; /* НОВОЕ: запрет выделения */
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-}
-
-.abacus-wrapper.visible {
-  display: block;
-  animation: slideInFromBottom 0.4s ease-out;
-}
-
-@keyframes slideInFromBottom {
-  from {
-    opacity: 0;
-    transform: translateY(100px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Заголовок абакуса с кнопкой закрытия */
-.abacus-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid rgba(192, 166, 127, 0.4);
-}
-
-.abacus-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--color-muted);
-  font-family: "Baloo 2", cursive;
-}
-
-.abacus-close-btn {
-  background: transparent;
-  border: none;
-  font-size: 28px;
-  line-height: 1;
-  cursor: pointer;
-  color: var(--color-muted);
-  padding: 0;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: var(--transition);
-}
-
-.abacus-close-btn:hover {
-  background: rgba(192, 166, 127, 0.3);
-  transform: scale(1.1);
-}
-
-.abacus-close-btn:active {
-  transform: scale(0.95);
-}
-
-/* ========================================
-   SVG абакус - специфичные стили
-   ======================================== */
-
-/* Внутренний контейнер для SVG */
-#floating-abacus-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-/* SVG элемент абакуса */
-#abacus-svg {
-  display: block;
-  margin: 0 auto;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: none; /* ВАЖНО: предотвращает скролл при drag */
-}
-
-/* Курсор для бусин при наведении */
-#abacus-svg .bead {
-  cursor: grab;
-}
-
-#abacus-svg .bead:active {
-  cursor: grabbing;
-}
-
-/* Предотвращаем выделение текста внутри абакуса */
-.abacus-wrapper * {
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-}
-
-/* ========================================
-   Адаптив для мобильных устройств
-   ======================================== */
-
-@media (max-width: 768px) {
-  .abacus-wrapper {
-    right: 10px;
-    bottom: 10px;
-    left: 10px;
-    padding: 12px;
-    max-width: none;
-  }
-  
-  /* Уменьшаем SVG на планшетах */
-  #abacus-svg {
-    transform: scale(0.85);
-    transform-origin: center;
-  }
-}
-
-@media (max-width: 480px) {
-  .abacus-wrapper {
-    right: 5px;
-    bottom: 5px;
-    left: 5px;
-    padding: 10px;
-    max-height: 70vh;
-  }
-  
-  /* Ещё меньше на телефонах */
-  #abacus-svg {
-    transform: scale(0.7);
-    transform-origin: center;
-  }
-  
-  .abacus-title {
-    font-size: 16px;
-  }
-  
-  .abacus-close-btn {
-    width: 32px;
-    height: 32px;
-    font-size: 24px;
-  }
-}
-
-/* Очень маленькие экраны */
-@media (max-width: 360px) {
-  #abacus-svg {
-    transform: scale(0.6);
-  }
-}
-
-/* ========================================
-   Горизонтальная ориентация на мобильных
-   ======================================== */
-
-@media (max-height: 600px) and (orientation: landscape) {
-  .abacus-wrapper {
-    max-height: 85vh;
-    bottom: 5px;
-  }
-  
-  #abacus-svg {
-    transform: scale(0.65);
-  }
-}
-
-/* ========================================
-   Улучшения для производительности
-   ======================================== */
-
-/* Использование GPU для анимаций */
-.abacus-wrapper {
-  will-change: opacity, transform;
-}
-
-#abacus-svg {
-  will-change: transform;
-}
-
-/* Плавная прокрутка внутри контейнера */
-.abacus-wrapper {
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Скрываем scrollbar, но оставляем функциональность */
-.abacus-wrapper::-webkit-scrollbar {
-  width: 6px;
-}
-
-.abacus-wrapper::-webkit-scrollbar-track {
-  background: rgba(192, 166, 127, 0.1);
-  border-radius: 3px;
-}
-
-.abacus-wrapper::-webkit-scrollbar-thumb {
-  background: rgba(192, 166, 127, 0.4);
-  border-radius: 3px;
-}
-
-.abacus-wrapper::-webkit-scrollbar-thumb:hover {
-  background: rgba(192, 166, 127, 0.6);
-}
-
-/* ========================================
-   УДАЛИТЬ старые стили (если остались)
-   ======================================== */
-
-/* 
-УБЕДИТЕСЬ, ЧТО ЭТИ СТИЛИ УДАЛЕНЫ ИЗ trainer-ext.css:
-
-.abacus {
-  display: inline-flex;
-  gap: 18px;
-  ...
-}
-
-.abacus__column {
-  ...
-}
-
-.bead {
-  width: 42px;
-  height: 30px;
-  border-radius: 15px;
-  ...
-}
-
-.bead--upper,
-.bead--lower,
-.bead--engaged {
-  ...
-}
-*/
-
-/* ========================================
-   Fix для правой панели при показе абакуса
-   ======================================== */
-
-/* Увеличиваем z-index правой панели, чтобы кнопка была поверх */
-#panel-controls {
-  position: relative;
-  z-index: 10;
-}
-
-/* Абакус должен быть выше всего остального */
-.abacus-wrapper {
-  z-index: 1000;
-}
-
-/* ========================================
-   Дополнительные визуальные улучшения
-   ======================================== */
-
-/* Добавляем тень при наведении на контейнер */
-.abacus-wrapper:hover {
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
-}
-
-/* Плавный переход для тени */
-.abacus-wrapper {
-  transition: box-shadow 0.3s ease;
-}
-
-/* Затемнение фона при открытом абакусе (опционально) */
-/* Раскомментируйте, если хотите затемнение фона */
-/*
-.abacus-wrapper::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.2);
-  z-index: -1;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  pointer-events: none;
-}
-
-.abacus-wrapper.visible::before {
-  opacity: 1;
-}
-*/
