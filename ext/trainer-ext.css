@@ -1,5 +1,5 @@
-/* Общие стили для примеров */
-:root {
+/* trainer-ext.css — стили для тренажёра */
+:root{
   --gold: var(--color-muted);
   --color-correct: #22c55e;
   --color-incorrect: #ef4444;
@@ -63,7 +63,7 @@
   gap: 30px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 900px){
   .mws-trainer { 
     grid-template-columns: 1fr; 
   }
@@ -85,11 +85,11 @@
    Область примера
    ======================================== */
 #area-example {
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: center !important;
-  align-items: center !important;
-  min-height: 300px !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
 }
 
 /* В режиме столбик - занимает оставшееся место */
@@ -889,7 +889,7 @@ body.game-screen .example__line{
   font-weight: 700 !important;
   text-align: center !important;
   line-height: 1.15 !important;
-  font-size: clamp(22px, calc(70vh / 15), 44px) !important;
+  font-size: var(--example-font-size, clamp(22px, 4vw, 44px)) !important;
 }
 
 body.game-screen .example--inline{
@@ -948,5 +948,65 @@ body.game-screen .screen__header{
   body.game-screen .answer-section{
     width: 90% !important;
     max-width: 420px !important;
+  }
+}
+
+/* =========================================================
+   PATCH v6 — выравнивание правой панели и фиксация скролла
+   ========================================================= */
+
+body.game-screen .mws-trainer {
+  align-items: flex-start !important;
+  justify-content: center !important;
+  height: auto !important;
+  min-height: calc(100vh - 140px) !important;
+  overflow: hidden !important;
+  gap: 24px !important;
+}
+
+body.game-screen .trainer-main {
+  align-self: flex-start !important;
+  height: auto !important;
+  min-height: 88svh !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  padding-top: clamp(24px, 3vh, 48px) !important;
+}
+
+body.game-screen #panel-controls {
+  align-self: flex-start !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  gap: 16px !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+body.game-screen #panel-controls > * {
+  flex-shrink: 0 !important;
+  width: 100% !important;
+}
+
+body.game-screen .results-capsule-extended,
+body.game-screen .progress-container,
+body.game-screen .timer-capsule {
+  flex: 0 0 auto !important;
+}
+
+@media (max-width: 900px) {
+  body.game-screen .mws-trainer {
+    grid-template-columns: 1fr !important;
+    align-items: flex-start !important;
+    overflow: visible !important;
+  }
+
+  body.game-screen #panel-controls {
+    order: 2 !important;
+    width: 100% !important;
+    margin-top: 20px !important;
   }
 }
