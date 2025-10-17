@@ -16,39 +16,34 @@ export function mountTrainerUI(container, { t, state }) {
   console.log("🔧 state.settings.inline =", state.settings.inline);
 
   const digits = parseInt(state.settings.digits, 10) || 1;
-
-  // ИСПРАВЛЕНО: Добавляем +1 к количеству разрядов для абакуса
   const abacusDigits = digits + 1;
 
   console.log(`🧮 Разрядность примеров: ${digits}, разрядность абакуса: ${abacusDigits}`);
 
-  // Определяем режим отображения из настроек
+  // Определяем режим отображения (в строку / в столбик)
   const displayMode = state.settings.inline ? "inline" : "column";
 
-  console.log("📐 РЕЖИМ ОТОБРАЖЕНИЯ:", displayMode);
-  console.log("📐 КЛАСС trainer-main:", `trainer-main--${displayMode}`);
-
-  // Создаём основной layout
+  // === Основной layout ===
   const layout = document.createElement("div");
   layout.className = `mws-trainer mws-trainer--${displayMode}`;
 
   layout.innerHTML = `
     <div class="trainer-main trainer-main--${displayMode}">
       <div id="area-example" class="example-view"></div>
-      
+
       <div class="answer-section">
         <div class="answer-label">Ответ:</div>
         <input type="number" id="answer-input" placeholder="" />
         <button class="btn btn--primary" id="btn-submit">Ответить</button>
       </div>
     </div>
-    
+
     <div id="panel-controls">
       <div class="results-capsule-extended">
         <div class="results-capsule-extended__header">
           <span class="results-capsule-extended__label">Примеры:</span>
           <span class="results-capsule-extended__counter">
-            <span id="stats-completed">0</span> / 
+            <span id="stats-completed">0</span> /
             <span id="stats-total">${getExampleCount(state.settings)}</span>
           </span>
         </div>
@@ -95,7 +90,7 @@ export function mountTrainerUI(container, { t, state }) {
 
   container.appendChild(layout);
 
-  // Создаём плавающий контейнер для абакуса (правый нижний угол)
+  // === Плавающий абакус ===
   const abacusWrapper = document.createElement("div");
   abacusWrapper.className = "abacus-wrapper";
   abacusWrapper.id = "abacus-wrapper";
@@ -108,7 +103,7 @@ export function mountTrainerUI(container, { t, state }) {
   `;
   document.body.appendChild(abacusWrapper);
 
-  // Инициализация компонентов
+  // === Инициализация компонентов ===
   const exampleView = new ExampleView(document.getElementById("area-example"));
   const floatingAbacusContainer = document.getElementById("floating-abacus-container");
   const abacus = new Abacus(floatingAbacusContainer, { digitCount: abacusDigits });
@@ -131,6 +126,7 @@ export function mountTrainerUI(container, { t, state }) {
     }
   }
 
+  // === Состояние сессии ===
   const session = {
     currentExample: null,
     stats: {
@@ -141,7 +137,7 @@ export function mountTrainerUI(container, { t, state }) {
     completed: 0,
   };
 
-  // === 📘 Основная функция отображения примеров ===
+  // === Основная функция показа примеров ===
   function showNextExample() {
     if (session.completed >= session.stats.total) {
       finishSession();
@@ -149,18 +145,26 @@ export function mountTrainerUI(container, { t, state }) {
     }
 
     session.currentExample = generateExample(state.settings);
-
-    // Отображаем шаги
     exampleView.render(session.currentExample.steps, displayMode);
 
-    // === 🔧 Адаптивные атрибуты для CSS ===
+    // === 🔧 Установка адаптивных атрибутов для CSS ===
     const areaExample = document.getElementById("area-example");
-    if (areaExample) {
-      areaExample.setAttribute("data-digits", state.settings.digits || 1);
-      areaExample.setAttribute(
-        "data-actions",
-        state.settings.actions?.count || state.settings.examples?.count || 10
-      );
+    if (areaExample && session.currentExample) {
+      // Фактическое количество шагов
+      const actions = session.currentExample.steps?.length || 1;
+
+      // Фактическое количество разрядов
+      let maxDigits = 1;
+      for (const step of session.currentExample.steps) {
+        const num = parseInt(step.replace(/[^\d]/g, ""), 10);
+        if (!isNaN(num)) {
+          maxDigits = Math.max(maxDigits, num.toString().length);
+        }
+      }
+
+      areaExample.setAttribute("data-actions", actions);
+      areaExample.setAttribute("data-digits", maxDigits);
+      console.log(`📏 CSS адаптация: действий=${actions}, разрядов=${maxDigits}`);
     }
 
     abacus.reset();
@@ -170,10 +174,10 @@ export function mountTrainerUI(container, { t, state }) {
     input.focus();
 
     startTimer("timer");
-
     console.log("📝 Новый пример. Ответ:", session.currentExample.answer);
   }
 
+  // === Проверка ответа ===
   function checkAnswer() {
     const input = document.getElementById("answer-input");
     const userAnswer = parseInt(input.value, 10);
@@ -184,7 +188,6 @@ export function mountTrainerUI(container, { t, state }) {
     }
 
     stopTimer();
-
     const isCorrect = userAnswer === session.currentExample.answer;
 
     if (isCorrect) session.stats.correct++;
@@ -194,11 +197,10 @@ export function mountTrainerUI(container, { t, state }) {
     updateStats();
     playSound(isCorrect ? "correct" : "wrong");
 
-    setTimeout(() => {
-      showNextExample();
-    }, 500);
+    setTimeout(() => showNextExample(), 500);
   }
 
+  // === Обновление статистики ===
   function updateStats() {
     const { correct, incorrect, total } = session.stats;
     const completed = session.completed;
@@ -216,6 +218,7 @@ export function mountTrainerUI(container, { t, state }) {
     document.getElementById("percent-incorrect").textContent = percentIncorrect + "%";
   }
 
+  // === Завершение сессии ===
   function finishSession() {
     abacusWrapper.classList.remove("visible");
     if (window.finishTraining) {
@@ -226,12 +229,12 @@ export function mountTrainerUI(container, { t, state }) {
     }
   }
 
+  // === Обработчики ===
   document.getElementById("btn-show-abacus").addEventListener("click", toggleAbacusVisibility);
   document.getElementById("btn-close-abacus").addEventListener("click", () => {
     abacusWrapper.classList.remove("visible");
     document.getElementById("btn-show-abacus").textContent = "🧮 Показать абакус";
   });
-
   document.getElementById("btn-submit").addEventListener("click", checkAnswer);
   document.getElementById("answer-input").addEventListener("keypress", (e) => {
     if (e.key === "Enter") checkAnswer();
