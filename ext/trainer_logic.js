@@ -1,6 +1,6 @@
 // ext/trainer_logic.js - Логика тренажёра с новым SVG абакусом
 import { ExampleView } from "./components/ExampleView.js";
-import { Abacus } from "./components/AbacusNew.js"; // ИЗМЕНЕНО: новый абакус
+import { Abacus } from "./components/AbacusNew.js";
 import { generateExample } from "./core/generator.js";
 import { startTimer, stopTimer } from "../js/utils/timer.js";
 import { playSound } from "../js/utils/sound.js";
@@ -16,6 +16,11 @@ export function mountTrainerUI(container, { t, state }) {
   console.log('🔧 state.settings.inline =', state.settings.inline);
   
   const digits = parseInt(state.settings.digits, 10) || 1;
+  
+  // ИСПРАВЛЕНО: Добавляем +1 к количеству разрядов для абакуса
+  const abacusDigits = digits + 1;
+  
+  console.log(`🧮 Разрядность примеров: ${digits}, разрядность абакуса: ${abacusDigits}`);
   
   // Определяем режим отображения из настроек
   const displayMode = state.settings.inline ? 'inline' : 'column';
@@ -115,11 +120,11 @@ export function mountTrainerUI(container, { t, state }) {
   // Инициализация компонентов
   const exampleView = new ExampleView(document.getElementById('area-example'));
   
-  // ИЗМЕНЕНО: Создаём новый SVG абакус в плавающем контейнере
+  // ИСПРАВЛЕНО: Создаём абакус с +1 разрядом
   const floatingAbacusContainer = document.getElementById('floating-abacus-container');
-  const abacus = new Abacus(floatingAbacusContainer, { digitCount: digits });
+  const abacus = new Abacus(floatingAbacusContainer, { digitCount: abacusDigits });
   
-  console.log(`🧮 Новый SVG абакус создан с ${digits} разрядами`);
+  console.log(`🧮 Новый SVG абакус создан с ${abacusDigits} стойками (для ${digits}-значных чисел)`);
   
   // Проверяем, нужно ли показывать абакус автоматически
   const shouldShowAbacus = state.settings.mode === 'abacus';
@@ -293,7 +298,7 @@ export function mountTrainerUI(container, { t, state }) {
   // Запускаем первый пример
   showNextExample();
   
-  console.log(`✅ Тренажёр запущен с новым SVG абакусом (${digits} разрядов)`);
+  console.log(`✅ Тренажёр запущен с новым SVG абакусом (${abacusDigits} стоек для ${digits}-значных чисел)`);
   console.log(`🧮 Абакус ${shouldShowAbacus ? 'показан автоматически' : 'скрыт'} (mode: ${state.settings.mode})`);
 }
 
