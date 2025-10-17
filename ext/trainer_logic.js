@@ -13,31 +13,23 @@ import { playSound } from "../js/utils/sound.js";
 export function mountTrainerUI(container, { t, state }) {
   console.log("🎮 Монтируем UI тренажёра с новым SVG абакусом...");
   console.log("📋 Настройки:", state.settings);
-  console.log("🔧 state.settings.inline =", state.settings.inline);
 
   const digits = parseInt(state.settings.digits, 10) || 1;
   const abacusDigits = digits + 1;
-
-  console.log(`🧮 Разрядность примеров: ${digits}, разрядность абакуса: ${abacusDigits}`);
-
-  // Определяем режим отображения (в строку / в столбик)
   const displayMode = state.settings.inline ? "inline" : "column";
 
-  // === Основной layout ===
+  // === Layout ===
   const layout = document.createElement("div");
   layout.className = `mws-trainer mws-trainer--${displayMode}`;
-
   layout.innerHTML = `
     <div class="trainer-main trainer-main--${displayMode}">
       <div id="area-example" class="example-view"></div>
-
       <div class="answer-section">
         <div class="answer-label">Ответ:</div>
         <input type="number" id="answer-input" placeholder="" />
         <button class="btn btn--primary" id="btn-submit">Ответить</button>
       </div>
     </div>
-
     <div id="panel-controls">
       <div class="results-capsule-extended">
         <div class="results-capsule-extended__header">
@@ -81,13 +73,10 @@ export function mountTrainerUI(container, { t, state }) {
       </div>
 
       <div class="panel-card panel-card--compact">
-        <button class="btn btn--secondary btn--fullwidth" id="btn-show-abacus">
-          🧮 Показать абакус
-        </button>
+        <button class="btn btn--secondary btn--fullwidth" id="btn-show-abacus">🧮 Показать абакус</button>
       </div>
     </div>
   `;
-
   container.appendChild(layout);
 
   // === Плавающий абакус ===
@@ -103,10 +92,8 @@ export function mountTrainerUI(container, { t, state }) {
   `;
   document.body.appendChild(abacusWrapper);
 
-  // === Инициализация компонентов ===
   const exampleView = new ExampleView(document.getElementById("area-example"));
-  const floatingAbacusContainer = document.getElementById("floating-abacus-container");
-  const abacus = new Abacus(floatingAbacusContainer, { digitCount: abacusDigits });
+  const abacus = new Abacus(document.getElementById("floating-abacus-container"), { digitCount: abacusDigits });
 
   const shouldShowAbacus = state.settings.mode === "abacus";
   if (shouldShowAbacus) {
@@ -114,30 +101,14 @@ export function mountTrainerUI(container, { t, state }) {
     document.getElementById("btn-show-abacus").textContent = "🧮 Скрыть абакус";
   }
 
-  function toggleAbacusVisibility() {
-    const isVisible = abacusWrapper.classList.contains("visible");
-    const btn = document.getElementById("btn-show-abacus");
-    if (isVisible) {
-      abacusWrapper.classList.remove("visible");
-      btn.textContent = "🧮 Показать абакус";
-    } else {
-      abacusWrapper.classList.add("visible");
-      btn.textContent = "🧮 Скрыть абакус";
-    }
-  }
-
   // === Состояние сессии ===
   const session = {
     currentExample: null,
-    stats: {
-      correct: 0,
-      incorrect: 0,
-      total: getExampleCount(state.settings),
-    },
+    stats: { correct: 0, incorrect: 0, total: getExampleCount(state.settings) },
     completed: 0,
   };
 
-  // === Основная функция показа примеров ===
+  // === Генерация нового примера ===
   function showNextExample() {
     if (session.completed >= session.stats.total) {
       finishSession();
@@ -147,32 +118,30 @@ export function mountTrainerUI(container, { t, state }) {
     session.currentExample = generateExample(state.settings);
     exampleView.render(session.currentExample.steps, displayMode);
 
-    // === 🔧 Установка адаптивных атрибутов для CSS ===
+    // === Адаптив под PATCH v10 ===
     const areaExample = document.getElementById("area-example");
     if (areaExample && session.currentExample) {
-      // Фактическое количество шагов
       const actions = session.currentExample.steps?.length || 1;
-
-      // Фактическое количество разрядов
       let maxDigits = 1;
       for (const step of session.currentExample.steps) {
         const num = parseInt(step.replace(/[^\d]/g, ""), 10);
-        if (!isNaN(num)) {
-          maxDigits = Math.max(maxDigits, num.toString().length);
-        }
+        if (!isNaN(num)) maxDigits = Math.max(maxDigits, num.toString().length);
       }
-
       areaExample.setAttribute("data-actions", actions);
       areaExample.setAttribute("data-digits", maxDigits);
-      console.log(`📏 CSS адаптация: действий=${actions}, разрядов=${maxDigits}`);
+
+      // 🔧 передаём переменные в CSS для адаптации размера цифр
+      const root = document.documentElement;
+      const safeActions = Math.min(actions, 15);
+      root.style.setProperty("--actions", safeActions);
+      root.style.setProperty("--base-font", `${Math.max(24, 60 - maxDigits * 4)}px`);
+      console.log(`🎨 PATCH v10 применён: actions=${safeActions}, digits=${maxDigits}`);
     }
 
     abacus.reset();
-
     const input = document.getElementById("answer-input");
     input.value = "";
     input.focus();
-
     startTimer("timer");
     console.log("📝 Новый пример. Ответ:", session.currentExample.answer);
   }
@@ -181,7 +150,6 @@ export function mountTrainerUI(container, { t, state }) {
   function checkAnswer() {
     const input = document.getElementById("answer-input");
     const userAnswer = parseInt(input.value, 10);
-
     if (isNaN(userAnswer)) {
       alert("Пожалуйста, введи число");
       return;
@@ -189,10 +157,8 @@ export function mountTrainerUI(container, { t, state }) {
 
     stopTimer();
     const isCorrect = userAnswer === session.currentExample.answer;
-
     if (isCorrect) session.stats.correct++;
     else session.stats.incorrect++;
-
     session.completed++;
     updateStats();
     playSound(isCorrect ? "correct" : "wrong");
@@ -207,18 +173,14 @@ export function mountTrainerUI(container, { t, state }) {
     document.getElementById("stats-completed").textContent = completed;
     document.getElementById("stats-correct").textContent = correct;
     document.getElementById("stats-incorrect").textContent = incorrect;
-
     const percentCorrect = completed > 0 ? Math.round((correct / completed) * 100) : 0;
     const percentIncorrect = completed > 0 ? Math.round((incorrect / completed) * 100) : 0;
-
     document.getElementById("progress-correct").style.width = percentCorrect + "%";
     document.getElementById("progress-incorrect").style.width = percentIncorrect + "%";
-
     document.getElementById("percent-correct").textContent = percentCorrect + "%";
     document.getElementById("percent-incorrect").textContent = percentIncorrect + "%";
   }
 
-  // === Завершение сессии ===
   function finishSession() {
     abacusWrapper.classList.remove("visible");
     if (window.finishTraining) {
@@ -229,8 +191,14 @@ export function mountTrainerUI(container, { t, state }) {
     }
   }
 
-  // === Обработчики ===
-  document.getElementById("btn-show-abacus").addEventListener("click", toggleAbacusVisibility);
+  // === События ===
+  document.getElementById("btn-show-abacus").addEventListener("click", () => {
+    abacusWrapper.classList.toggle("visible");
+    const btn = document.getElementById("btn-show-abacus");
+    btn.textContent = abacusWrapper.classList.contains("visible")
+      ? "🧮 Скрыть абакус"
+      : "🧮 Показать абакус";
+  });
   document.getElementById("btn-close-abacus").addEventListener("click", () => {
     abacusWrapper.classList.remove("visible");
     document.getElementById("btn-show-abacus").textContent = "🧮 Показать абакус";
@@ -240,16 +208,13 @@ export function mountTrainerUI(container, { t, state }) {
     if (e.key === "Enter") checkAnswer();
   });
 
-  // Первый пример
+  // === Старт ===
   showNextExample();
-
   console.log(`✅ Тренажёр запущен (${abacusDigits} стоек, ${digits}-значные числа)`);
 }
 
 /**
  * Получить количество примеров из настроек
- * @param {Object} settings
- * @returns {number}
  */
 function getExampleCount(settings) {
   return settings.examples.infinite ? 10 : settings.examples.count;
