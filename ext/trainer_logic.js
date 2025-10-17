@@ -1,4 +1,3 @@
-// ext/trainer_logic.js - Логика тренажёра с новым SVG абакусом
 import { ExampleView } from "./components/ExampleView.js";
 import { Abacus } from "./components/AbacusNew.js";
 import { generateExample } from "./core/generator.js";
