@@ -889,7 +889,7 @@ body.game-screen .example__line{
   font-weight: 700 !important;
   text-align: center !important;
   line-height: 1.15 !important;
-  font-size: var(--example-font-size, clamp(22px, 4vw, 44px)) !important;
+   font-size: var(--example-font-size, clamp(24px, 4vw, 56px)) !important;
 }
 
 body.game-screen .example--inline{
@@ -898,7 +898,7 @@ body.game-screen .example--inline{
   justify-content: center !important;
   gap: 12px !important;
   max-width: 90% !important;
-  font-size: clamp(22px, 3vw, 42px) !important;
+  font-size: var(--example-font-size, clamp(22px, 3vw, 42px)) !important;
   text-align: center !important;
   word-break: keep-all !important;
   overflow-wrap: anywhere !important;
