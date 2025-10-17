@@ -1,4 +1,4 @@
-// ext/components/Abacus.js - Интерактивный соробан
+// ext/components/Abacus.js - Интерактивный соробан с Drag & Drop
 
 /**
  * Abacus - компонент интерактивного абакуса (соробана)
@@ -20,6 +20,21 @@ export class Abacus {
       upper: 0, // 0 = внизу (не активна), 1 = вверху (активна)
       lower: 0  // 0-4 бусины снизу активны
     }));
+    
+    // НОВОЕ: Состояние перетаскивания
+    this.dragState = {
+      active: false,
+      beadElement: null,
+      columnIndex: null,
+      beadType: null, // 'upper' или 'lower'
+      beadIndex: null, // для lower бусин (0-3)
+      startY: 0,
+      initialTransform: 0
+    };
+    
+    // Привязываем методы к контексту (для removeEventListener)
+    this.onDrag = this.onDrag.bind(this);
+    this.stopDrag = this.stopDrag.bind(this);
     
     this.render();
   }
@@ -59,12 +74,15 @@ export class Abacus {
     upperBead.dataset.col = colIndex;
     upperBead.dataset.type = 'upper';
     upperBead.textContent = '5';
+    upperBead.style.transition = 'transform 0.3s linear'; // НОВОЕ: плавность
     
     if (this.state[colIndex].upper === 1) {
       upperBead.classList.add('bead--engaged');
     }
     
-    upperBead.addEventListener('click', () => this.toggleUpper(colIndex));
+    // НОВОЕ: Drag & Drop вместо клика
+    this.attachDragHandlers(upperBead, colIndex, 'upper', null);
+    
     upperSection.appendChild(upperBead);
     
     // Разделитель (bar)
@@ -81,13 +99,16 @@ export class Abacus {
       lowerBead.dataset.col = colIndex;
       lowerBead.dataset.index = i;
       lowerBead.textContent = '1';
+      lowerBead.style.transition = 'transform 0.3s linear'; // НОВОЕ: плавность
       
       // Проверяем, активна ли эта бусина
       if (i < this.state[colIndex].lower) {
         lowerBead.classList.add('bead--engaged');
       }
       
-      lowerBead.addEventListener('click', () => this.toggleLower(colIndex, i));
+      // НОВОЕ: Drag & Drop вместо клика
+      this.attachDragHandlers(lowerBead, colIndex, 'lower', i);
+      
       lowerSection.appendChild(lowerBead);
     }
     
@@ -96,33 +117,147 @@ export class Abacus {
   }
   
   /**
-   * Переключение верхней бусины
-   * @param {number} colIndex - Индекс стойки
+   * Привязка drag & drop обработчиков к бусине
+   * @param {HTMLElement} beadElement - DOM элемент бусины
+   * @param {number} colIndex - Индекс колонки
+   * @param {string} beadType - 'upper' или 'lower'
+   * @param {number|null} beadIndex - Индекс для lower бусин (0-3)
    */
-  toggleUpper(colIndex) {
-    this.state[colIndex].upper = this.state[colIndex].upper === 0 ? 1 : 0;
-    this.updateColumn(colIndex);
-    console.log(`🧮 Стойка ${colIndex}: верхняя = ${this.state[colIndex].upper}`);
+  attachDragHandlers(beadElement, colIndex, beadType, beadIndex) {
+    // Мышь: начало перетаскивания
+    beadElement.addEventListener('mousedown', (e) => {
+      this.startDrag(e, beadElement, colIndex, beadType, beadIndex);
+    });
+    
+    // Touch: начало перетаскивания
+    beadElement.addEventListener('touchstart', (e) => {
+      this.startDrag(e, beadElement, colIndex, beadType, beadIndex);
+    });
+    
+    // Предотвращаем выделение текста
+    beadElement.addEventListener('selectstart', (e) => e.preventDefault());
   }
   
   /**
-   * Переключение нижних бусин
-   * @param {number} colIndex - Индекс стойки
-   * @param {number} beadIndex - Индекс бусины (0-3)
+   * Начало перетаскивания
    */
-  toggleLower(colIndex, beadIndex) {
-    const current = this.state[colIndex].lower;
+  startDrag(event, beadElement, colIndex, beadType, beadIndex) {
+    event.preventDefault();
     
-    // Если кликнули на уже активную бусину -> сбрасываем всё до неё
-    if (beadIndex < current) {
-      this.state[colIndex].lower = beadIndex;
+    // Определяем начальную Y-координату
+    const clientY = event.type.includes('touch') 
+      ? event.touches[0].clientY 
+      : event.clientY;
+    
+    // Получаем текущий transform
+    const style = window.getComputedStyle(beadElement);
+    const matrix = new DOMMatrix(style.transform);
+    const currentTransformY = matrix.m42; // translateY value
+    
+    this.dragState = {
+      active: true,
+      beadElement,
+      columnIndex: colIndex,
+      beadType,
+      beadIndex,
+      startY: clientY,
+      initialTransform: currentTransformY
+    };
+    
+    // Убираем transition на время перетаскивания
+    beadElement.style.transition = 'none';
+    
+    // Добавляем визуальный feedback
+    beadElement.style.cursor = 'grabbing';
+    beadElement.style.zIndex = '10';
+    
+    // Привязываем глобальные обработчики
+    document.addEventListener('mousemove', this.onDrag);
+    document.addEventListener('mouseup', this.stopDrag);
+    document.addEventListener('touchmove', this.onDrag);
+    document.addEventListener('touchend', this.stopDrag);
+    
+    console.log(`🧮 Начало drag: колонка ${colIndex}, тип ${beadType}`);
+  }
+  
+  /**
+   * Процесс перетаскивания
+   */
+  onDrag(event) {
+    if (!this.dragState.active) return;
+    
+    const clientY = event.type.includes('touch') 
+      ? event.touches[0].clientY 
+      : event.clientY;
+    
+    const deltaY = clientY - this.dragState.startY;
+    const newTransform = this.dragState.initialTransform + deltaY;
+    
+    // Ограничиваем движение по оси Y
+    const { beadType } = this.dragState;
+    let clampedTransform;
+    
+    if (beadType === 'upper') {
+      // Верхняя бусина: от 0 (вверху) до 50px (внизу у bar)
+      clampedTransform = Math.max(0, Math.min(50, newTransform));
     } else {
-      // Если кликнули на неактивную -> активируем до неё включительно
-      this.state[colIndex].lower = beadIndex + 1;
+      // Нижние бусины: от -40px (вверху у bar) до 0 (внизу)
+      clampedTransform = Math.max(-40, Math.min(0, newTransform));
     }
     
-    this.updateColumn(colIndex);
-    console.log(`🧮 Стойка ${colIndex}: нижние = ${this.state[colIndex].lower}`);
+    // Применяем transform
+    this.dragState.beadElement.style.transform = `translateY(${clampedTransform}px)`;
+  }
+  
+  /**
+   * Окончание перетаскивания
+   */
+  stopDrag(event) {
+    if (!this.dragState.active) return;
+    
+    const { beadElement, columnIndex, beadType, beadIndex } = this.dragState;
+    
+    // Получаем финальную позицию
+    const style = window.getComputedStyle(beadElement);
+    const matrix = new DOMMatrix(style.transform);
+    const finalTransformY = matrix.m42;
+    
+    // Возвращаем transition
+    beadElement.style.transition = 'transform 0.3s linear';
+    beadElement.style.cursor = 'grab';
+    beadElement.style.zIndex = '';
+    
+    // Определяем новое состояние на основе позиции
+    if (beadType === 'upper') {
+      // Если бусина ниже 25px (середина) → engaged (1), иначе → 0
+      const shouldEngage = finalTransformY > 25;
+      this.state[columnIndex].upper = shouldEngage ? 1 : 0;
+    } else {
+      // Для нижних бусин: если выше -20px → engaged
+      const shouldEngage = finalTransformY < -20;
+      
+      if (shouldEngage) {
+        // Активируем все бусины до этой включительно
+        this.state[columnIndex].lower = beadIndex + 1;
+      } else {
+        // Деактивируем все бусины после этой
+        this.state[columnIndex].lower = Math.min(this.state[columnIndex].lower, beadIndex);
+      }
+    }
+    
+    // Обновляем колонку
+    this.updateColumn(columnIndex);
+    
+    // Сбрасываем drag state
+    this.dragState.active = false;
+    
+    // Убираем глобальные обработчики
+    document.removeEventListener('mousemove', this.onDrag);
+    document.removeEventListener('mouseup', this.stopDrag);
+    document.removeEventListener('touchmove', this.onDrag);
+    document.removeEventListener('touchend', this.stopDrag);
+    
+    console.log(`🧮 Конец drag: колонка ${columnIndex}, значение = ${this.getColumnValue(columnIndex)}`);
   }
   
   /**
@@ -137,8 +272,10 @@ export class Abacus {
     const upperBead = column.querySelector('.bead--upper');
     if (this.state[colIndex].upper === 1) {
       upperBead.classList.add('bead--engaged');
+      upperBead.style.transform = 'translateY(50px)';
     } else {
       upperBead.classList.remove('bead--engaged');
+      upperBead.style.transform = 'translateY(0)';
     }
     
     // Обновляем нижние бусины
@@ -146,8 +283,10 @@ export class Abacus {
     lowerBeads.forEach((bead, index) => {
       if (index < this.state[colIndex].lower) {
         bead.classList.add('bead--engaged');
+        bead.style.transform = 'translateY(-8px)';
       } else {
         bead.classList.remove('bead--engaged');
+        bead.style.transform = 'translateY(0)';
       }
     });
   }
