@@ -1237,26 +1237,26 @@ body.game-screen #answer-input {
 }
 */
 /* =========================================================
-   PATCH v10 — Адаптация размера цифр по количеству действий и разрядов
+   PATCH v10 — финальная адаптация под максимум 15 строк
    ========================================================= */
 
-/* Базовое правило: чем больше действий (строк), тем меньше шрифт */
+/* Базовое правило: шрифт зависит от количества действий и высоты экрана */
 #area-example[data-actions] .example__line {
-  /* 90vh — почти вся высота белого блока, делим её на количество строк */
-  font-size: calc(min(5vw, (90vh / (var(--actions, 10)) * 0.6)));
-  line-height: 1.1;
+  /* 90vh — высота белого блока; делим на количество строк, ограничивая 15 */
+  font-size: calc(min(5vw, (90vh / min(var(--actions, 15), 15)) * 0.7)) !important;
+  line-height: 1.05;
 }
 
-/* Механизм переменных через data-атрибуты */
-#area-example[data-actions="1"] { --actions: 1; }
-#area-example[data-actions="2"] { --actions: 2; }
-#area-example[data-actions="3"] { --actions: 3; }
-#area-example[data-actions="4"] { --actions: 4; }
-#area-example[data-actions="5"] { --actions: 5; }
-#area-example[data-actions="6"] { --actions: 6; }
-#area-example[data-actions="7"] { --actions: 7; }
-#area-example[data-actions="8"] { --actions: 8; }
-#area-example[data-actions="9"] { --actions: 9; }
+/* Переменные для количества действий */
+#area-example[data-actions="1"]  { --actions: 1; }
+#area-example[data-actions="2"]  { --actions: 2; }
+#area-example[data-actions="3"]  { --actions: 3; }
+#area-example[data-actions="4"]  { --actions: 4; }
+#area-example[data-actions="5"]  { --actions: 5; }
+#area-example[data-actions="6"]  { --actions: 6; }
+#area-example[data-actions="7"]  { --actions: 7; }
+#area-example[data-actions="8"]  { --actions: 8; }
+#area-example[data-actions="9"]  { --actions: 9; }
 #area-example[data-actions="10"] { --actions: 10; }
 #area-example[data-actions="11"] { --actions: 11; }
 #area-example[data-actions="12"] { --actions: 12; }
@@ -1264,18 +1264,13 @@ body.game-screen #answer-input {
 #area-example[data-actions="14"] { --actions: 14; }
 #area-example[data-actions="15"] { --actions: 15; }
 
-/* Корректировка для длинных чисел — чем больше разрядов, тем меньше ширина */
-#area-example[data-digits="1"] .example__line { font-size: calc(var(--base-font, 56px) * 1.0); }
-#area-example[data-digits="2"] .example__line { font-size: calc(var(--base-font, 56px) * 0.9); }
-#area-example[data-digits="3"] .example__line { font-size: calc(var(--base-font, 56px) * 0.8); }
-#area-example[data-digits="4"] .example__line { font-size: calc(var(--base-font, 56px) * 0.7); }
-#area-example[data-digits="5"] .example__line { font-size: calc(var(--base-font, 56px) * 0.6); }
-#area-example[data-digits="6"] .example__line { font-size: calc(var(--base-font, 56px) * 0.55); }
-#area-example[data-digits="7"] .example__line { font-size: calc(var(--base-font, 56px) * 0.5); }
-#area-example[data-digits="8"] .example__line { font-size: calc(var(--base-font, 56px) * 0.45); }
-#area-example[data-digits="9"] .example__line { font-size: calc(var(--base-font, 56px) * 0.4); }
-
-/* Максимум 15 строк по высоте экрана */
-#area-example[data-actions="15"] .example__line {
-  font-size: calc(min(3vw, 90vh / 15));
-}
+/* Коррекция по разрядности — длинные числа слегка уменьшаем */
+#area-example[data-digits="1"]  .example__line { font-size: calc((90vh / min(var(--actions, 15), 15)) * 0.9) !important; }
+#area-example[data-digits="2"]  .example__line { font-size: calc((90vh / min(var(--actions, 15), 15)) * 0.85) !important; }
+#area-example[data-digits="3"]  .example__line { font-size: calc((90vh / min(var(--actions, 15), 15)) * 0.8) !important; }
+#area-example[data-digits="4"]  .example__line { font-size: calc((90vh / min(var(--actions, 15), 15)) * 0.75) !important; }
+#area-example[data-digits="5"]  .example__line { font-size: calc((90vh / min(var(--actions, 15), 15)) * 0.7) !important; }
+#area-example[data-digits="6"]  .example__line { font-size: calc((90vh / min(var(--actions, 15), 15)) * 0.65) !important; }
+#area-example[data-digits="7"]  .example__line { font-size: calc((90vh / min(var(--actions, 15), 15)) * 0.6) !important; }
+#area-example[data-digits="8"]  .example__line { font-size: calc((90vh / min(var(--actions, 15), 15)) * 0.55) !important; }
+#area-example[data-digits="9"]  .example__line { font-size: calc((90vh / min(var(--actions, 15), 15)) * 0.5) !important; }
