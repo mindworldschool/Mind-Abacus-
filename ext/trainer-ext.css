@@ -1010,3 +1010,107 @@ body.game-screen .timer-capsule {
     margin-top: 20px !important;
   }
 }
+/* =========================================================
+   PATCH v7 — адаптив размера цифр и позиционирования блока ответа
+   ========================================================= */
+
+/* Контейнер с примерами — адаптивная сетка */
+#area-example {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  text-align: center !important;
+}
+
+/* Колонка с примерами — растягивается по высоте */
+.example--column {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  max-height: 80vh !important;
+  overflow: hidden !important;
+  padding-top: 0.5vh !important;
+  gap: clamp(0.2vh, 0.5vh, 1vh) !important;
+}
+
+/* Каждая строка примера */
+.example__line {
+  font-family: "Baloo 2", system-ui, sans-serif !important;
+  color: var(--color-muted) !important;
+  font-weight: 700 !important;
+  text-align: center !important;
+  line-height: 1.1 !important;
+  margin: 0.3vh 0 !important;
+  word-break: break-all !important;
+  transition: font-size 0.25s ease !important;
+}
+
+/* Размер шрифта — по разрядности */
+[data-digits="1"] .example__line { font-size: clamp(48px, 6vw, 64px) !important; }
+[data-digits="2"] .example__line { font-size: clamp(44px, 5.5vw, 58px) !important; }
+[data-digits="3"] .example__line { font-size: clamp(40px, 5vw, 52px) !important; }
+[data-digits="4"] .example__line { font-size: clamp(36px, 4.5vw, 46px) !important; }
+[data-digits="5"] .example__line { font-size: clamp(32px, 4vw, 40px) !important; }
+[data-digits="6"] .example__line { font-size: clamp(28px, 3.5vw, 36px) !important; }
+[data-digits="7"] .example__line { font-size: clamp(26px, 3vw, 32px) !important; }
+[data-digits="8"] .example__line { font-size: clamp(22px, 2.8vw, 28px) !important; }
+[data-digits="9"] .example__line { font-size: clamp(18px, 2.4vw, 24px) !important; }
+
+/* Уменьшение размера при большом количестве действий */
+[data-actions="10"] .example__line,
+[data-actions="11"] .example__line,
+[data-actions="12"] .example__line,
+[data-actions="13"] .example__line,
+[data-actions="14"] .example__line,
+[data-actions="15"] .example__line {
+  font-size: clamp(18px, 2vw, 22px) !important;
+}
+
+/* Адаптив для горизонтального режима (в строку) */
+.example--inline {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 12px !important;
+  width: 100% !important;
+  text-align: center !important;
+  word-break: keep-all !important;
+  overflow-wrap: anywhere !important;
+}
+
+/* Адаптив блока ответов */
+.answer-section {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 14px !important;
+  width: clamp(240px, 30vw, 340px) !important;
+}
+
+.answer-section #answer-input {
+  width: 100% !important;
+  height: clamp(60px, 8vh, 80px) !important;
+  font-size: clamp(28px, 4vw, 52px) !important;
+  text-align: center !important;
+  border-radius: 12px !important;
+}
+
+/* Мобильная адаптация */
+@media (max-width: 900px) {
+  .example__line {
+    font-size: clamp(22px, 5vw, 32px) !important;
+  }
+  .answer-section {
+    width: 90% !important;
+    max-width: 420px !important;
+  }
+}
