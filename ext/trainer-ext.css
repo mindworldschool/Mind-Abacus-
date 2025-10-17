@@ -10,7 +10,7 @@
    ======================================== */
 .mws-trainer {
   width: 100%;
-  height: 100vh; /* занимает всю высоту экрана устройства */
+  height: 100vh;
   display: grid;
   grid-template-columns: 1fr 360px;
   justify-content: center;
@@ -21,8 +21,8 @@
 
 /* Левая колонка с примером и ответом */
 .trainer-main {
-  width: 90vw;          /* 90% ширины устройства */
-  height: 90vh;         /* 90% высоты экрана */
+  width: 90vw;
+  height: 90vh;
   max-width: 1400px;
   background: #fff;
   border-radius: 20px;
@@ -33,6 +33,7 @@
   justify-content: center;
   align-items: center;
 }
+
 /* Мобильная версия — экран на всю ширину */
 @media (max-width: 768px) {
   .mws-trainer {
@@ -47,6 +48,7 @@
     padding: 6vh 4vw;
   }
 }
+
 /* Режим столбик (по умолчанию) */
 .trainer-main--column {
   flex-direction: row;
@@ -393,62 +395,80 @@
 }
 
 /* ========================================
-   Кнопка "Показать абакус"
+   Плавающий абакус (правый нижний угол)
    ======================================== */
-.btn--fullwidth {
-  width: 100%;
-}
-
-#btn-toggle-abacus {
-  padding: 12px 16px;
-  font-size: 15px;
-  font-weight: 600;
+.abacus-wrapper {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1000;
+  background: linear-gradient(135deg, #f3e9da, #efe5d6);
   border-radius: var(--radius-medium);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  padding: 16px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow: auto;
+  display: none;
 }
 
-/* ========================================
-   Контейнер абакуса
-   ======================================== */
-.abacus-container {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.4s ease, padding 0.4s ease;
-  background: var(--color-surface);
-  border-radius: var(--radius-medium);
-  box-shadow: var(--shadow-soft);
+.abacus-wrapper.visible {
+  display: block;
+  animation: slideInFromBottom 0.4s ease-out;
 }
 
-.abacus-container.visible {
-  max-height: 600px;
-  padding: 20px;
-  animation: slideInRight 0.5s ease-out;
-}
-
-@keyframes slideInRight {
+@keyframes slideInFromBottom {
   from {
     opacity: 0;
-    transform: translateX(20px) scale(0.95);
+    transform: translateY(100px);
   }
   to {
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translateY(0);
   }
 }
 
-.abacus-container .abacus {
-  animation: expandAbacus 0.6s ease-out;
-  transform-origin: right center;
+/* Заголовок абакуса с кнопкой закрытия */
+.abacus-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid rgba(192, 166, 127, 0.4);
 }
 
-@keyframes expandAbacus {
-  from {
-    transform: scaleX(0);
-    opacity: 0;
-  }
-  to {
-    transform: scaleX(1);
-    opacity: 1;
-  }
+.abacus-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-muted);
+  font-family: "Baloo 2", cursive;
+}
+
+.abacus-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-muted);
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: var(--transition);
+}
+
+.abacus-close-btn:hover {
+  background: rgba(192, 166, 127, 0.3);
+  transform: scale(1.1);
+}
+
+.abacus-close-btn:active {
+  transform: scale(0.95);
 }
 
 /* ========================================
@@ -512,7 +532,7 @@
   box-shadow: 
     0 4px 8px rgba(0, 0, 0, 0.2),
     inset 0 2px 4px rgba(255, 255, 255, 0.4);
-  cursor: pointer;
+  cursor: grab;
   user-select: none;
   display: flex;
   align-items: center;
@@ -520,19 +540,19 @@
   font-weight: 700;
   font-size: 13px;
   color: #8b6f47;
-  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  transition: transform 0.3s linear;
+  position: relative;
 }
 
 .bead:hover {
   background: linear-gradient(135deg, #ffd700, #ffc107);
-  transform: scale(1.05);
   box-shadow: 
     0 6px 12px rgba(0, 0, 0, 0.25),
     inset 0 2px 6px rgba(255, 255, 255, 0.5);
 }
 
 .bead:active {
-  transform: scale(0.95);
+  cursor: grabbing;
 }
 
 .bead--upper {
@@ -553,14 +573,6 @@
 
 .bead--engaged:hover {
   background: linear-gradient(135deg, #86efac, #4ade80);
-}
-
-.bead--upper.bead--engaged {
-  transform: translateY(50px);
-}
-
-.bead--lower.bead--engaged {
-  transform: translateY(-8px);
 }
 
 /* ========================================
@@ -660,6 +672,19 @@
     width: 100%;
     max-width: 400px;
   }
+  
+  .abacus-wrapper {
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    padding: 12px;
+    max-width: none;
+  }
+  
+  .abacus {
+    transform: scale(0.75);
+    transform-origin: center;
+  }
 }
 
 @media (max-width: 640px) {
@@ -717,9 +742,7 @@
   }
   
   .abacus {
-    gap: 14px;
-    padding: 16px;
-    transform: scale(0.85);
+    transform: scale(0.6);
   }
   
   .abacus__column {
@@ -733,20 +756,27 @@
     font-size: 11px;
   }
 }
+
+@media (max-width: 480px) {
+  .abacus {
+    transform: scale(0.6);
+  }
+}
+
 /* ========================================
    Белый экран тренировки (финальная версия)
    ======================================== */
 
 :root {
-  --trainer-w: 90vw;   /* ширина белого блока ≈ 90 % экрана */
-  --trainer-h: 90svh;  /* высота белого блока ≈ 90 % экрана */
-  --panel-w: 360px;    /* ширина правой панели */
+  --trainer-w: 90vw;
+  --trainer-h: 90svh;
+  --panel-w: 360px;
 }
 
 /* Контейнер тренировки */
 .mws-trainer {
   width: 100%;
-  min-height: calc(100vh - 140px); /* чтобы не перекрывать шапку */
+  min-height: calc(100vh - 140px);
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--panel-w);
   align-items: center;
@@ -757,9 +787,9 @@
 
 /* Главная белая карточка */
 .trainer-main {
-  width: min(100%, var(--trainer-w)); /* не шире 90 % экрана */
-  min-height: var(--trainer-h);       /* не ниже 90 % экрана */
-  height: auto;                       /* может расти при большом контенте */
+  width: min(100%, var(--trainer-w));
+  min-height: var(--trainer-h);
+  height: auto;
   background: #fff;
   border-radius: 20px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
@@ -803,8 +833,8 @@
   }
 
   .trainer-main {
-    width: 100vw;        /* на телефоне — во всю ширину */
-    min-height: 92svh;   /* чуть меньше экрана по высоте */
+    width: 100vw;
+    min-height: 92svh;
     flex-direction: column;
     border-radius: 12px;
     padding: clamp(16px, 6vh, 40px) clamp(16px, 5vw, 32px);
@@ -821,29 +851,26 @@
     margin-inline: auto;
   }
 }
+
 /* =========================================================
    PATCH v5 — компактный белый блок и адаптив под 15 шагов
-   (добавить в КОНЕЦ файла, ничего не удаляя)
    ========================================================= */
 
-/* Поднять всю сцену тренировки вверх и задать «рамку» по экрану */
 body.game-screen .mws-trainer{
   align-items: start !important;
-  min-height: calc(100vh - 140px) !important; /* не залезать под шапку */
+  min-height: calc(100vh - 140px) !important;
   gap: 24px !important;
 }
 
-/* Белая карточка слева — уже, выше и адаптивная */
 body.game-screen .trainer-main{
-  width: min(100%, 90vw) !important;   /* 90% ширины экрана */
-  min-height: 88svh !important;        /* ~высота экрана */
+  width: min(100%, 90vw) !important;
+  min-height: 88svh !important;
   margin-inline: auto !important;
-  align-items: flex-start !important;  /* контент вверх */
+  align-items: flex-start !important;
   gap: clamp(20px, 4vw, 48px) !important;
   padding: clamp(20px, 3vh, 48px) clamp(20px, 5vw, 64px) !important;
 }
 
-/* Левая область с примером тянется на всю доступную высоту */
 body.game-screen .trainer-main--column #area-example{
   flex: 1 1 auto !important;
   height: auto !important;
@@ -853,32 +880,26 @@ body.game-screen .trainer-main--column #area-example{
   justify-content: flex-start !important;
 }
 
-/* СТОЛБИК: гарантированно влезают 15 строк без прокрутки */
 body.game-screen .example--column{
   display: grid !important;
-  grid-auto-rows: 1fr !important;      /* все строки равной высоты */
+  grid-auto-rows: 1fr !important;
   align-content: start !important;
   justify-items: center !important;
   width: 100% !important;
   height: 100% !important;
-  max-height: calc(90vh - 220px) !important; /* «рамка» под шапку/поля */
+  max-height: calc(90vh - 220px) !important;
   overflow: hidden !important;
 }
 
-/* Размер цифр рассчитывается так, чтобы поместить 15 строк */
 body.game-screen .example__line{
   font-family: "Baloo 2", system-ui, sans-serif !important;
   color: var(--color-muted) !important;
   font-weight: 700 !important;
   text-align: center !important;
   line-height: 1.15 !important;
-  /* min — чтобы читалось на маленьких экранах,
-     mid — главная формула: 70vh/15 ≈ высота строки,
-     max — ограничение, чтобы не «переламывало» макет */
   font-size: clamp(22px, calc(70vh / 15), 44px) !important;
 }
 
-/* В СТРОКУ: помещается на широких, переносится на узких */
 body.game-screen .example--inline{
   display: flex !important;
   flex-wrap: wrap !important;
@@ -891,7 +912,6 @@ body.game-screen .example--inline{
   overflow-wrap: anywhere !important;
 }
 
-/* Блок «Ответ» — уже и адаптивный */
 body.game-screen .answer-section{
   width: clamp(240px, 30vw, 340px) !important;
   align-items: center !important;
@@ -906,14 +926,12 @@ body.game-screen .answer-section #answer-input{
   text-align: center !important;
 }
 
-/* Чуть компактнее «шапку» экрана тренировки (опционально) */
 body.game-screen .screen__header{
   margin: 0 !important;
   padding: 0 !important;
   gap: 4px !important;
 }
 
-/* ===== Мобильная адаптация ===== */
 @media (max-width: 900px){
   body.game-screen .mws-trainer{
     grid-template-columns: 1fr !important;
@@ -940,21 +958,20 @@ body.game-screen .screen__header{
     max-width: 420px !important;
   }
 }
+
 /* =========================================================
    PATCH v6 — выравнивание правой панели и фиксация скролла
    ========================================================= */
 
-/* Контейнер тренировки: оба блока (левый и правый) начинаются с верха */
 body.game-screen .mws-trainer {
   align-items: flex-start !important;
   justify-content: center !important;
   height: auto !important;
-  min-height: calc(100vh - 140px) !important; /* под шапку */
-  overflow: hidden !important; /* убираем прокрутку */
+  min-height: calc(100vh - 140px) !important;
+  overflow: hidden !important;
   gap: 24px !important;
 }
 
-/* Левая белая карточка */
 body.game-screen .trainer-main {
   align-self: flex-start !important;
   height: auto !important;
@@ -966,7 +983,6 @@ body.game-screen .trainer-main {
   padding-top: clamp(24px, 3vh, 48px) !important;
 }
 
-/* Правая панель — выравниваем по верху и задаём авто-высоту */
 body.game-screen #panel-controls {
   align-self: flex-start !important;
   display: flex !important;
@@ -978,20 +994,17 @@ body.game-screen #panel-controls {
   overflow: visible !important;
 }
 
-/* Блоки панели идут друг за другом без сжатия */
 body.game-screen #panel-controls > * {
   flex-shrink: 0 !important;
   width: 100% !important;
 }
 
-/* Для таймера и прогресса — убираем возможные “растяжения” */
 body.game-screen .results-capsule-extended,
 body.game-screen .progress-container,
 body.game-screen .timer-capsule {
   flex: 0 0 auto !important;
 }
 
-/* Адаптив для телефонов */
 @media (max-width: 900px) {
   body.game-screen .mws-trainer {
     grid-template-columns: 1fr !important;
