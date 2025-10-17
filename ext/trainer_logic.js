@@ -1,6 +1,6 @@
-// ext/trainer_logic.js - Логика тренажёра с плавающим абакусом
+// ext/trainer_logic.js - Логика тренажёра с новым SVG абакусом
 import { ExampleView } from "./components/ExampleView.js";
-import { Abacus } from "./components/Abacus.js";
+import { Abacus } from "./components/AbacusNew.js"; // ИЗМЕНЕНО: новый абакус
 import { generateExample } from "./core/generator.js";
 import { startTimer, stopTimer } from "../js/utils/timer.js";
 import { playSound } from "../js/utils/sound.js";
@@ -11,7 +11,7 @@ import { playSound } from "../js/utils/sound.js";
  * @param {Object} context - { t, state }
  */
 export function mountTrainerUI(container, { t, state }) {
-  console.log('🎮 Монтируем UI тренажёра с абакусом...');
+  console.log('🎮 Монтируем UI тренажёра с новым SVG абакусом...');
   console.log('📋 Настройки:', state.settings);
   console.log('🔧 state.settings.inline =', state.settings.inline);
   
@@ -81,7 +81,7 @@ export function mountTrainerUI(container, { t, state }) {
         <span id="timer">00:00</span>
       </div>
       
-      <!-- НОВОЕ: Кнопка управления абакусом -->
+      <!-- Кнопка управления абакусом -->
       <div class="panel-card panel-card--compact">
         <button class="btn btn--secondary btn--fullwidth" id="btn-show-abacus">
           🧮 Показать абакус
@@ -92,7 +92,7 @@ export function mountTrainerUI(container, { t, state }) {
   
   container.appendChild(layout);
   
-  // НОВОЕ: Создаём плавающий контейнер для абакуса (правый нижний угол)
+  // Создаём плавающий контейнер для абакуса (правый нижний угол)
   const abacusWrapper = document.createElement('div');
   abacusWrapper.className = 'abacus-wrapper';
   abacusWrapper.id = 'abacus-wrapper';
@@ -115,19 +115,22 @@ export function mountTrainerUI(container, { t, state }) {
   // Инициализация компонентов
   const exampleView = new ExampleView(document.getElementById('area-example'));
   
-  // НОВОЕ: Создаём абакус в плавающем контейнере
+  // ИЗМЕНЕНО: Создаём новый SVG абакус в плавающем контейнере
   const floatingAbacusContainer = document.getElementById('floating-abacus-container');
-  const abacus = new Abacus(floatingAbacusContainer, digits);
+  const abacus = new Abacus(floatingAbacusContainer, { digitCount: digits });
   
-  // НОВОЕ: Проверяем, нужно ли показывать абакус автоматически
+  console.log(`🧮 Новый SVG абакус создан с ${digits} разрядами`);
+  
+  // Проверяем, нужно ли показывать абакус автоматически
   const shouldShowAbacus = state.settings.mode === 'abacus';
   
   if (shouldShowAbacus) {
     abacusWrapper.classList.add('visible');
     document.getElementById('btn-show-abacus').textContent = '🧮 Скрыть абакус';
+    console.log('🧮 Абакус показан автоматически (mode: abacus)');
   }
   
-  // НОВОЕ: Логика показа/скрытия абакуса
+  // Логика показа/скрытия абакуса
   function toggleAbacusVisibility() {
     const isVisible = abacusWrapper.classList.contains('visible');
     const btn = document.getElementById('btn-show-abacus');
@@ -135,9 +138,11 @@ export function mountTrainerUI(container, { t, state }) {
     if (isVisible) {
       abacusWrapper.classList.remove('visible');
       btn.textContent = '🧮 Показать абакус';
+      console.log('🧮 Абакус скрыт');
     } else {
       abacusWrapper.classList.add('visible');
       btn.textContent = '🧮 Скрыть абакус';
+      console.log('🧮 Абакус показан');
     }
   }
   
@@ -181,6 +186,9 @@ export function mountTrainerUI(container, { t, state }) {
     startTimer('timer');
     
     console.log('📝 Новый пример. Правильный ответ:', session.currentExample.answer);
+    
+    // DEBUG: Логируем текущее значение абакуса
+    console.log('🧮 Значение абакуса после reset:', abacus.getValue());
   }
   
   // Проверка ответа
@@ -196,6 +204,12 @@ export function mountTrainerUI(container, { t, state }) {
     stopTimer();
     
     const isCorrect = userAnswer === session.currentExample.answer;
+    
+    // DEBUG: Логируем значение с абакуса
+    const abacusValue = abacus.getValue();
+    console.log('🧮 Значение на абакусе:', abacusValue);
+    console.log('📝 Введённый ответ:', userAnswer);
+    console.log('✅ Правильный ответ:', session.currentExample.answer);
     
     // Обновляем статистику
     if (isCorrect) {
@@ -247,6 +261,7 @@ export function mountTrainerUI(container, { t, state }) {
     
     // Скрываем абакус при завершении
     abacusWrapper.classList.remove('visible');
+    console.log('🧮 Абакус скрыт (сессия завершена)');
     
     // Вызываем глобальную функцию для перехода к Results
     if (window.finishTraining) {
@@ -257,12 +272,13 @@ export function mountTrainerUI(container, { t, state }) {
     }
   }
   
-  // НОВОЕ: События для кнопок управления абакусом
+  // События для кнопок управления абакусом
   document.getElementById('btn-show-abacus').addEventListener('click', toggleAbacusVisibility);
   
   document.getElementById('btn-close-abacus').addEventListener('click', () => {
     abacusWrapper.classList.remove('visible');
     document.getElementById('btn-show-abacus').textContent = '🧮 Показать абакус';
+    console.log('🧮 Абакус закрыт через крестик');
   });
   
   // События для ответа
@@ -277,7 +293,7 @@ export function mountTrainerUI(container, { t, state }) {
   // Запускаем первый пример
   showNextExample();
   
-  console.log(`✅ Тренажёр запущен с абакусом (${digits + 1} стоек)`);
+  console.log(`✅ Тренажёр запущен с новым SVG абакусом (${digits} разрядов)`);
   console.log(`🧮 Абакус ${shouldShowAbacus ? 'показан автоматически' : 'скрыт'} (mode: ${state.settings.mode})`);
 }
 
