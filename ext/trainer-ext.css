@@ -940,3 +940,68 @@ body.game-screen .screen__header{
     max-width: 420px !important;
   }
 }
+/* =========================================================
+   PATCH v6 — выравнивание правой панели и фиксация скролла
+   ========================================================= */
+
+/* Контейнер тренировки: оба блока (левый и правый) начинаются с верха */
+body.game-screen .mws-trainer {
+  align-items: flex-start !important;
+  justify-content: center !important;
+  height: auto !important;
+  min-height: calc(100vh - 140px) !important; /* под шапку */
+  overflow: hidden !important; /* убираем прокрутку */
+  gap: 24px !important;
+}
+
+/* Левая белая карточка */
+body.game-screen .trainer-main {
+  align-self: flex-start !important;
+  height: auto !important;
+  min-height: 88svh !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  padding-top: clamp(24px, 3vh, 48px) !important;
+}
+
+/* Правая панель — выравниваем по верху и задаём авто-высоту */
+body.game-screen #panel-controls {
+  align-self: flex-start !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  gap: 16px !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+/* Блоки панели идут друг за другом без сжатия */
+body.game-screen #panel-controls > * {
+  flex-shrink: 0 !important;
+  width: 100% !important;
+}
+
+/* Для таймера и прогресса — убираем возможные “растяжения” */
+body.game-screen .results-capsule-extended,
+body.game-screen .progress-container,
+body.game-screen .timer-capsule {
+  flex: 0 0 auto !important;
+}
+
+/* Адаптив для телефонов */
+@media (max-width: 900px) {
+  body.game-screen .mws-trainer {
+    grid-template-columns: 1fr !important;
+    align-items: flex-start !important;
+    overflow: visible !important;
+  }
+
+  body.game-screen #panel-controls {
+    order: 2 !important;
+    width: 100% !important;
+    margin-top: 20px !important;
+  }
+}
