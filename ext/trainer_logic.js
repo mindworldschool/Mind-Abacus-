@@ -1,3 +1,4 @@
+// ext/trainer_logic.js - Логика тренажёра с адаптивным размером цифр
 import { ExampleView } from "./components/ExampleView.js";
 import { Abacus } from "./components/AbacusNew.js";
 import { generateExample } from "./core/generator.js";
@@ -107,6 +108,29 @@ export function mountTrainerUI(container, { t, state }) {
     completed: 0,
   };
 
+  /**
+   * Рассчитать адаптивный размер шрифта
+   * @param {number} actions - Количество действий (строк)
+   * @param {number} maxDigits - Максимальное количество разрядов
+   * @returns {number} - Размер шрифта в px
+   */
+  function calculateFontSize(actions, maxDigits) {
+    // Базовые параметры
+    const baseSize = 64;           // Максимальный размер для 1 действия, 1 разряда
+    const minSize = 20;            // Минимальный размер
+    const actionPenalty = 2.5;     // Штраф за каждое действие
+    const digitPenalty = 5;        // Штраф за каждый разряд
+    
+    // Рассчитываем размер
+    let fontSize = baseSize - (actions * actionPenalty) - (maxDigits * digitPenalty);
+    
+    // Ограничиваем диапазон
+    fontSize = Math.max(minSize, Math.min(baseSize, fontSize));
+    
+    console.log(`📐 Размер шрифта: actions=${actions}, digits=${maxDigits} → ${fontSize}px`);
+    return fontSize;
+  }
+
   // === Генерация нового примера ===
   function showNextExample() {
     if (session.completed >= session.stats.total) {
@@ -117,24 +141,34 @@ export function mountTrainerUI(container, { t, state }) {
     session.currentExample = generateExample(state.settings);
     exampleView.render(session.currentExample.steps, displayMode);
 
-    // === Адаптив под PATCH v10 ===
+    // === НОВАЯ АДАПТИВНАЯ ЛОГИКА ===
     const areaExample = document.getElementById("area-example");
     if (areaExample && session.currentExample) {
       const actions = session.currentExample.steps?.length || 1;
+      
+      // Находим максимальное количество разрядов среди всех чисел
       let maxDigits = 1;
       for (const step of session.currentExample.steps) {
-        const num = parseInt(step.replace(/[^\d]/g, ""), 10);
-        if (!isNaN(num)) maxDigits = Math.max(maxDigits, num.toString().length);
+        const num = parseInt(step.replace(/[^\d-]/g, ""), 10);
+        if (!isNaN(num)) {
+          maxDigits = Math.max(maxDigits, Math.abs(num).toString().length);
+        }
       }
+      
+      // Рассчитываем адаптивный размер шрифта
+      const fontSize = calculateFontSize(actions, maxDigits);
+      
+      // Устанавливаем CSS переменные
+      const root = document.documentElement;
+      root.style.setProperty("--example-actions", actions);
+      root.style.setProperty("--example-digits", maxDigits);
+      root.style.setProperty("--example-font-size", `${fontSize}px`);
+      
+      // Добавляем data-атрибуты для дополнительной стилизации
       areaExample.setAttribute("data-actions", actions);
       areaExample.setAttribute("data-digits", maxDigits);
-
-      // 🔧 передаём переменные в CSS для адаптации размера цифр
-      const root = document.documentElement;
-      const safeActions = Math.min(actions, 15);
-      root.style.setProperty("--actions", safeActions);
-      root.style.setProperty("--base-font", `${Math.max(24, 60 - maxDigits * 4)}px`);
-      console.log(`🎨 PATCH v10 применён: actions=${safeActions}, digits=${maxDigits}`);
+      
+      console.log(`🎨 Адаптация: ${actions} действий, ${maxDigits} разрядов → ${fontSize}px`);
     }
 
     abacus.reset();
