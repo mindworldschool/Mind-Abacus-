@@ -271,6 +271,29 @@ export function renderSettings(container, { t, state, updateSettings, navigate }
 
   const settingsState = state.settings;
 
+  // === Список опций времени ===
+  const timeOptions = [
+    { value: "10 сек", label: "10 сек" },
+    { value: "20 сек", label: "20 сек" },
+    { value: "30 сек", label: "30 сек" },
+    { value: "40 сек", label: "40 сек" },
+    { value: "50 сек", label: "50 сек" },
+    { value: "1:00", label: "1 минута" },
+    { value: "1:30", label: "1 мин 30 сек" },
+    { value: "2:00", label: "2 минуты" },
+    { value: "2:30", label: "2 мин 30 сек" },
+    { value: "3:00", label: "3 минуты" },
+    { value: "3:30", label: "3 мин 30 сек" },
+    { value: "4:00", label: "4 минуты" },
+    { value: "4:30", label: "4 мин 30 сек" },
+    { value: "5:00", label: "5 минут" },
+    { value: "6:00", label: "6 минут" },
+    { value: "7:00", label: "7 минут" },
+    { value: "8:00", label: "8 минут" },
+    { value: "9:00", label: "9 минут" },
+    { value: "10:00", label: "10 минут" },
+  ];
+
   const modeRow = createFormRow(t("settings.modeLabel"));
   modeRow.control.appendChild(
     createSelect(t("settings.modeOptions"), settingsState.mode, (value) => {
@@ -324,61 +347,40 @@ export function renderSettings(container, { t, state, updateSettings, navigate }
   baseGrid.appendChild(examplesRow.row);
 
   // === Ограничение времени ===
-const timeRow = createFormRow(t("settings.timeLabel"));
-timeRow.control.appendChild(
-  createSelect(timeOptions, settingsState.timeLimit, (value) => {
-    const timeLimitEnabled = value !== "none";
-    const timePerExampleMs = parseTimeToMs(value);
-    updateSettings({
-      timeLimit: value,
-      timeLimitEnabled,
-      timePerExampleMs
-    });
-  })
-);
-baseGrid.appendChild(timeRow.row);
+  const timeRow = createFormRow(t("settings.timeLabel"));
+  timeRow.control.appendChild(
+    createSelect(timeOptions, settingsState.timeLimit, (value) => {
+      const timeLimitEnabled = value !== "none";
+      const timePerExampleMs = parseTimeToMs(value);
+      updateSettings({
+        timeLimit: value,
+        timeLimitEnabled,
+        timePerExampleMs
+      });
+    })
+  );
+  baseGrid.appendChild(timeRow.row);
 
-// === Скорость показа ===
-const speedRow = createFormRow(t("settings.speedLabel"));
-speedRow.control.appendChild(
-  createSelect(t("settings.speedOptions"), settingsState.speed, (value) => {
-    const showSpeedEnabled = value !== "0";
-    const showSpeedMs = parseSpeedToMs(value);
-    updateSettings({
-      speed: value,
-      showSpeedEnabled,
-      showSpeedMs,
-      showSpeedPauseAfterChainMs: 600,
-      bigDigitScale: 1.15,
-      lockInputDuringShow: true,
-      beepOnStep: false,
-      beepOnTimeout: true
-    });
-  })
-);
-baseGrid.appendChild(speedRow.row);
-// Замена списка опций времени прямо здесь
-const timeOptions = [
-  { value: "10 сек", label: "10 сек" },
-  { value: "20 сек", label: "20 сек" },
-  { value: "30 сек", label: "30 сек" },
-  { value: "40 сек", label: "40 сек" },
-  { value: "50 сек", label: "50 сек" },
-  { value: "1:00", label: "1 минута" },
-  { value: "1:30", label: "1 мин 30 сек" },
-  { value: "2:00", label: "2 минуты" },
-  { value: "2:30", label: "2 мин 30 сек" },
-  { value: "3:00", label: "3 минуты" },
-  { value: "3:30", label: "3 мин 30 сек" },
-  { value: "4:00", label: "4 минуты" },
-  { value: "4:30", label: "4 мин 30 сек" },
-  { value: "5:00", label: "5 минут" },
-  { value: "6:00", label: "6 минут" },
-  { value: "7:00", label: "7 минут" },
-  { value: "8:00", label: "8 минут" },
-  { value: "9:00", label: "9 минут" },
-  { value: "10:00", label: "10 минут" },
-];
+  // === Скорость показа ===
+  const speedRow = createFormRow(t("settings.speedLabel"));
+  speedRow.control.appendChild(
+    createSelect(t("settings.speedOptions"), settingsState.speed, (value) => {
+      const showSpeedEnabled = value !== "0";
+      const showSpeedMs = parseSpeedToMs(value);
+      updateSettings({
+        speed: value,
+        showSpeedEnabled,
+        showSpeedMs,
+        showSpeedPauseAfterChainMs: 600,
+        bigDigitScale: 1.15,
+        lockInputDuringShow: true,
+        beepOnStep: false,
+        beepOnTimeout: true
+      });
+    })
+  );
+  baseGrid.appendChild(speedRow.row);
+
   form.appendChild(baseGrid);
 
   const advancedSection = createSection(t("settings.advancedLabel"));
@@ -464,15 +466,14 @@ const timeOptions = [
   body.appendChild(form);
   container.appendChild(section);
 }
+
+// === Преобразование времени ===
 function parseTimeToMs(value) {
   if (value == null) return 0;
-  // already milliseconds (number or numeric string)
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (/^\d+$/.test(String(value))) return Number(value);
 
-  const v = String(value).trim().toLowerCase().replace(",", "."); // normalize
-
-  // "MM:SS" or "M:SS" (e.g., "1:00", "9:30")
+  const v = String(value).trim().toLowerCase().replace(",", ".");
   if (/^\d{1,2}:\d{2}$/.test(v)) {
     const [m, s] = v.split(":").map(n => parseInt(n, 10) || 0);
     return (m * 60 + s) * 1000;
@@ -480,46 +481,33 @@ function parseTimeToMs(value) {
 
   if (v.includes("none") || v.includes("без")) return 0;
 
-  // number with units
   const num = parseFloat(v.match(/[\d.]+/)?.[0] ?? "0");
   if (!isFinite(num) || num <= 0) return 0;
 
-  // explicit ms
   if (/ms\b/.test(v)) return Math.round(num);
-
-  // seconds
   if (/(sec|сек|s(?![a-z]))/.test(v)) return Math.round(num * 1000);
-
-  // minutes
   if (/(min|мин)/.test(v)) return Math.round(num * 60 * 1000);
 
-  // default: treat as minutes per product spec
   return Math.round(num * 60 * 1000);
 }
 
+// === Преобразование скорости ===
 function parseSpeedToMs(value) {
   if (value == null) return 0;
-  // Если уже миллисекунды
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (/^\d+$/.test(String(value))) {
     const n = Number(value);
-    // Если явно большой — считаем, что это мс; если маленький — секунды
     return n > 50 ? n : n * 1000;
   }
 
   const v = String(value).trim().toLowerCase().replace(",", ".");
   if (v === "0" || v.includes("без")) return 0;
 
-  // число (секунды как десятичное), например "0.1 сек", "1.25s"
   const num = parseFloat(v.match(/[\d.]+/)?.[0] ?? "0");
   if (!isFinite(num) || num <= 0) return 0;
 
-  // Если явно указаны миллисекунды (ms)
   if (/ms/.test(v)) return Math.round(num);
-
-  // По ключевым словам secs/сек/seconds — трактуем как секунды
   if (/(sec|сек|s(?![a-z]))/.test(v)) return Math.round(num * 1000);
 
-  // По умолчанию — секунды
   return Math.round(num * 1000);
 }
