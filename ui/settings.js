@@ -277,30 +277,64 @@ export function renderSettings(container, { t, state, updateSettings, navigate }
   baseGrid.className = "settings-grid";
 
   const settingsState = state.settings;
+// === Варианты времени (с локализацией) ===
+const lang = state?.lang || document.documentElement.lang || "ru";
 
-  // === Список опций времени (вернули «Отключено») ===
-  const timeOptions = [
-    { value: "none", label: "Отключено" },
-    { value: "10 сек", label: "10 сек" },
-    { value: "20 сек", label: "20 сек" },
-    { value: "30 сек", label: "30 сек" },
-    { value: "40 сек", label: "40 сек" },
-    { value: "50 сек", label: "50 сек" },
-    { value: "1:00", label: "1 минута" },
-    { value: "1:30", label: "1 мин 30 сек" },
-    { value: "2:00", label: "2 минуты" },
-    { value: "2:30", label: "2 мин 30 сек" },
-    { value: "3:00", label: "3 минуты" },
-    { value: "3:30", label: "3 мин 30 сек" },
-    { value: "4:00", label: "4 минуты" },
-    { value: "4:30", label: "4 мин 30 сек" },
-    { value: "5:00", label: "5 минут" },
-    { value: "6:00", label: "6 минут" },
-    { value: "7:00", label: "7 минут" },
-    { value: "8:00", label: "8 минут" },
-    { value: "9:00", label: "9 минут" },
-    { value: "10:00", label: "10 минут" },
-  ];
+const labels = {
+  ru: {
+    none: "Отключено",
+    sec: "сек",
+    min: "минута",
+    min_s: "мин",
+    min_pl: "минут",
+  },
+  ua: {
+    none: "Вимкнено",
+    sec: "сек",
+    min: "хвилина",
+    min_s: "хв",
+    min_pl: "хвилин",
+  },
+  en: {
+    none: "Disabled",
+    sec: "sec",
+    min: "minute",
+    min_s: "min",
+    min_pl: "minutes",
+  },
+  es: {
+    none: "Desactivado",
+    sec: "seg",
+    min: "minuto",
+    min_s: "min",
+    min_pl: "minutos",
+  },
+};
+
+const L = labels[lang] || labels.ru;
+
+const timeOptions = [
+  { value: "none", label: L.none },
+  { value: "10 сек", label: "10 " + L.sec },
+  { value: "20 сек", label: "20 " + L.sec },
+  { value: "30 сек", label: "30 " + L.sec },
+  { value: "40 сек", label: "40 " + L.sec },
+  { value: "50 сек", label: "50 " + L.sec },
+  { value: "1:00", label: "1 " + L.min },
+  { value: "1:30", label: "1 " + L.min + " 30 " + L.sec },
+  { value: "2:00", label: "2 " + L.min_pl },
+  { value: "2:30", label: "2 " + L.min + " 30 " + L.sec },
+  { value: "3:00", label: "3 " + L.min_pl },
+  { value: "3:30", label: "3 " + L.min + " 30 " + L.sec },
+  { value: "4:00", label: "4 " + L.min_pl },
+  { value: "4:30", label: "4 " + L.min + " 30 " + L.sec },
+  { value: "5:00", label: "5 " + L.min_pl },
+  { value: "6:00", label: "6 " + L.min_pl },
+  { value: "7:00", label: "7 " + L.min_pl },
+  { value: "8:00", label: "8 " + L.min_pl },
+  { value: "9:00", label: "9 " + L.min_pl },
+  { value: "10:00", label: "10 " + L.min_pl },
+];
 
   const modeRow = createFormRow(t("settings.modeLabel"));
   modeRow.control.appendChild(
