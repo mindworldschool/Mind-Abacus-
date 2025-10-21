@@ -111,6 +111,16 @@ export function mountTrainerUI(container, { t, state }) {
       getComputedStyle(document.documentElement).getPropertyValue("--color-primary")?.trim() || "#EC8D00";
     const overlay = new BigStepOverlay(st.bigDigitScale ?? 1.15, overlayColor);
 
+    // --- Центрирование крупной цифры ---
+    if (overlay?.el) {
+      overlay.el.style.position = "fixed";
+      overlay.el.style.left = "50%";
+      overlay.el.style.top = "50%";
+      overlay.el.style.transform = "translate(-50%, -50%)";
+      overlay.el.style.zIndex = "9999";
+      overlay.el.style.pointerEvents = "none";
+    }
+
     const shouldShowAbacus = st.mode === "abacus";
     if (shouldShowAbacus) {
       abacusWrapper.classList.add("visible");
@@ -126,16 +136,6 @@ export function mountTrainerUI(container, { t, state }) {
 
     let isShowing = false;
     let showAbort = false;
-
-    // === Размер цифр ===
-    function calculateFontSize(actions, maxDigits) {
-      const baseSize = 120;
-      const minSize = 35;
-      const actionPenalty = 1.8;
-      const digitPenalty = 3;
-      let fontSize = baseSize - (actions * actionPenalty) - (maxDigits * digitPenalty);
-      return Math.max(minSize, Math.min(baseSize, fontSize));
-    }
 
     // === Генерация и показ примера ===
     async function showNextExample() {
@@ -165,16 +165,13 @@ export function mountTrainerUI(container, { t, state }) {
         if (!session.currentExample || !Array.isArray(session.currentExample.steps))
           throw new Error("Пустой пример");
 
-        exampleView.render(session.currentExample.steps, displayMode);
-
-        const actionsLen = session.currentExample.steps.length;
-        let maxDigits = 1;
-        for (const step of session.currentExample.steps) {
-          const num = parseInt(String(step).replace(/[^\d-]/g, ""), 10);
-          if (!isNaN(num)) maxDigits = Math.max(maxDigits, Math.abs(num).toString().length);
+        // === В режиме скорости показа не показываем список примера ===
+        const exampleHost = document.getElementById("area-example");
+        if (st.showSpeedEnabled && st.showSpeedMs > 0) {
+          if (exampleHost) exampleHost.innerHTML = ""; // скрыть список
+        } else {
+          exampleView.render(session.currentExample.steps, displayMode);
         }
-        const fontSize = calculateFontSize(actionsLen, maxDigits);
-        document.documentElement.style.setProperty("--example-font-size", `${fontSize}px`);
 
         const input = document.getElementById("answer-input");
         input.value = "";
@@ -309,7 +306,7 @@ export function mountTrainerUI(container, { t, state }) {
       if (e.key === "Enter") checkAnswer();
     });
 
-    // === Глобальный таймер на всю серию ===
+    // === Глобальный таймер серии (если включен режим "Ограничение времени") ===
     if (st.timeLimitEnabled && st.timePerExampleMs > 0 && !st.showSpeedEnabled) {
       console.log("⏱ Запускаем глобальный таймер серии:", st.timePerExampleMs, "мс");
       startAnswerTimer(st.timePerExampleMs, {
@@ -326,7 +323,6 @@ export function mountTrainerUI(container, { t, state }) {
     showNextExample();
     console.log(`✅ Тренажёр запущен (${abacusDigits} стоек, ${digits}-значные числа)`);
 
-    // Очистка при размонтировании
     return () => {
       const wrapper = document.getElementById("abacus-wrapper");
       if (wrapper) wrapper.remove();
