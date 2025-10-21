@@ -73,7 +73,7 @@ export function mountTrainerUI(container, { t, state }) {
           </div>
         </div>
 
-        <!-- Прогресс-бар для таймера ответа -->
+        <!-- Прогресс-бар для таймера -->
         <div id="answer-timer">
           <div class="bar"></div>
         </div>
@@ -124,8 +124,8 @@ export function mountTrainerUI(container, { t, state }) {
       completed: 0
     };
 
-    let isShowing = false;     // идёт ли диктант
-    let showAbort = false;     // токен отмены диктанта
+    let isShowing = false;
+    let showAbort = false;
 
     // === Размер цифр ===
     function calculateFontSize(actions, maxDigits) {
@@ -137,13 +137,11 @@ export function mountTrainerUI(container, { t, state }) {
       return Math.max(minSize, Math.min(baseSize, fontSize));
     }
 
-    // === Генерация/показ примера ===
+    // === Генерация и показ примера ===
     async function showNextExample() {
       try {
-        // Очистки на переходе
-        stopAnswerTimer();
         overlay.clear();
-        showAbort = true; // гасим любой текущий диктант (если был)
+        showAbort = true;
         isShowing = false;
 
         if (session.completed >= session.stats.total) {
@@ -169,7 +167,6 @@ export function mountTrainerUI(container, { t, state }) {
 
         exampleView.render(session.currentExample.steps, displayMode);
 
-        // Адаптация размеров
         const actionsLen = session.currentExample.steps.length;
         let maxDigits = 1;
         for (const step of session.currentExample.steps) {
@@ -179,20 +176,19 @@ export function mountTrainerUI(container, { t, state }) {
         const fontSize = calculateFontSize(actionsLen, maxDigits);
         document.documentElement.style.setProperty("--example-font-size", `${fontSize}px`);
 
-        // Подготовка поля ввода
         const input = document.getElementById("answer-input");
         input.value = "";
 
-        // === ПОКАДРОВЫЙ ПОКАЗ ===
-        const lockDuringShow = st.lockInputDuringShow !== false; // по умолчанию true
+        const lockDuringShow = st.lockInputDuringShow !== false;
         input.disabled = lockDuringShow;
+
         if (st.showSpeedEnabled && st.showSpeedMs > 0) {
           isShowing = true;
           showAbort = false;
           await playSequential(session.currentExample.steps, st.showSpeedMs, {
             beepOnStep: !!st.beepOnStep
           });
-          if (showAbort) return; // если прервано досрочным ответом
+          if (showAbort) return;
           await delay(st.showSpeedPauseAfterChainMs ?? 600);
           isShowing = false;
           if (lockDuringShow) {
@@ -200,12 +196,11 @@ export function mountTrainerUI(container, { t, state }) {
             input.focus();
           }
         } else {
-          // без диктанта
           input.disabled = false;
           input.focus();
         }
 
-       console.log("📝 Новый пример:", session.currentExample.steps, "Ответ:", session.currentExample.answer);
+        console.log("📝 Новый пример:", session.currentExample.steps, "Ответ:", session.currentExample.answer);
       } catch (e) {
         showFatalError(e);
       }
@@ -213,7 +208,6 @@ export function mountTrainerUI(container, { t, state }) {
 
     // === Проверка ответа ===
     function checkAnswer() {
-      // если идёт диктант и ввод заблокирован — игнорируем
       if (isShowing && (st.lockInputDuringShow !== false)) return;
 
       const input = document.getElementById("answer-input");
@@ -223,14 +217,11 @@ export function mountTrainerUI(container, { t, state }) {
         return;
       }
 
-      // если ответили во время диктанта при разрешённом вводе — прерываем показ
       if (isShowing && (st.lockInputDuringShow === false)) {
         showAbort = true;
         isShowing = false;
         overlay.clear();
       }
-
-      stopAnswerTimer();
 
       const isCorrect = userAnswer === session.currentExample.answer;
       if (isCorrect) session.stats.correct++;
@@ -239,18 +230,12 @@ export function mountTrainerUI(container, { t, state }) {
       updateStats();
       playSound(isCorrect ? "correct" : "wrong");
 
-      setTimeout(() => showNextExample(), 500);
-    }
+      if (session.completed >= session.stats.total) {
+        finishSession();
+        return;
+      }
 
-    // === Обработка тайм-аута ===
-    function handleTimeExpired() {
-      const correct = session.currentExample?.answer;
-      console.warn("⏳ Время вышло! Правильный ответ:", correct);
-      if (st.beepOnTimeout) playSound("wrong"); // или отдельный звук timeout, если есть в ассетах
-      session.stats.incorrect++;
-      session.completed++;
-      updateStats();
-      setTimeout(() => showNextExample(), 800);
+      setTimeout(() => showNextExample(), 500);
     }
 
     // === Обновление статистики ===
@@ -282,7 +267,6 @@ export function mountTrainerUI(container, { t, state }) {
       }
     }
 
-    // === Покадровый показ шагов ===
     async function playSequential(steps, intervalMs, { beepOnStep = false } = {}) {
       try {
         for (const s of steps) {
@@ -324,22 +308,25 @@ export function mountTrainerUI(container, { t, state }) {
     document.getElementById("answer-input").addEventListener("keypress", (e) => {
       if (e.key === "Enter") checkAnswer();
     });
-// === ГЛОБАЛЬНЫЙ ТАЙМЕР НА ВСЮ СЕРИЮ ===
-if (st.timeLimitEnabled && st.timePerExampleMs > 0) {
-  startAnswerTimer(st.timePerExampleMs, {
-    onExpire: () => {
-      console.warn("⏰ Время серии истекло!");
-      finishSession();
-    },
-    textElementId: "answerTimerText",
-    barSelector: "#answer-timer .bar"
-  });
-}
+
+    // === Глобальный таймер на всю серию ===
+    if (st.timeLimitEnabled && st.timePerExampleMs > 0 && !st.showSpeedEnabled) {
+      console.log("⏱ Запускаем глобальный таймер серии:", st.timePerExampleMs, "мс");
+      startAnswerTimer(st.timePerExampleMs, {
+        textElementId: "answerTimerText",
+        barSelector: "#answer-timer .bar",
+        onExpire: () => {
+          console.warn("⏰ Время серии истекло!");
+          finishSession();
+        }
+      });
+    }
+
     // === Старт ===
     showNextExample();
     console.log(`✅ Тренажёр запущен (${abacusDigits} стоек, ${digits}-значные числа)`);
 
-    // Возврат функции очистки при размонтировании
+    // Очистка при размонтировании
     return () => {
       const wrapper = document.getElementById("abacus-wrapper");
       if (wrapper) wrapper.remove();
@@ -354,7 +341,6 @@ if (st.timeLimitEnabled && st.timePerExampleMs > 0) {
   }
 }
 
-/** Показать фатальную ошибку */
 function showFatalError(err) {
   const msg = err?.stack || err?.message || String(err);
   console.error("Ошибка загрузки тренажёра:", err);
@@ -367,10 +353,7 @@ function showFatalError(err) {
   );
 }
 
-/** Получить количество примеров */
 function getExampleCount(examplesCfg) {
   if (!examplesCfg) return 10;
   return examplesCfg.infinite ? 10 : (examplesCfg.count ?? 10);
 }
-
-
