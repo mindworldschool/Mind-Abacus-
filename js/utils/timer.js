@@ -180,7 +180,6 @@ export function getRemainingMs() {
 export function isAnswerTimerRunning() {
   return !!answerTimerId && answerTimerEndAt > 0;
 }
-
 // --- внутреннее: шаг тика обратного отсчёта ---
 function tickAnswerTimer(firstPaint = false) {
   const now = Date.now();
@@ -190,6 +189,7 @@ function tickAnswerTimer(firstPaint = false) {
   if (answerTimerOpts?.textElementId) {
     const el = document.getElementById(answerTimerOpts.textElementId);
     if (el) {
+      // передаём миллисекунды в formatTime()
       el.textContent = formatTime(remaining);
     }
   }
@@ -206,17 +206,19 @@ function tickAnswerTimer(firstPaint = false) {
 
   // Колбэк onTick
   if (!firstPaint && typeof answerTimerOpts?.onTick === 'function') {
-    try { answerTimerOpts.onTick(remaining); } catch (_) {}
+    try {
+      answerTimerOpts.onTick(remaining);
+    } catch (_) {}
   }
 
-  // Завершение
+  // Завершение таймера
   if (remaining <= 0) {
     const onExpire = answerTimerOpts?.onExpire;
     stopAnswerTimer();
     if (typeof onExpire === 'function') {
-      try { onExpire(); } catch (_) {}
+      try {
+        onExpire();
+      } catch (_) {}
     }
   }
 }
-
-
