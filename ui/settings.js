@@ -19,16 +19,23 @@ function createFormRow(labelText) {
 
 function createSelect(options, value, onChange) {
   const select = document.createElement("select");
+
+  // если значение не задано — ставим "none" по умолчанию
+  const currentValue = value || "none";
+
   options.forEach((option) => {
     const opt = document.createElement("option");
     opt.value = option.value;
     opt.textContent = option.label;
-    if (option.value === value) {
-      opt.selected = true;
-    }
+    if (option.value === currentValue) opt.selected = true;
     select.appendChild(opt);
   });
-  select.value = value;
+
+  // если ни одна опция не выбрана — явно проставляем
+  if (![...select.options].some(o => o.selected)) {
+    select.value = "none";
+  }
+
   select.addEventListener("change", () => onChange(select.value));
   return select;
 }
