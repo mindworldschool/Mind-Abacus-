@@ -72,10 +72,17 @@ function updateStopwatchDisplay() {
   el.textContent = formatTime(seconds);
 }
 
-/** Формат "мм:сс" */
-export function formatTime(totalSeconds) {
-  const mm = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-  const ss = (totalSeconds % 60).toString().padStart(2, '0');
+// Преобразует миллисекунды в формат MM:SS
+export function formatTime(ms) {
+  if (typeof ms !== "number" || !isFinite(ms) || ms < 0) return "00:00";
+
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  const mm = String(minutes).padStart(2, "0");
+  const ss = String(seconds).padStart(2, "0");
+
   return `${mm}:${ss}`;
 }
 
@@ -212,3 +219,4 @@ function tickAnswerTimer(firstPaint = false) {
     }
   }
 }
+
