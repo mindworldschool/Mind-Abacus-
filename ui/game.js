@@ -1,37 +1,47 @@
-// ui/game.js - Экран тренировки (интегрирует тренажёр)
+// ui/game.js — Экран тренировки (интеграция тренажёра)
 import { createButton, createStepIndicator } from "./helper.js";
 import { setResults } from "../core/state.js";
 
-export function renderGame(container, { t, state, navigate }) {
-  // Очищаем контейнер
+export async function renderGame(container, { t, state, navigate }) {
+  // Очистка контейнера
   container.innerHTML = "";
-  
-  // Создаём обёртку для экрана игры
+
+  // Создаём структуру экрана
   const section = document.createElement("section");
   section.className = "screen game-screen";
-  
+
   // Индикатор шагов (Settings → Confirmation → Game → Results)
   const indicator = createStepIndicator("game", t);
   section.appendChild(indicator);
-  
-  // Тело экрана (здесь будет тренажёр) БЕЗ заголовка
+
+  // Тело (сюда монтируется тренажёр)
   const body = document.createElement("div");
   body.className = "screen__body";
   section.appendChild(body);
-  
+
   container.appendChild(section);
-  
-  // Динамически импортируем и монтируем тренажёр
-  import('../ext/trainer_ext.js').then(({ mountTrainerUI }) => {
-    console.log('🎮 Монтируем тренажёр в экран игры');
-    mountTrainerUI(body, { t, state });
-  }).catch(error => {
-    console.error('❌ Ошибка загрузки тренажёра:', error);
-    body.innerHTML = '<p style="color: red;">Не удалось загрузить тренажёр</p>';
-  });
-  
-  // Функция для завершения тренировки и перехода к результатам
-  // (будет вызываться из trainer_logic.js позже)
+
+  try {
+    // 🧩 Динамически импортируем тренажёр (точный путь!)
+    const module = await import("../ext/trainer_ext.js");
+
+    if (!module?.mountTrainerUI) {
+      throw new Error("Модуль trainer_ext.js загружен, но mountTrainerUI не найден");
+    }
+
+    console.log("🎮 Монтируем тренажёр...");
+    module.mountTrainerUI(body, { t, state });
+
+  } catch (error) {
+    console.error("❌ Ошибка загрузки тренажёра:", error);
+    body.innerHTML = `
+      <div style="color:#d93025; padding:20px; font-weight:600;">
+        Не удалось загрузить тренажёр.<br/>
+        <small>${error.message}</small>
+      </div>`;
+  }
+
+  // === Коллбэк для завершения тренировки ===
   window.finishTraining = (stats) => {
     setResults({
       success: stats.correct || 0,

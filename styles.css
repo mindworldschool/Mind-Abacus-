@@ -2,7 +2,7 @@
   --color-primary: #ff7c00;
   --color-primary-dark: #e06600;
   --color-background: #fdf8f3;
-  --color-surface: #ffffff;
+  --color-surface: #f8f6f0;
   --color-text: #333333;
   --color-muted: #7d733a;
   --radius-large: 24px;
@@ -840,3 +840,80 @@ body.game-screen .screen__body {
     padding: 20px 16px !important;
   }
 }
+/* ========================================
+   ОВЕРЛЕЙ ПОКАЗА ШАГОВ (BigStepOverlay)
+   ======================================== */
+
+#big-step-overlay {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: "Baloo 2", cursive;
+  font-size: clamp(48px, 12vw, 180px);
+  font-weight: 800;
+  color: var(--color-primary);
+  text-shadow: 0 0 12px rgba(0, 0, 0, 0.18);
+  line-height: 1;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 9999;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+#big-step-overlay.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1.05);
+}
+/* ========================================
+   ВИЗУАЛ ТАЙМЕРА ОТВЕТА
+   ======================================== */
+#answer-timer {
+  width: 100%;
+  height: 8px;
+  background: rgba(125, 115, 58, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 8px 0 4px;
+}
+#answer-timer .bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--color-primary), #ffc366);
+  transition: width .1s linear;
+}
+.answer-timer__text {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--color-muted);
+  letter-spacing: .02em;
+}
+/* === Шапка: финальные размеры и выравнивание === */
+.app-header__title {
+  font-size: 2.2rem !important;    /* +15% относительно исходных 1.9rem */
+  font-family: "Baloo 2", cursive;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #fff8ec;
+}
+
+.app-header__tagline {
+  font-size: 1.5rem !important;    /* ~на 30% меньше, чем заголовок */
+  margin-left: 10px;               /* немного правее */
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.02em;
+  opacity: 0.9;
+}
+
+/* Мобильная адаптация */
+@media (max-width: 640px) {
+  .app-header__title {
+    font-size: 1.85rem !important;
+  }
+  .app-header__tagline {
+    font-size: 1.3rem !important;
+    margin-left: 6px;
+  }
+}
+

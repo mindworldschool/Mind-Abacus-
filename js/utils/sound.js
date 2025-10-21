@@ -5,17 +5,19 @@
  * import { playSound, preloadSounds } from './utils/sound.js';
  * 
  * preloadSounds(); // вызвать один раз при загрузке
- * playSound('success'); // воспроизвести звук
+ * playSound('correct'); // воспроизвести звук
  */
 
-// Хранилище аудио-объектов
+// Хранилище предзагруженных аудио
 const sounds = {};
 
 // Пути к звуковым файлам (адаптировано под структуру проекта)
 const soundPaths = {
   correct: './assets/sfx_correct.mp3',  // правильный ответ
-  wrong: './assets/sfx_wrong.mp3',      // неправильный ответ
-  next: './assets/sfx_next.mp3'          // следующий пример
+  wrong:   './assets/sfx_wrong.mp3',    // неправильный ответ
+  next:    './assets/sfx_next.mp3',     // следующий пример
+  tick:    './assets/sfx_tick.mp3',     // короткий бип (для диктанта)
+  timeout: './assets/sfx_timeout.mp3'   // истечение времени
 };
 
 /**
@@ -24,49 +26,58 @@ const soundPaths = {
  */
 export function preloadSounds() {
   Object.keys(soundPaths).forEach(name => {
-    sounds[name] = new Audio(soundPaths[name]);
-    sounds[name].preload = 'auto';
+    const audio = new Audio(soundPaths[name]);
+    audio.preload = 'auto';
+    sounds[name] = audio;
   });
-  
   console.log('✅ Звуки предзагружены:', Object.keys(sounds));
 }
 
 /**
  * Воспроизведение звука по имени
- * @param {string} name - Имя звука: 'correct', 'wrong', 'next'
+ * @param {string} name - Имя звука: 'correct', 'wrong', 'tick', 'timeout', 'next'
+ * @param {{ volume?: number, playbackRate?: number }} [options]
  */
-export function playSound(name) {
-  if (!sounds[name]) {
+export function playSound(name, options = {}) {
+  const { volume = 1, playbackRate = 1 } = options;
+  const base = sounds[name];
+
+  if (!base) {
     console.warn(`⚠️ Звук "${name}" не найден. Доступные:`, Object.keys(sounds));
     return;
   }
-  
+
   try {
-    // Сброс на начало для повторного воспроизведения
-    sounds[name].currentTime = 0;
-    sounds[name].play();
+    // Клонируем, чтобы можно было проигрывать параллельно (tick может звучать быстро)
+    const audio = base.cloneNode(true);
+    audio.volume = clamp(volume);
+    audio.playbackRate = clampRate(playbackRate);
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
   } catch (error) {
     console.error(`❌ Ошибка воспроизведения звука "${name}":`, error);
   }
 }
 
 /**
- * Отключение/включение звуков
- * @param {boolean} muted - true = отключить звук
+ * Установка режима mute
+ * @param {boolean} muted - true = выключить звук
  */
 export function setMuted(muted) {
-  Object.values(sounds).forEach(audio => {
-    audio.muted = muted;
-  });
+  Object.values(sounds).forEach(a => (a.muted = muted));
 }
 
 /**
- * Установка громкости (0.0 - 1.0)
- * @param {number} volume - Громкость от 0 до 1
+ * Установка громкости (0–1)
  */
 export function setVolume(volume) {
-  const clampedVolume = Math.max(0, Math.min(1, volume));
-  Object.values(sounds).forEach(audio => {
-    audio.volume = clampedVolume;
-  });
+  const v = clamp(volume);
+  Object.values(sounds).forEach(a => (a.volume = v));
+}
+
+function clamp(x) {
+  return Math.max(0, Math.min(1, x));
+}
+function clampRate(r) {
+  return Math.max(0.5, Math.min(2, r));
 }

@@ -21,7 +21,7 @@ export const state = {
     },
     blocks: {
       simple: {
-        digits: [], // По умолчанию пусто
+        digits: ["1", "2", "3", "4"], // По умолчанию пусто
         onlyAddition: false,
         onlySubtraction: false
       },

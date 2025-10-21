@@ -323,21 +323,40 @@ export function renderSettings(container, { t, state, updateSettings, navigate }
   );
   baseGrid.appendChild(examplesRow.row);
 
-  const timeRow = createFormRow(t("settings.timeLabel"));
-  timeRow.control.appendChild(
-    createSelect(t("settings.timeOptions"), settingsState.timeLimit, (value) => {
-      updateSettings({ timeLimit: value });
-    })
-  );
-  baseGrid.appendChild(timeRow.row);
+  // === Ограничение времени ===
+const timeRow = createFormRow(t("settings.timeLabel"));
+timeRow.control.appendChild(
+  createSelect(t("settings.timeOptions"), settingsState.timeLimit, (value) => {
+    const timeLimitEnabled = value !== "none";
+    const timePerExampleMs = parseTimeToMs(value);
+    updateSettings({
+      timeLimit: value,
+      timeLimitEnabled,
+      timePerExampleMs
+    });
+  })
+);
+baseGrid.appendChild(timeRow.row);
 
-  const speedRow = createFormRow(t("settings.speedLabel"));
-  speedRow.control.appendChild(
-    createSelect(t("settings.speedOptions"), settingsState.speed, (value) => {
-      updateSettings({ speed: value });
-    })
-  );
-  baseGrid.appendChild(speedRow.row);
+// === Скорость показа ===
+const speedRow = createFormRow(t("settings.speedLabel"));
+speedRow.control.appendChild(
+  createSelect(t("settings.speedOptions"), settingsState.speed, (value) => {
+    const showSpeedEnabled = value !== "0";
+    const showSpeedMs = parseSpeedToMs(value);
+    updateSettings({
+      speed: value,
+      showSpeedEnabled,
+      showSpeedMs,
+      showSpeedPauseAfterChainMs: 600,
+      bigDigitScale: 1.15,
+      lockInputDuringShow: true,
+      beepOnStep: false,
+      beepOnTimeout: true
+    });
+  })
+);
+baseGrid.appendChild(speedRow.row);
 
   form.appendChild(baseGrid);
 
@@ -423,4 +442,52 @@ export function renderSettings(container, { t, state, updateSettings, navigate }
 
   body.appendChild(form);
   container.appendChild(section);
+}
+function parseTimeToMs(value) {
+  if (value == null) return 0;
+  // Если в value уже миллисекунды (число или строка-число) — вернуть как есть
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (/^\d+$/.test(String(value))) return Number(value); // "60000" -> 60000
+
+  const v = String(value).trim().toLowerCase().replace(",", "."); // "1,5 мин" -> "1.5 мин"
+  if (v.includes("none") || v.includes("без")) return 0;
+
+  // Выделяем число (целое или дробное)
+  const num = parseFloat(v.match(/[\d.]+/)?.[0] ?? "0"); // "1.5", "90"
+  if (!isFinite(num) || num <= 0) return 0;
+
+  // Определяем единицы
+  const isMin = /(min|мин)/.test(v);           // "1 мин", "2 min"
+  const isSec = /(sec|сек)/.test(v);           // "30 сек", "90 sec"
+
+  if (isMin) return Math.round(num * 60_000);  // минуты -> мс
+  if (isSec || /\d/.test(v)) return Math.round(num * 1_000); // секунды -> мс (по умолчанию секунды)
+  return 0;
+}
+
+function parseSpeedToMs(value) {
+  if (value == null) return 0;
+  // Если уже миллисекунды
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (/^\d+$/.test(String(value))) {
+    const n = Number(value);
+    // Если явно большой — считаем, что это мс; если маленький — секунды
+    return n > 50 ? n : n * 1000;
+  }
+
+  const v = String(value).trim().toLowerCase().replace(",", ".");
+  if (v === "0" || v.includes("без")) return 0;
+
+  // число (секунды как десятичное), например "0.1 сек", "1.25s"
+  const num = parseFloat(v.match(/[\d.]+/)?.[0] ?? "0");
+  if (!isFinite(num) || num <= 0) return 0;
+
+  // Если явно указаны миллисекунды (ms)
+  if (/ms/.test(v)) return Math.round(num);
+
+  // По ключевым словам secs/сек/seconds — трактуем как секунды
+  if (/(sec|сек|s(?![a-z]))/.test(v)) return Math.round(num * 1000);
+
+  // По умолчанию — секунды
+  return Math.round(num * 1000);
 }

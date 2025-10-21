@@ -1,7 +1,7 @@
 {
   "language": "English",
   "header": {
-    "title": "Abacuc v1",
+    "title": "Mind Abacuc     Think fast. Count smart.",
     "tagline": "Mental arithmetic trainer",
     "steps": {
       "settings": "Settings",
@@ -71,5 +71,28 @@
     "success": "Correct",
     "mistakes": "Mistakes",
     "cta": "Start new setup"
-  }
+  },
+  "timer": {
+  "out": "Time is up!",
+  "left": "{seconds} seconds left",
+  "paused": "Timer paused",
+  "continue": "Continue"
+},
+"answer": {
+  "enterNumber": "Please enter a number",
+  "correct": "Correct answer: {value}",
+  "wrong": "Wrong answer",
+  "timeUp": "Time is up. Correct answer: {value}"
+},
+"dictation": {
+  "enabled": "Dictation mode enabled",
+  "showing": "Showing numbers one by one",
+  "finished": "Dictation finished"
+},
+"progress": {
+  "examples": "Examples",
+  "correct": "Correct",
+  "mistakes": "Mistakes"
 }
+}
+

@@ -1,7 +1,7 @@
 {
   "language": "Español",
   "header": {
-    "title": "Abacuc v1",
+    "title": "Mind Abacuc    Piensa rápido. Cuenta con inteligencia",
     "tagline": "Entrenador de aritmética mental",
     "steps": {
       "settings": "Ajustes",
@@ -71,5 +71,27 @@
     "success": "Correctos",
     "mistakes": "Errores",
     "cta": "Iniciar nueva configuración"
-  }
+  },
+  "timer": {
+  "out": "¡Tiempo agotado!",
+  "left": "Quedan {seconds} segundos",
+  "paused": "Temporizador en pausa",
+  "continue": "Reanudar"
+},
+"answer": {
+  "enterNumber": "Por favor, introduce un número",
+  "correct": "Respuesta correcta: {value}",
+  "wrong": "Respuesta incorrecta",
+  "timeUp": "Se acabó el tiempo. Respuesta correcta: {value}"
+},
+"dictation": {
+  "enabled": "Modo dictado activado",
+  "showing": "Mostrando números uno por uno",
+  "finished": "Dictado finalizado"
+},
+"progress": {
+  "examples": "Ejemplos",
+  "correct": "Correctos",
+  "mistakes": "Errores"
+}
 }
