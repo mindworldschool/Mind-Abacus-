@@ -445,24 +445,35 @@ baseGrid.appendChild(speedRow.row);
 }
 function parseTimeToMs(value) {
   if (value == null) return 0;
-  // Если в value уже миллисекунды (число или строка-число) — вернуть как есть
+  // already milliseconds (number or numeric string)
   if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (/^\d+$/.test(String(value))) return Number(value); // "60000" -> 60000
+  if (/^\d+$/.test(String(value))) return Number(value);
 
-  const v = String(value).trim().toLowerCase().replace(",", "."); // "1,5 мин" -> "1.5 мин"
+  const v = String(value).trim().toLowerCase().replace(",", "."); // normalize
+
+  // "MM:SS" or "M:SS" (e.g., "1:00", "9:30")
+  if (/^\d{1,2}:\d{2}$/.test(v)) {
+    const [m, s] = v.split(":").map(n => parseInt(n, 10) || 0);
+    return (m * 60 + s) * 1000;
+  }
+
   if (v.includes("none") || v.includes("без")) return 0;
 
-  // Выделяем число (целое или дробное)
-  const num = parseFloat(v.match(/[\d.]+/)?.[0] ?? "0"); // "1.5", "90"
+  // number with units
+  const num = parseFloat(v.match(/[\d.]+/)?.[0] ?? "0");
   if (!isFinite(num) || num <= 0) return 0;
 
-  // Определяем единицы
-  const isMin = /(min|мин)/.test(v);           // "1 мин", "2 min"
-  const isSec = /(sec|сек)/.test(v);           // "30 сек", "90 sec"
+  // explicit ms
+  if (/ms\b/.test(v)) return Math.round(num);
 
-  if (isMin) return Math.round(num * 60_000);  // минуты -> мс
-  if (isSec || /\d/.test(v)) return Math.round(num * 1_000); // секунды -> мс (по умолчанию секунды)
-  return 0;
+  // seconds
+  if (/(sec|сек|s(?![a-z]))/.test(v)) return Math.round(num * 1000);
+
+  // minutes
+  if (/(min|мин)/.test(v)) return Math.round(num * 60 * 1000);
+
+  // default: treat as minutes per product spec
+  return Math.round(num * 60 * 1000);
 }
 
 function parseSpeedToMs(value) {
