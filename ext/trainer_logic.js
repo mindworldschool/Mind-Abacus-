@@ -111,16 +111,22 @@ export function mountTrainerUI(container, { t, state }) {
       getComputedStyle(document.documentElement).getPropertyValue("--color-primary")?.trim() || "#EC8D00";
     const overlay = new BigStepOverlay(st.bigDigitScale ?? 1.15, overlayColor);
 
-    // --- Центрирование крупной цифры ---
-    if (overlay?.el) {
-      overlay.el.style.position = "fixed";
-      overlay.el.style.left = "50%";
-      overlay.el.style.top = "50%";
-      overlay.el.style.transform = "translate(-50%, -50%)";
-      overlay.el.style.zIndex = "9999";
-      overlay.el.style.pointerEvents = "none";
-    }
+    // --- Центрирование крупной цифры внутри белого блока ---
+const mainBlock = layout.querySelector(".trainer-main");
 
+if (overlay?.el && mainBlock) {
+  mainBlock.style.position = "relative"; // чтобы позиционирование шло относительно блока
+  overlay.el.style.position = "absolute";
+  overlay.el.style.left = "50%";
+  overlay.el.style.top = "50%";
+  overlay.el.style.transform = "translate(-50%, -50%)";
+  overlay.el.style.zIndex = "10";
+  overlay.el.style.pointerEvents = "none";
+
+  // Вставляем overlay внутрь белого блока
+  mainBlock.appendChild(overlay.el);
+}
+   
     const shouldShowAbacus = st.mode === "abacus";
     if (shouldShowAbacus) {
       abacusWrapper.classList.add("visible");
@@ -353,3 +359,4 @@ function getExampleCount(examplesCfg) {
   if (!examplesCfg) return 10;
   return examplesCfg.infinite ? 10 : (examplesCfg.count ?? 10);
 }
+
