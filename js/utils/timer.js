@@ -190,8 +190,7 @@ function tickAnswerTimer(firstPaint = false) {
   if (answerTimerOpts?.textElementId) {
     const el = document.getElementById(answerTimerOpts.textElementId);
     if (el) {
-      const secs = Math.ceil(remaining / 1000); // чтобы 00:00 не появлялось заранее
-      el.textContent = formatTime(secs);
+      el.textContent = formatTime(remaining);
     }
   }
 
@@ -219,4 +218,5 @@ function tickAnswerTimer(firstPaint = false) {
     }
   }
 }
+
 
