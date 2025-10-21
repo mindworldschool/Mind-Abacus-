@@ -326,7 +326,7 @@ export function renderSettings(container, { t, state, updateSettings, navigate }
   // === Ограничение времени ===
 const timeRow = createFormRow(t("settings.timeLabel"));
 timeRow.control.appendChild(
-  createSelect(t("settings.timeOptions"), settingsState.timeLimit, (value) => {
+  createSelect(timeOptions, settingsState.timeLimit, (value) => {
     const timeLimitEnabled = value !== "none";
     const timePerExampleMs = parseTimeToMs(value);
     updateSettings({
@@ -357,7 +357,28 @@ speedRow.control.appendChild(
   })
 );
 baseGrid.appendChild(speedRow.row);
-
+// Замена списка опций времени прямо здесь
+const timeOptions = [
+  { value: "10 сек", label: "10 сек" },
+  { value: "20 сек", label: "20 сек" },
+  { value: "30 сек", label: "30 сек" },
+  { value: "40 сек", label: "40 сек" },
+  { value: "50 сек", label: "50 сек" },
+  { value: "1:00", label: "1 минута" },
+  { value: "1:30", label: "1 мин 30 сек" },
+  { value: "2:00", label: "2 минуты" },
+  { value: "2:30", label: "2 мин 30 сек" },
+  { value: "3:00", label: "3 минуты" },
+  { value: "3:30", label: "3 мин 30 сек" },
+  { value: "4:00", label: "4 минуты" },
+  { value: "4:30", label: "4 мин 30 сек" },
+  { value: "5:00", label: "5 минут" },
+  { value: "6:00", label: "6 минут" },
+  { value: "7:00", label: "7 минут" },
+  { value: "8:00", label: "8 минут" },
+  { value: "9:00", label: "9 минут" },
+  { value: "10:00", label: "10 минут" },
+];
   form.appendChild(baseGrid);
 
   const advancedSection = createSection(t("settings.advancedLabel"));
