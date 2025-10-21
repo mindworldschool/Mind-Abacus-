@@ -119,9 +119,10 @@ if (overlay?.el && mainBlock) {
   overlay.el.style.position = "absolute";
   overlay.el.style.left = "50%";
   overlay.el.style.top = "50%";
-  overlay.el.style.transform = "translate(-50%, -50%)";
+  overlay.el.style.transform = "translate(-50%, -55%)";
   overlay.el.style.zIndex = "10";
   overlay.el.style.pointerEvents = "none";
+ 
 
   // Вставляем overlay внутрь белого блока
   mainBlock.appendChild(overlay.el);
@@ -359,4 +360,5 @@ function getExampleCount(examplesCfg) {
   if (!examplesCfg) return 10;
   return examplesCfg.infinite ? 10 : (examplesCfg.count ?? 10);
 }
+
 
