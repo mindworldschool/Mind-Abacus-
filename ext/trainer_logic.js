@@ -205,16 +205,7 @@ export function mountTrainerUI(container, { t, state }) {
           input.focus();
         }
 
-        // === ЗАПУСК ТАЙМЕРА ОТВЕТА ===
-        if (st.timeLimitEnabled && st.timePerExampleMs > 0) {
-          startAnswerTimer(st.timePerExampleMs, {
-            onExpire: handleTimeExpired,
-            textElementId: "answerTimerText",
-            barSelector: "#answer-timer .bar"
-          });
-        }
-
-        console.log("📝 Новый пример:", session.currentExample.steps, "Ответ:", session.currentExample.answer);
+       console.log("📝 Новый пример:", session.currentExample.steps, "Ответ:", session.currentExample.answer);
       } catch (e) {
         showFatalError(e);
       }
@@ -333,7 +324,17 @@ export function mountTrainerUI(container, { t, state }) {
     document.getElementById("answer-input").addEventListener("keypress", (e) => {
       if (e.key === "Enter") checkAnswer();
     });
-
+// === ГЛОБАЛЬНЫЙ ТАЙМЕР НА ВСЮ СЕРИЮ ===
+if (st.timeLimitEnabled && st.timePerExampleMs > 0) {
+  startAnswerTimer(st.timePerExampleMs, {
+    onExpire: () => {
+      console.warn("⏰ Время серии истекло!");
+      finishSession();
+    },
+    textElementId: "answerTimerText",
+    barSelector: "#answer-timer .bar"
+  });
+}
     // === Старт ===
     showNextExample();
     console.log(`✅ Тренажёр запущен (${abacusDigits} стоек, ${digits}-значные числа)`);
@@ -371,4 +372,5 @@ function getExampleCount(examplesCfg) {
   if (!examplesCfg) return 10;
   return examplesCfg.infinite ? 10 : (examplesCfg.count ?? 10);
 }
+
 
