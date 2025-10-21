@@ -111,18 +111,25 @@ export function mountTrainerUI(container, { t, state }) {
       getComputedStyle(document.documentElement).getPropertyValue("--color-primary")?.trim() || "#EC8D00";
     const overlay = new BigStepOverlay(st.bigDigitScale ?? 1.15, overlayColor);
 
-    // --- Центрирование крупной цифры внутри белого блока ---
+    // --- Центрирование крупной цифры внутри белого блока (адаптивно) ---
 const mainBlock = layout.querySelector(".trainer-main");
 
 if (overlay?.el && mainBlock) {
-  mainBlock.style.position = "relative"; // чтобы позиционирование шло относительно блока
+  mainBlock.style.position = "relative";
+
   overlay.el.style.position = "absolute";
   overlay.el.style.left = "50%";
   overlay.el.style.top = "50%";
   overlay.el.style.transform = "translate(-50%, -55%)";
-  overlay.el.style.zIndex = "10";
+  overlay.el.style.zIndex = "20";
   overlay.el.style.pointerEvents = "none";
- 
+
+  // Адаптивный размер относительно ширины блока
+  overlay.el.style.width = "100%";
+  overlay.el.style.textAlign = "center";
+  overlay.el.style.fontSize = "min(18vw, 150px)";
+  overlay.el.style.lineHeight = "1";
+  overlay.el.style.fontWeight = "700";
 
   // Вставляем overlay внутрь белого блока
   mainBlock.appendChild(overlay.el);
@@ -360,5 +367,6 @@ function getExampleCount(examplesCfg) {
   if (!examplesCfg) return 10;
   return examplesCfg.infinite ? 10 : (examplesCfg.count ?? 10);
 }
+
 
 
