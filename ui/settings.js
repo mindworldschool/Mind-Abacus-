@@ -347,20 +347,24 @@ export function renderSettings(container, { t, state, updateSettings, navigate }
   );
   baseGrid.appendChild(examplesRow.row);
 
-  // === Ограничение времени ===
-  const timeRow = createFormRow(t("settings.timeLabel"));
-  timeRow.control.appendChild(
-    createSelect(timeOptions, settingsState.timeLimit, (value) => {
-      const timeLimitEnabled = value !== "none";
-      const timePerExampleMs = parseTimeToMs(value);
-      updateSettings({
-        timeLimit: value,
-        timeLimitEnabled,
-        timePerExampleMs
-      });
-    })
-  );
-  baseGrid.appendChild(timeRow.row);
+// === Ограничение времени ===
+const timeRow = createFormRow(t("settings.timeLabel"));
+
+// ✅ Новая строка — если значение не задано, ставим "none"
+const initialTimeLimit = settingsState.timeLimit || "none";
+
+timeRow.control.appendChild(
+  createSelect(timeOptions, initialTimeLimit, (value) => {
+    const timeLimitEnabled = value !== "none";
+    const timePerExampleMs = parseTimeToMs(value);
+    updateSettings({
+      timeLimit: value,
+      timeLimitEnabled,
+      timePerExampleMs
+    });
+  })
+);
+baseGrid.appendChild(timeRow.row);
 
   // === Скорость показа ===
   const speedRow = createFormRow(t("settings.speedLabel"));
