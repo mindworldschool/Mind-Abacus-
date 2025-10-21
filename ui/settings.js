@@ -29,9 +29,7 @@ function createSelect(options, value, onChange) {
     select.appendChild(opt);
   });
   select.value = value;
-  select.addEventListener("change", () => {
-    onChange(select.value);
-  });
+  select.addEventListener("change", () => onChange(select.value));
   return select;
 }
 
@@ -93,25 +91,19 @@ function createCounter({ count, infinite, infinityLabel, onUpdate }) {
 
   function emit(countValue, infiniteValue) {
     const nextCount = Math.max(1, Number.isNaN(Number(countValue)) ? 1 : Number(countValue));
-    if (!infiniteValue) {
-      finiteValue = nextCount;
-    }
+    if (!infiniteValue) finiteValue = nextCount;
     onUpdate({ count: nextCount, infinite: infiniteValue });
   }
 
   minus.addEventListener("click", () => {
-    if (infinityInput.checked) {
-      return;
-    }
+    if (infinityInput.checked) return;
     const next = Math.max(1, (parseInt(input.value, 10) || finiteValue) - 1);
     input.value = String(next);
     emit(next, false);
   });
 
   plus.addEventListener("click", () => {
-    if (infinityInput.checked) {
-      return;
-    }
+    if (infinityInput.checked) return;
     const next = (parseInt(input.value, 10) || finiteValue) + 1;
     input.value = String(next);
     emit(next, false);
@@ -193,11 +185,8 @@ function createBlockCard({
     input.addEventListener("change", () => {
       label.classList.toggle("digit-chip--active", input.checked);
       const current = new Set(state.settings.blocks[key].digits);
-      if (input.checked) {
-        current.add(digit);
-      } else {
-        current.delete(digit);
-      }
+      if (input.checked) current.add(digit);
+      else current.delete(digit);
       const nextDigits = Array.from(current).sort((a, b) => {
         const orderA = orderMap.get(a) ?? 0;
         const orderB = orderMap.get(b) ?? 0;
@@ -211,15 +200,20 @@ function createBlockCard({
     return { input, label, digit };
   });
 
-  const allToggle = createCheckbox(allLabel, stateBlock.digits.length === digits.length, (checked) => {
-    const nextDigits = checked ? [...digits] : [];
-    digitInputs.forEach(({ input, label }) => {
-      input.checked = checked;
-      label.classList.toggle("digit-chip--active", checked);
-    });
-    onUpdate({ digits: nextDigits });
-    allToggle.classList.toggle("is-active", checked);
-  }, "settings-checkbox settings-checkbox--pill");
+  const allToggle = createCheckbox(
+    allLabel,
+    stateBlock.digits.length === digits.length,
+    (checked) => {
+      const nextDigits = checked ? [...digits] : [];
+      digitInputs.forEach(({ input, label }) => {
+        input.checked = checked;
+        label.classList.toggle("digit-chip--active", checked);
+      });
+      onUpdate({ digits: nextDigits });
+      allToggle.classList.toggle("is-active", checked);
+    },
+    "settings-checkbox settings-checkbox--pill"
+  );
 
   function updateAllToggle() {
     const activeCount = digitInputs.filter(({ input }) => input.checked).length;
@@ -236,13 +230,19 @@ function createBlockCard({
   const footer = document.createElement("div");
   footer.className = "block-card__footer";
 
-  const additionToggle = createCheckbox(additionLabel, stateBlock.onlyAddition, (checked) => {
-    onUpdate({ onlyAddition: checked });
-  }, "settings-checkbox settings-checkbox--outline");
+  const additionToggle = createCheckbox(
+    additionLabel,
+    stateBlock.onlyAddition,
+    (checked) => onUpdate({ onlyAddition: checked }),
+    "settings-checkbox settings-checkbox--outline"
+  );
 
-  const subtractionToggle = createCheckbox(subtractionLabel, stateBlock.onlySubtraction, (checked) => {
-    onUpdate({ onlySubtraction: checked });
-  }, "settings-checkbox settings-checkbox--outline");
+  const subtractionToggle = createCheckbox(
+    subtractionLabel,
+    stateBlock.onlySubtraction,
+    (checked) => onUpdate({ onlySubtraction: checked }),
+    "settings-checkbox settings-checkbox--outline"
+  );
 
   footer.append(additionToggle, subtractionToggle);
   card.appendChild(footer);
@@ -271,8 +271,9 @@ export function renderSettings(container, { t, state, updateSettings, navigate }
 
   const settingsState = state.settings;
 
-  // === Список опций времени ===
+  // === Список опций времени (вернули «Отключено») ===
   const timeOptions = [
+    { value: "none", label: "Отключено" },
     { value: "10 сек", label: "10 сек" },
     { value: "20 сек", label: "20 сек" },
     { value: "30 сек", label: "30 сек" },
@@ -450,9 +451,7 @@ export function renderSettings(container, { t, state, updateSettings, navigate }
   actions.className = "form__actions";
   const submitButton = createButton({
     label: t("settings.submit"),
-    onClick: () => {
-      form.requestSubmit();
-    }
+    onClick: () => form.requestSubmit()
   });
   actions.appendChild(submitButton);
 
@@ -478,7 +477,6 @@ function parseTimeToMs(value) {
     const [m, s] = v.split(":").map(n => parseInt(n, 10) || 0);
     return (m * 60 + s) * 1000;
   }
-
   if (v.includes("none") || v.includes("без")) return 0;
 
   const num = parseFloat(v.match(/[\d.]+/)?.[0] ?? "0");
