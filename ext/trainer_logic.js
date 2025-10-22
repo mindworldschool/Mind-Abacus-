@@ -291,6 +291,9 @@ export function mountTrainerUI(container, { t, state }) {
     // === Adaptive font size for example display ===
     function adaptExampleFontSize(actionsCount, maxDigits) {
       const exampleLines = document.querySelectorAll('#area-example .example__line');
+
+      logger.debug(CONTEXT, `adaptExampleFontSize called: ${exampleLines.length} lines found, actions: ${actionsCount}, digits: ${maxDigits}`);
+
       if (!exampleLines.length) return;
 
       // Base calculation considering both actions and digits
@@ -306,10 +309,10 @@ export function mountTrainerUI(container, { t, state }) {
       const maxFontSize = 96;
       const fontSize = maxFontSize - (complexityFactor * (maxFontSize - minFontSize));
 
-      // Apply to all lines
+      // Apply to all lines with !important to override CSS
       exampleLines.forEach(line => {
-        line.style.fontSize = `${Math.round(fontSize)}px`;
-        line.style.lineHeight = '1.2';
+        line.style.setProperty('font-size', `${Math.round(fontSize)}px`, 'important');
+        line.style.setProperty('line-height', '1.2', 'important');
       });
 
       logger.debug(CONTEXT, `Font size: ${Math.round(fontSize)}px (actions: ${actionsCount}, digits: ${maxDigits})`);
@@ -363,8 +366,10 @@ export function mountTrainerUI(container, { t, state }) {
           exampleView.clear();
         } else {
           exampleView.render(session.currentExample.steps, displayMode);
-          // Adapt font size based on actions and digits
-          adaptExampleFontSize(actionsLen, maxDigits);
+          // Adapt font size based on actions and digits (with delay for DOM update)
+          setTimeout(() => {
+            adaptExampleFontSize(actionsLen, maxDigits);
+          }, 0);
         }
 
         // === Sequential display ===
