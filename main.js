@@ -16,6 +16,10 @@ import { renderSettings } from "./ui/settings.js";
 import { renderConfirmation } from "./ui/confirmation.js";
 import { renderGame } from "./ui/game.js";
 import { renderResults } from "./ui/results.js";
+import { logger } from "./core/utils/logger.js";
+import toast from "./ui/components/Toast.js";
+
+const CONTEXT = 'Main';
 
 const mainContainer = document.getElementById("app");
 const titleElement = document.getElementById("appTitle");
@@ -67,7 +71,7 @@ function renderLanguageButtons() {
 
 function renderScreen(name) {
   if (!screens[name]) {
-    console.warn(`Unknown route: ${name}`);
+    logger.warn(CONTEXT, `Unknown route: ${name}`);
     return;
   }
 
@@ -90,31 +94,52 @@ function renderScreen(name) {
 }
 
 export function route(name) {
+  logger.debug(CONTEXT, `Navigating to: ${name}`);
   setRoute(name);
   renderScreen(name);
 }
 
 async function bootstrap() {
-  await initI18n(state.language);
-  updateHeaderTexts();
-  renderLanguageButtons();
-  route(state.route);
-
-  onLanguageChange(() => {
+  try {
+    logger.info(CONTEXT, 'Application starting...');
+    await initI18n(state.language);
     updateHeaderTexts();
     renderLanguageButtons();
-    renderScreen(state.route);
-  });
+    route(state.route);
+
+    onLanguageChange(() => {
+      updateHeaderTexts();
+      renderLanguageButtons();
+      renderScreen(state.route);
+    });
+
+    logger.info(CONTEXT, 'Application initialized successfully');
+  } catch (error) {
+    logger.error(CONTEXT, 'Failed to initialize application:', error);
+    toast.error('Не удалось загрузить приложение');
+    throw error;
+  }
 }
 
-bootstrap().catch((error) => {
-  console.error("Failed to initialise application", error);
-});
-
-document.addEventListener("keydown", (event) => {
+// Escape key handler with cleanup
+const escapeHandler = (event) => {
   if (event.key === "Escape" && state.route !== "settings") {
     route("settings");
   }
+};
+
+document.addEventListener("keydown", escapeHandler);
+
+// Cleanup on page unload
+window.addEventListener("beforeunload", () => {
+  logger.debug(CONTEXT, 'Cleaning up before unload');
+  if (typeof currentCleanup === "function") {
+    currentCleanup();
+  }
+  document.removeEventListener("keydown", escapeHandler);
 });
 
-window.route = route;
+// Start application
+bootstrap().catch((error) => {
+  logger.error(CONTEXT, "Bootstrap failed:", error);
+});
