@@ -312,10 +312,36 @@ if (overlay?.el && mainBlock) {
       return Math.max(FONT_SIZE.MIN_SIZE, Math.min(FONT_SIZE.BASE_SIZE, fontSize));
     }
 
+    // === Adaptive font size for example display ===
+    function adaptExampleFontSize(actionsCount, maxDigits) {
+      const exampleLines = document.querySelectorAll('#area-example .example__line');
+      if (!exampleLines.length) return;
+
+      // Base calculation considering both actions and digits
+      // Start with large font for 1 action & 1 digit, scale down to 12 actions & 9 digits
+      const actionsFactor = Math.min(actionsCount, 12) / 12; // 0.083 to 1
+      const digitsFactor = Math.min(maxDigits, 9) / 9; // 0.111 to 1
+
+      // Combined factor (lower = bigger font)
+      const complexityFactor = (actionsFactor + digitsFactor) / 2;
+
+      // Font size range: 24px (most complex) to 96px (simplest)
+      const minFontSize = 24;
+      const maxFontSize = 96;
+      const fontSize = maxFontSize - (complexityFactor * (maxFontSize - minFontSize));
+
+      // Apply to all lines
+      exampleLines.forEach(line => {
+        line.style.fontSize = `${Math.round(fontSize)}px`;
+        line.style.lineHeight = '1.2';
+      });
+
+      logger.debug(CONTEXT, `Font size: ${Math.round(fontSize)}px (actions: ${actionsCount}, digits: ${maxDigits})`);
+    }
+
     // === Show next example ===
     async function showNextExample() {
       try {
-        stopAnswerTimer();
         overlay.clear();
         showAbort = true;
         isShowing = false;
@@ -341,9 +367,6 @@ if (overlay?.el && mainBlock) {
         if (!session.currentExample || !Array.isArray(session.currentExample.steps))
           throw new Error("Empty example generated");
 
-        exampleView.render(session.currentExample.steps, displayMode);
-
-        // Adapt font size
         const actionsLen = session.currentExample.steps.length;
         let maxDigits = 1;
         for (const step of session.currentExample.steps) {
@@ -354,14 +377,28 @@ if (overlay?.el && mainBlock) {
         const input = document.getElementById("answer-input");
         input.value = "";
 
+        // === Automatic dictation mode for >12 actions ===
+        const shouldUseDictation = actionsLen > 12;
+        const effectiveShowSpeed = shouldUseDictation ? 2000 : (st.showSpeedMs || 0);
+        const showSpeedActive = st.showSpeedEnabled && effectiveShowSpeed > 0;
+
+        // === Hide example view when speed is enabled or dictation mode ===
+        if (showSpeedActive || shouldUseDictation) {
+          exampleView.clear();
+        } else {
+          exampleView.render(session.currentExample.steps, displayMode);
+          // Adapt font size based on actions and digits
+          adaptExampleFontSize(actionsLen, maxDigits);
+        }
+
         // === Sequential display ===
         const lockDuringShow = st.lockInputDuringShow !== false;
         input.disabled = lockDuringShow;
 
-        if (st.showSpeedEnabled && st.showSpeedMs > 0) {
+        if (showSpeedActive || shouldUseDictation) {
           isShowing = true;
           showAbort = false;
-          await playSequential(session.currentExample.steps, st.showSpeedMs, {
+          await playSequential(session.currentExample.steps, effectiveShowSpeed, {
             beepOnStep: !!st.beepOnStep
           });
           if (showAbort) return;
@@ -453,12 +490,17 @@ if (overlay?.el && mainBlock) {
       logger.info(CONTEXT, 'Training finished:', session.stats);
     }
 
-    // === Sequential playback ===
+    // === Sequential playback with color alternation ===
     async function playSequential(steps, intervalMs, { beepOnStep = false } = {}) {
       try {
-        for (const s of steps) {
+        for (let i = 0; i < steps.length; i++) {
           if (showAbort) break;
-          overlay.show(formatStep(s));
+
+          const s = steps[i];
+          const isOdd = (i % 2) === 0; // 0-indexed: 0,2,4... are "first, third, fifth..."
+          const color = isOdd ? "#EC8D00" : "#6db45c"; // Orange for odd positions, green for even
+
+          overlay.show(formatStep(s), color);
           if (beepOnStep) playSound("tick");
           await delay(intervalMs);
           overlay.hide();
@@ -506,7 +548,7 @@ if (overlay?.el && mainBlock) {
       if (e.key === "Enter") checkAnswer();
     });
 
-    // === Global timer ===
+    // === Global timer for entire series ===
     if (st.timeLimitEnabled && st.timePerExampleMs > 0) {
       startAnswerTimer(st.timePerExampleMs, {
         onExpire: () => {
