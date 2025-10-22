@@ -366,10 +366,10 @@ export function mountTrainerUI(container, { t, state }) {
           exampleView.clear();
         } else {
           exampleView.render(session.currentExample.steps, displayMode);
-          // Adapt font size based on actions and digits (with delay for DOM update)
-          setTimeout(() => {
+          // Adapt font size based on actions and digits (immediate after render)
+          requestAnimationFrame(() => {
             adaptExampleFontSize(actionsLen, maxDigits);
-          }, 0);
+          });
         }
 
         // === Sequential display ===

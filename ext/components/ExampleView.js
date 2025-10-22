@@ -40,8 +40,8 @@ export class ExampleView {
       this.renderInline(steps);
     }
 
-    // Автомасштабирование шрифта
-    this.adjustFontSize(steps.length);
+    // Автомасштабирование шрифта отключено - контролируется из trainer_logic.js
+    // this.adjustFontSize(steps.length);
   }
 
   /**
