@@ -342,7 +342,6 @@ if (overlay?.el && mainBlock) {
     // === Show next example ===
     async function showNextExample() {
       try {
-        stopAnswerTimer();
         overlay.clear();
         showAbort = true;
         isShowing = false;
@@ -412,15 +411,6 @@ if (overlay?.el && mainBlock) {
         } else {
           input.disabled = false;
           input.focus();
-        }
-
-        // === Start per-example timer ===
-        if (st.timeLimitEnabled && st.timePerExampleMs > 0) {
-          startAnswerTimer(st.timePerExampleMs, {
-            onExpire: handleTimeExpired,
-            textElementId: "answerTimerText",
-            barSelector: "#answer-timer .bar"
-          });
         }
 
         logger.debug(CONTEXT, 'New example:', session.currentExample.steps, 'Answer:', session.currentExample.answer);
@@ -557,6 +547,18 @@ if (overlay?.el && mainBlock) {
     addListener(document.getElementById("answer-input"), "keypress", (e) => {
       if (e.key === "Enter") checkAnswer();
     });
+
+    // === Global timer for entire series ===
+    if (st.timeLimitEnabled && st.timePerExampleMs > 0) {
+      startAnswerTimer(st.timePerExampleMs, {
+        onExpire: () => {
+          logger.warn(CONTEXT, 'Series time expired!');
+          finishSession();
+        },
+        textElementId: "answerTimerText",
+        barSelector: "#answer-timer .bar"
+      });
+    }
 
     // === Start ===
     showNextExample();
