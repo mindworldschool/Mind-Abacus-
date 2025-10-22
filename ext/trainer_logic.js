@@ -264,6 +264,30 @@ export function mountTrainerUI(container, { t, state }) {
       getComputedStyle(document.documentElement).getPropertyValue("--color-primary")?.trim() || "#EC8D00";
     const overlay = new BigStepOverlay(st.bigDigitScale ?? UI.BIG_DIGIT_SCALE, overlayColor);
 
+    // --- Центрирование крупной цифры внутри белого блока (адаптивно) ---
+const mainBlock = layout.querySelector(".trainer-main");
+
+if (overlay?.el && mainBlock) {
+  mainBlock.style.position = "relative";
+
+  overlay.el.style.position = "absolute";
+  overlay.el.style.left = "50%";
+  overlay.el.style.top = "50%";
+  overlay.el.style.transform = "translate(-50%, -55%)";
+  overlay.el.style.zIndex = "20";
+  overlay.el.style.pointerEvents = "none";
+
+  // Адаптивный размер относительно ширины блока
+  overlay.el.style.width = "100%";
+  overlay.el.style.textAlign = "center";
+  overlay.el.style.fontSize = "min(18vw, 150px)";
+  overlay.el.style.lineHeight = "1";
+  overlay.el.style.fontWeight = "700";
+
+  // Вставляем overlay внутрь белого блока
+  mainBlock.appendChild(overlay.el);
+}
+   
     const shouldShowAbacus = st.mode === "abacus";
     if (shouldShowAbacus) {
       abacusWrapper.classList.add("visible");
@@ -326,8 +350,6 @@ export function mountTrainerUI(container, { t, state }) {
           const num = parseInt(String(step).replace(/[^\d-]/g, ""), 10);
           if (!isNaN(num)) maxDigits = Math.max(maxDigits, Math.abs(num).toString().length);
         }
-        const fontSize = calculateFontSize(actionsLen, maxDigits);
-        document.documentElement.style.setProperty("--example-font-size", `${fontSize}px`);
 
         const input = document.getElementById("answer-input");
         input.value = "";
@@ -378,8 +400,6 @@ export function mountTrainerUI(container, { t, state }) {
         isShowing = false;
         overlay.clear();
       }
-
-      stopAnswerTimer();
 
       const isCorrect = userAnswer === session.currentExample.answer;
       if (isCorrect) session.stats.correct++;
