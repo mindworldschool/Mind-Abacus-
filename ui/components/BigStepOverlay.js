@@ -24,9 +24,13 @@ export class BigStepOverlay {
   /**
    * Показать шаг (например, "+3" или "−5")
    * @param {string|number} text
+   * @param {string} [color] - Optional color override
    */
-  show(text) {
+  show(text, color = null) {
     this.el.textContent = text;
+    if (color) {
+      this.el.style.setProperty("--big-color", color);
+    }
     this.el.classList.add("show");
   }
 
