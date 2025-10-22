@@ -114,4 +114,7 @@ export const eventBus = new EventBus();
 // Convenience exports
 export const { on, once, off, emit, clear } = eventBus;
 
+// Re-export EVENTS for convenience
+export { EVENTS };
+
 export default eventBus;
