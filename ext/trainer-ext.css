@@ -136,7 +136,7 @@
   color: var(--gold);
   font-weight: 700;
   text-align: center;
-  font-size: clamp(28px, 4vw, 56px);
+  /* font-size controlled by adaptExampleFontSize() in JS */
   line-height: 1.2;
   width: 100%;
   display: flex;
@@ -671,15 +671,15 @@
     padding: 24px 20px;
     min-height: 350px;
   }
-  
+
   #area-example {
     min-height: 200px;
   }
-  
+
   .example__line {
-    font-size: clamp(28px, 8vw, 48px);
+    /* font-size controlled by adaptExampleFontSize() in JS */
   }
-  
+
   .answer-label {
     font-size: 24px;
   }

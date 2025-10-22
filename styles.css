@@ -852,14 +852,14 @@ body.game-screen .screen__body {
   font-family: "Baloo 2", cursive;
   font-size: clamp(48px, 12vw, 180px);
   font-weight: 800;
-  color: var(--color-primary);
+  color: var(--big-color, var(--color-primary));
   text-shadow: 0 0 12px rgba(0, 0, 0, 0.18);
   line-height: 1;
   letter-spacing: 0.02em;
   pointer-events: none;
   opacity: 0;
   z-index: 9999;
-  transition: opacity 0.18s ease, transform 0.18s ease;
+  transition: opacity 0.18s ease, transform 0.18s ease, color 0.15s ease;
 }
 
 #big-step-overlay.show {
