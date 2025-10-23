@@ -49,6 +49,11 @@ function createRuleFromSettings(settings) {
   const minSteps = actions?.min ?? 2;
   const maxSteps = actions?.max ?? 4;
 
+  // === ОПРЕДЕЛЕНИЕ НЕОБХОДИМОСТИ БЛОКОВ ===
+  // Для цифр 6-9: блоки НЕ обязательны (генерируем как одно действие)
+  // Для цифр 1-5: блоки НЕ нужны вообще
+  const requireBlock = false;
+
   const config = {
     minSteps,
     maxSteps,
@@ -56,7 +61,7 @@ function createRuleFromSettings(settings) {
     onlyFiveSelected,
     onlyAddition,
     onlySubtraction,
-    requireBlock: true // По умолчанию требуем блок ±k
+    requireBlock
   };
 
   // === ВЫБОР ПРАВИЛА НА ОСНОВЕ ВЫБРАННЫХ ЦИФР ===
