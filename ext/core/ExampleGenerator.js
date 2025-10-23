@@ -101,6 +101,7 @@ _generateAttempt() {
             if (Math.abs(action) === 5) has5Action = true;
           }
           blockInserted = true;
+          stepsCount -= block.length; // ✅ Уменьшаем счетчик при вставке блока
           continue;
         }
       }
@@ -165,6 +166,7 @@ _generateAttempt() {
         if (Math.abs(action) === 5) has5Action = true;
       }
       blockInserted = true;
+      // ✅ Здесь не уменьшаем stepsCount, так как блок вставлен после цикла
     } else {
       throw new Error(`Не удалось сгенерировать блок ±k`);
     }

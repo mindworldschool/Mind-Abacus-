@@ -65,13 +65,17 @@ export class Simple9Rule extends BaseRule {
           if (!isUpperActive && (currentState + 5 <= 9)) {
             validActions.push(5);
           }
+        } else if (digit === 9) {
+          // +9: верхняя не активна И есть все 4 свободные нижние (только из 0)
+          if (!isUpperActive && inactiveLower >= 4 && currentState === 0) {
+            validActions.push(9);
+          }
         } else if (digit < 5) {
           // +1..+4: есть достаточно свободных нижних
           if (inactiveLower >= digit) {
             validActions.push(digit);
           }
         }
-        // digit === 9 не добавляем как отдельное действие (это композиция)
       }
 
       // === ОТРИЦАТЕЛЬНЫЕ ДЕЙСТВИЯ ===
@@ -80,6 +84,11 @@ export class Simple9Rule extends BaseRule {
           // -5: верхняя активна
           if (isUpperActive) {
             validActions.push(-5);
+          }
+        } else if (digit === 9) {
+          // -9: верхняя активна И есть все 4 активные нижние (только из 9)
+          if (isUpperActive && activeLower >= 4 && currentState === 9) {
+            validActions.push(-9);
           }
         } else if (digit < 5) {
           // -1..-4: есть активные нижние
@@ -233,6 +242,18 @@ export class Simple9Rule extends BaseRule {
       } else if (action === -5) {
         if (!isUpperActive) {
           console.error(`❌ Физически невозможно: -5 из ${state} (верхняя не активна)`);
+          return false;
+        }
+      } else if (action === 9) {
+        // +9 требует: состояние = 0
+        if (state !== 0) {
+          console.error(`❌ Физически невозможно: +9 из ${state} (возможно только из 0)`);
+          return false;
+        }
+      } else if (action === -9) {
+        // -9 требует: состояние = 9
+        if (state !== 9) {
+          console.error(`❌ Физически невозможно: -9 из ${state} (возможно только из 9)`);
           return false;
         }
       } else if (action > 0 && action < 5) {

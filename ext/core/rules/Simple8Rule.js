@@ -65,13 +65,17 @@ export class Simple8Rule extends BaseRule {
           if (!isUpperActive && (currentState + 5 <= 9)) {
             validActions.push(5);
           }
+        } else if (digit === 8) {
+          // +8: верхняя не активна И есть хотя бы 3 свободные нижние (из 0,1)
+          if (!isUpperActive && inactiveLower >= 3 && (currentState + 8 <= 9)) {
+            validActions.push(8);
+          }
         } else if (digit < 5) {
           // +1..+4: есть достаточно свободных нижних
           if (inactiveLower >= digit) {
             validActions.push(digit);
           }
         }
-        // digit === 8 не добавляем как отдельное действие (это композиция)
       }
 
       // === ОТРИЦАТЕЛЬНЫЕ ДЕЙСТВИЯ ===
@@ -80,6 +84,11 @@ export class Simple8Rule extends BaseRule {
           // -5: верхняя активна
           if (isUpperActive) {
             validActions.push(-5);
+          }
+        } else if (digit === 8) {
+          // -8: верхняя активна И есть хотя бы 3 активные нижние (из 8,9)
+          if (isUpperActive && activeLower >= 3 && (currentState - 8 >= 0)) {
+            validActions.push(-8);
           }
         } else if (digit < 5) {
           // -1..-4: есть активные нижние
@@ -240,6 +249,18 @@ export class Simple8Rule extends BaseRule {
       } else if (action === -5) {
         if (!isUpperActive) {
           console.error(`❌ Физически невозможно: -5 из ${state} (верхняя не активна)`);
+          return false;
+        }
+      } else if (action === 8) {
+        // +8 требует: верхняя не активна, хотя бы 3 свободные нижние
+        if (isUpperActive || inactiveLower < 3) {
+          console.error(`❌ Физически невозможно: +8 из ${state} (верх:${isUpperActive}, свободно:${inactiveLower})`);
+          return false;
+        }
+      } else if (action === -8) {
+        // -8 требует: верхняя активна, хотя бы 3 активные нижние
+        if (!isUpperActive || activeLower < 3) {
+          console.error(`❌ Физически невозможно: -8 из ${state} (верх:${isUpperActive}, активно:${activeLower})`);
           return false;
         }
       } else if (action > 0 && action < 5) {
