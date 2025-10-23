@@ -238,10 +238,17 @@ function createBlockCard({
   if (key === "simple") {
     const hint = document.createElement("div");
     hint.className = "block-card__hint";
-    hint.innerHTML = `
-      <span class="hint-icon">ℹ️</span>
-      <span class="hint-text">${t("settings.blocks.simple.hint")}</span>
-    `;
+
+    const hintIcon = document.createElement("span");
+    hintIcon.className = "hint-icon";
+    hintIcon.textContent = "ℹ️";
+
+    const hintText = document.createElement("span");
+    hintText.className = "hint-text";
+    hintText.textContent = t("settings.blocks.simple.hint");
+
+    hint.appendChild(hintIcon);
+    hint.appendChild(hintText);
     card.appendChild(hint);
   }
 

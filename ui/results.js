@@ -40,11 +40,17 @@ export function renderResults(container, { t, navigate }) {
 
   const successLabel = document.createElement("div");
   successLabel.className = "progress__label";
-  successLabel.innerHTML = `<strong>${t("results.success")}:</strong> ${success} / ${total} (${successPercent}%)`;
+  const successStrong = document.createElement("strong");
+  successStrong.textContent = `${t("results.success")}:`;
+  successLabel.appendChild(successStrong);
+  successLabel.appendChild(document.createTextNode(` ${success} / ${total} (${successPercent}%)`));
 
   const mistakesLabel = document.createElement("div");
   mistakesLabel.className = "progress__label";
-  mistakesLabel.innerHTML = `<strong>${t("results.mistakes")}:</strong> ${mistakes} / ${total} (${mistakePercent}%)`;
+  const mistakesStrong = document.createElement("strong");
+  mistakesStrong.textContent = `${t("results.mistakes")}:`;
+  mistakesLabel.appendChild(mistakesStrong);
+  mistakesLabel.appendChild(document.createTextNode(` ${mistakes} / ${total} (${mistakePercent}%)`));
 
   labels.append(successLabel, mistakesLabel);
   progressBar.append(bar, labels);
