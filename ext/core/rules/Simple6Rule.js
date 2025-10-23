@@ -65,13 +65,17 @@ export class Simple6Rule extends BaseRule {
           if (!isUpperActive && (currentState + 5 <= 9)) {
             validActions.push(5);
           }
+        } else if (digit === 6) {
+          // +6: верхняя не активна И есть хотя бы 1 свободная нижняя (из 0,1,2,3)
+          if (!isUpperActive && inactiveLower >= 1 && (currentState + 6 <= 9)) {
+            validActions.push(6);
+          }
         } else if (digit < 5) {
           // +1..+4: есть достаточно свободных нижних
           if (inactiveLower >= digit) {
             validActions.push(digit);
           }
         }
-        // digit === 6 не добавляем как отдельное действие (это композиция)
       }
 
       // === ОТРИЦАТЕЛЬНЫЕ ДЕЙСТВИЯ ===
@@ -80,6 +84,11 @@ export class Simple6Rule extends BaseRule {
           // -5: верхняя активна
           if (isUpperActive) {
             validActions.push(-5);
+          }
+        } else if (digit === 6) {
+          // -6: верхняя активна И есть хотя бы 1 активная нижняя (из 6,7,8,9)
+          if (isUpperActive && activeLower >= 1 && (currentState - 6 >= 0)) {
+            validActions.push(-6);
           }
         } else if (digit < 5) {
           // -1..-4: есть активные нижние
@@ -240,6 +249,18 @@ export class Simple6Rule extends BaseRule {
       } else if (action === -5) {
         if (!isUpperActive) {
           console.error(`❌ Физически невозможно: -5 из ${state} (верхняя не активна)`);
+          return false;
+        }
+      } else if (action === 6) {
+        // +6 требует: верхняя не активна, хотя бы 1 свободная нижняя
+        if (isUpperActive || inactiveLower < 1) {
+          console.error(`❌ Физически невозможно: +6 из ${state} (верх:${isUpperActive}, свободно:${inactiveLower})`);
+          return false;
+        }
+      } else if (action === -6) {
+        // -6 требует: верхняя активна, хотя бы 1 активная нижняя
+        if (!isUpperActive || activeLower < 1) {
+          console.error(`❌ Физически невозможно: -6 из ${state} (верх:${isUpperActive}, активно:${activeLower})`);
           return false;
         }
       } else if (action > 0 && action < 5) {
