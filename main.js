@@ -101,6 +101,19 @@ export function route(name) {
 
 async function bootstrap() {
   try {
+    // Проверка критических DOM элементов
+    if (!mainContainer || !titleElement || !taglineElement ||
+        !languageContainer || !footerElement) {
+      const missing = [];
+      if (!mainContainer) missing.push('app');
+      if (!titleElement) missing.push('appTitle');
+      if (!taglineElement) missing.push('appTagline');
+      if (!languageContainer) missing.push('languageSwitcher');
+      if (!footerElement) missing.push('appFooter');
+
+      throw new Error(`Missing required DOM elements: ${missing.join(', ')}`);
+    }
+
     logger.info(CONTEXT, 'Application starting...');
     await initI18n(state.language);
     updateHeaderTexts();
