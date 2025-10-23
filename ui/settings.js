@@ -159,7 +159,8 @@ function createBlockCard({
   onUpdate,
   allLabel,
   additionLabel,
-  subtractionLabel
+  subtractionLabel,
+  t  // ✅ ИСПРАВЛЕНИЕ 1: добавлен параметр t
 }) {
   const card = document.createElement("div");
   card.className = "block-card";
@@ -245,7 +246,7 @@ function createBlockCard({
 
     const hintText = document.createElement("span");
     hintText.className = "hint-text";
-    hintText.textContent = t("settings.blocks.simple.hint");
+    hintText.textContent = t("settings.blocks.simple.hint");  // ✅ Теперь t доступна!
 
     hint.appendChild(hintIcon);
     hint.appendChild(hintText);
@@ -476,6 +477,7 @@ baseGrid.appendChild(timeRow.row);
       allLabel: t("settings.allLabel"),
       additionLabel: t("settings.onlyAdditionLabel"),
       subtractionLabel: t("settings.onlySubtractionLabel"),
+      t,  // ✅ ИСПРАВЛЕНИЕ 2: передан параметр t
       onUpdate: (changes) => {
         updateSettings({
           blocks: {
