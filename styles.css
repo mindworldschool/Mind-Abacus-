@@ -582,6 +582,29 @@ body {
   gap: 12px;
 }
 
+.block-card__hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(255, 124, 0, 0.08);
+  border-radius: var(--radius-small);
+  border-left: 3px solid var(--color-primary);
+  margin-top: 4px;
+}
+
+.block-card__hint .hint-icon {
+  flex-shrink: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.block-card__hint .hint-text {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
 .counter {
   display: inline-flex;
   align-items: center;
