@@ -16,9 +16,32 @@ export function generateExample(settings) {
 function createRuleFromSettings(settings) {
   const { blocks, actions } = settings;
 
-  const selectedDigits = (blocks?.simple?.digits?.length > 0)
+  let selectedDigits = (blocks?.simple?.digits?.length > 0)
     ? blocks.simple.digits.map(d => parseInt(d, 10))
     : [1, 2, 3, 4];
+
+  // === АВТОМАТИЧЕСКОЕ ДОБАВЛЕНИЕ НЕОБХОДИМЫХ ЦИФР ===
+  // Для работы с цифрами 6-9 нужны базовые компоненты
+  const digitsToAdd = new Set(selectedDigits);
+
+  if (selectedDigits.includes(6)) {
+    digitsToAdd.add(5); // 6 = 5 + 1
+    digitsToAdd.add(1);
+  }
+  if (selectedDigits.includes(7)) {
+    digitsToAdd.add(5); // 7 = 5 + 2
+    digitsToAdd.add(2);
+  }
+  if (selectedDigits.includes(8)) {
+    digitsToAdd.add(5); // 8 = 5 + 3
+    digitsToAdd.add(3);
+  }
+  if (selectedDigits.includes(9)) {
+    digitsToAdd.add(5); // 9 = 5 + 4
+    digitsToAdd.add(4);
+  }
+
+  selectedDigits = Array.from(digitsToAdd).sort((a, b) => a - b);
 
   const onlyFiveSelected = (selectedDigits.length === 1 && selectedDigits[0] === 5);
   const onlyAddition = blocks?.simple?.onlyAddition || false;
@@ -38,12 +61,16 @@ function createRuleFromSettings(settings) {
 
   // === ВЫБОР ПРАВИЛА НА ОСНОВЕ ВЫБРАННЫХ ЦИФР ===
 
-  // Проверяем, какие цифры выбраны
+  // Проверяем, какие цифры выбраны (в оригинальном выборе пользователя)
+  const originalDigits = (blocks?.simple?.digits?.length > 0)
+    ? blocks.simple.digits.map(d => parseInt(d, 10))
+    : [1, 2, 3, 4];
+
   const has5 = selectedDigits.includes(5);
-  const has9 = selectedDigits.includes(9);
-  const has8 = selectedDigits.includes(8);
-  const has7 = selectedDigits.includes(7);
-  const has6 = selectedDigits.includes(6);
+  const has9 = originalDigits.includes(9);
+  const has8 = originalDigits.includes(8);
+  const has7 = originalDigits.includes(7);
+  const has6 = originalDigits.includes(6);
 
   // Приоритет: 9 > 8 > 7 > 6 > 5 > обычное "Просто"
 
