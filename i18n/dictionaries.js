@@ -113,7 +113,8 @@ export const dictionaries = {
       "blocks": {
         "simple": {
           "title": "Simple",
-          "digits": ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+          "digits": ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
+          "hint": "For 6-9 you also need 5 (compositions: 6=5+1, 7=5+2, 8=5+3, 9=5+4)"
         },
         "brothers": {
           "title": "Block — Brothers (sum to 5)",
@@ -306,7 +307,8 @@ export const dictionaries = {
       "blocks": {
         "simple": {
           "title": "Simple",
-          "digits": ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+          "digits": ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
+          "hint": "Para 6-9 también necesitas 5 (composiciones: 6=5+1, 7=5+2, 8=5+3, 9=5+4)"
         },
         "brothers": {
           "title": "Bloque — Hermanos (fórmulas 5)",
@@ -499,7 +501,8 @@ export const dictionaries = {
       "blocks": {
         "simple": {
           "title": "Просто",
-          "digits": ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+          "digits": ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
+          "hint": "Для 6-9 также нужна 5 (композиции: 6=5+1, 7=5+2, 8=5+3, 9=5+4)"
         },
         "brothers": {
           "title": "Блок — Братья (формулы 5)",
@@ -692,7 +695,8 @@ export const dictionaries = {
       "blocks": {
         "simple": {
           "title": "Просто",
-          "digits": ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+          "digits": ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
+          "hint": "Для 6-9 також потрібна 5 (композиції: 6=5+1, 7=5+2, 8=5+3, 9=5+4)"
         },
         "brothers": {
           "title": "Блок — Брати (формули 5)",
