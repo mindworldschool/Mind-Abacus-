@@ -12,8 +12,12 @@ const LOG_LEVELS = {
 };
 
 // Determine log level based on environment
-const isDevelopment = !window.location.hostname.includes('github.io') &&
-                      window.location.hostname !== 'localhost' ? false : true;
+// Safe check for window object (for Node.js compatibility)
+const isDevelopment = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1' ||
+  window.location.hostname === ''
+);
 
 const currentLevel = isDevelopment ? LOG_LEVELS.DEBUG : LOG_LEVELS.WARN;
 
