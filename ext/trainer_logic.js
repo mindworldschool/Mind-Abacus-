@@ -15,7 +15,7 @@ const CONTEXT = 'Trainer';
 /**
  * Create layout structure using createElement (secure)
  */
-function createTrainerLayout(displayMode, exampleCount, t) {
+function createTrainerLayout(displayMode, exampleCount) {
   const layout = document.createElement("div");
   layout.className = `mws-trainer mws-trainer--${displayMode}`;
 
@@ -38,7 +38,7 @@ function createTrainerLayout(displayMode, exampleCount, t) {
 
   const answerLabel = document.createElement("div");
   answerLabel.className = "answer-label";
-  answerLabel.textContent = t("trainer.answerLabel");
+  answerLabel.textContent = "Ответ:";
 
   const answerInput = document.createElement("input");
   answerInput.type = "number";
@@ -48,7 +48,7 @@ function createTrainerLayout(displayMode, exampleCount, t) {
   const submitBtn = document.createElement("button");
   submitBtn.className = "btn btn--primary";
   submitBtn.id = "btn-submit";
-  submitBtn.textContent = t("trainer.submitButton");
+  submitBtn.textContent = "Ответить";
 
   answerSection.append(answerLabel, answerInput, submitBtn);
 
@@ -56,7 +56,7 @@ function createTrainerLayout(displayMode, exampleCount, t) {
   const resultsCapsuleExt = createResultsCapsule(exampleCount);
 
   // Progress container
-  const progressContainer = createProgressContainer(t);
+  const progressContainer = createProgressContainer();
 
   // Timer
   const timerContainer = document.createElement("div");
@@ -75,7 +75,7 @@ function createTrainerLayout(displayMode, exampleCount, t) {
   const abacusBtn = document.createElement("button");
   abacusBtn.className = "btn btn--secondary btn--fullwidth";
   abacusBtn.id = "btn-show-abacus";
-  abacusBtn.textContent = t("trainer.showAbacus");
+  abacusBtn.textContent = "🧮 Показать абакус";
   panelCard.appendChild(abacusBtn);
 
   panelControls.append(
@@ -151,7 +151,7 @@ function createResultsCapsule(exampleCount) {
   return container;
 }
 
-function createProgressContainer(t) {
+function createProgressContainer() {
   const container = document.createElement("div");
   container.className = "progress-container";
 
@@ -175,7 +175,7 @@ function createProgressContainer(t) {
 
   const correctLabel = document.createElement("span");
   correctLabel.className = "progress-label__correct";
-  correctLabel.textContent = t("trainer.correctLabel");
+  correctLabel.textContent = "Правильно: ";
   const correctPercent = document.createElement("strong");
   correctPercent.id = "percent-correct";
   correctPercent.textContent = "0%";
@@ -183,7 +183,7 @@ function createProgressContainer(t) {
 
   const incorrectLabel = document.createElement("span");
   incorrectLabel.className = "progress-label__incorrect";
-  incorrectLabel.textContent = t("trainer.incorrectLabel");
+  incorrectLabel.textContent = "Ошибки: ";
   const incorrectPercent = document.createElement("strong");
   incorrectPercent.id = "percent-incorrect";
   incorrectPercent.textContent = "0%";
@@ -250,7 +250,7 @@ export function mountTrainerUI(container, { t, state }) {
     logger.info(CONTEXT, `Retry mode: ${retryMode}, examples to retry: ${retryExamples.length}`);
 
     // === Create Layout (secure) ===
-    const layout = createTrainerLayout(displayMode, exampleCount, t);
+    const layout = createTrainerLayout(displayMode, exampleCount);
     container.appendChild(layout);
 
     // === Create Abacus ===
@@ -270,7 +270,7 @@ export function mountTrainerUI(container, { t, state }) {
     const shouldShowAbacus = st.mode === "abacus";
     if (shouldShowAbacus) {
       abacusWrapper.classList.add("visible");
-      document.getElementById("btn-show-abacus").textContent = t("trainer.hideAbacus");
+      document.getElementById("btn-show-abacus").textContent = "🧮 Скрыть абакус";
     }
 
     // === State ===
@@ -421,7 +421,7 @@ export function mountTrainerUI(container, { t, state }) {
 
       if (isNaN(userAnswer)) {
         // Replace alert() with toast
-        toast.warning(t("trainer.pleaseEnterNumber"));
+        toast.warning("Пожалуйста, введите число");
         return;
       }
 
@@ -549,13 +549,13 @@ export function mountTrainerUI(container, { t, state }) {
       abacusWrapper.classList.toggle("visible");
       const btn = document.getElementById("btn-show-abacus");
       btn.textContent = abacusWrapper.classList.contains("visible")
-        ? t("trainer.hideAbacus")
-        : t("trainer.showAbacus");
+        ? "🧮 Скрыть абакус"
+        : "🧮 Показать абакус";
     });
 
     addListener(document.getElementById("btn-close-abacus"), "click", () => {
       abacusWrapper.classList.remove("visible");
-      document.getElementById("btn-show-abacus").textContent = t("trainer.showAbacus");
+      document.getElementById("btn-show-abacus").textContent = "🧮 Показать абакус";
     });
 
     addListener(document.getElementById("btn-submit"), "click", checkAnswer);
