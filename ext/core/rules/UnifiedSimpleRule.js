@@ -133,11 +133,21 @@ getAvailableActions(currentState, isFirstAction = false, position = 0) {
       }
     }
 
-    // 3. Финал должен закрыться (для однозначных)
+    // 3. Финал должен быть в допустимом диапазоне
+    const answerNum = this.stateToNumber(answer);
+    const minFinal = this.getMinFinalNumber();
+    const maxFinal = this.getMaxFinalNumber();
+
+    // Для однозначных также проверяем maxFinalState (должно закрыться)
     if (digitCount === 1) {
-      const answerNum = this.stateToNumber(answer);
       if (answerNum > maxFinalState || answerNum < 0) {
         console.error(`❌ Финал ${answerNum} вне диапазона 0-${maxFinalState}`);
+        return false;
+      }
+    } else {
+      // Для многозначных проверяем диапазон разрядности
+      if (answerNum < minFinal || answerNum > maxFinal) {
+        console.error(`❌ Финал ${answerNum} вне диапазона ${minFinal}-${maxFinal}`);
         return false;
       }
     }

@@ -204,4 +204,40 @@ export class BaseRule {
     }
     return 0;
   }
+
+  /**
+   * Helper: получить минимальное допустимое финальное число
+   * @returns {number}
+   */
+  getMinFinalNumber() {
+    const { digitCount, combineLevels } = this.config;
+
+    if (digitCount === 1) {
+      return 0;
+    }
+
+    // Без combineLevels: число должно иметь точно N разрядов
+    if (!combineLevels) {
+      // Минимальное N-значное число (10 для 2-значных, 100 для 3-значных и т.д.)
+      return Math.pow(10, digitCount - 1);
+    }
+
+    // С combineLevels: допустимы числа от 1 до максимального N-значного
+    return 1;
+  }
+
+  /**
+   * Helper: получить максимальное допустимое финальное число
+   * @returns {number}
+   */
+  getMaxFinalNumber() {
+    const { digitCount } = this.config;
+
+    if (digitCount === 1) {
+      return 9;
+    }
+
+    // Максимальное N-значное число (99 для 2-значных, 999 для 3-значных и т.д.)
+    return Math.pow(10, digitCount) - 1;
+  }
 }
