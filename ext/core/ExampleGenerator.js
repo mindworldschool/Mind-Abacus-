@@ -88,6 +88,24 @@ _generateAttempt() {
         const actionsForPosition = this.rule.getAvailableActions(currentState, isFirstAction, position);
         availableActions = availableActions.concat(actionsForPosition);
       }
+
+      // Стратегия: если без combineLevels и старший разряд = 0, повышаем приоритет действий на старший разряд
+      const combineLevels = this.rule.config?.combineLevels || false;
+      if (!combineLevels && i >= Math.floor(stepsCount / 2)) {
+        const highestPosition = digitCount - 1;
+        const highestDigitValue = currentState[highestPosition] || 0;
+
+        // Если старший разряд всё ещё 0, приоритизируем действия на него
+        if (highestDigitValue === 0) {
+          const highPriorityActions = availableActions.filter(a =>
+            typeof a === 'object' && a.position === highestPosition && a.value > 0
+          );
+
+          if (highPriorityActions.length > 0 && Math.random() < 0.7) {
+            availableActions = highPriorityActions;
+          }
+        }
+      }
     } else {
       // Legacy: однозначный режим
       availableActions = this.rule.getAvailableActions(currentState, isFirstAction);
@@ -194,8 +212,20 @@ _generateAttempt() {
   }
 
   // === REPAIR TO RANGE (если финал выходит за пределы) ===
-  if (this.rule.config?.maxFinalState !== undefined && currentState > this.rule.config.maxFinalState) {
+  if (this.rule.config?.maxFinalState !== undefined && typeof currentState === 'number' && currentState > this.rule.config.maxFinalState) {
     currentState = this._repairToRange(steps, currentState);
+  }
+
+  // === ПРОВЕРКА ДИАПАЗОНА ДЛЯ MULTI-DIGIT ===
+  const digitCount = this.rule.config?.digitCount || 1;
+  if (digitCount > 1 && Array.isArray(currentState)) {
+    const finalNumber = this.rule.stateToNumber(currentState);
+    const minFinal = this.rule.getMinFinalNumber();
+    const maxFinal = this.rule.getMaxFinalNumber();
+
+    if (finalNumber < minFinal || finalNumber > maxFinal) {
+      throw new Error(`Финальное число ${finalNumber} вне диапазона ${minFinal}-${maxFinal}`);
+    }
   }
 
   return {
@@ -294,13 +324,13 @@ _generateAttempt() {
   /**
    * Конвертирует пример в формат для trainer_logic.js
    * @param {Object} example - Пример {start, steps, answer}
-   * @returns {Object} - Пример в формате {start, steps: string[], answer}
+   * @returns {Object} - Пример в формате {start: number, steps: string[], answer: number}
    */
   toTrainerFormat(example) {
     return {
-      start: example.start, // Сохраняем оригинальный формат (число или массив)
+      start: this.rule.stateToNumber(example.start),  // Всегда преобразуем в число
       steps: example.steps.map(step => this.rule.formatAction(step.action)),
-      answer: example.answer // Сохраняем оригинальный формат (число или массив)
+      answer: this.rule.stateToNumber(example.answer) // Всегда преобразуем в число
     };
   }
 

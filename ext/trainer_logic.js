@@ -240,7 +240,6 @@ export function mountTrainerUI(container, { t, state }) {
       : [];
 
     const digits = parseInt(st.digits, 10) || 1;
-    const abacusDigits = digits + 1;
     const displayMode = st.inline ? "inline" : "column";
 
     // === Режим пересчета ошибок ===
@@ -262,9 +261,7 @@ export function mountTrainerUI(container, { t, state }) {
     document.body.appendChild(abacusWrapper);
 
     const exampleView = new ExampleView(document.getElementById("area-example"));
-    const abacus = new Abacus(document.getElementById("floating-abacus-container"), {
-      digitCount: abacusDigits
-    });
+    const abacus = new Abacus(document.getElementById("floating-abacus-container"), digits);
 
     const overlayColor =
       getComputedStyle(document.documentElement).getPropertyValue("--color-primary")?.trim() || "#EC8D00";
