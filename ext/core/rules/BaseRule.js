@@ -207,6 +207,7 @@ export class BaseRule {
 
   /**
    * Helper: получить минимальное допустимое финальное число
+   * Поддерживает любое количество разрядов от 1 до 9
    * @returns {number}
    */
   getMinFinalNumber() {
@@ -218,7 +219,8 @@ export class BaseRule {
 
     // Без combineLevels: число должно иметь точно N разрядов
     if (!combineLevels) {
-      // Минимальное N-значное число (10 для 2-значных, 100 для 3-значных и т.д.)
+      // Минимальное N-значное число:
+      // digitCount=2: 10, digitCount=3: 100, digitCount=4: 1000, ..., digitCount=9: 100000000
       return Math.pow(10, digitCount - 1);
     }
 
@@ -228,6 +230,7 @@ export class BaseRule {
 
   /**
    * Helper: получить максимальное допустимое финальное число
+   * Поддерживает любое количество разрядов от 1 до 9
    * @returns {number}
    */
   getMaxFinalNumber() {
@@ -237,7 +240,8 @@ export class BaseRule {
       return 9;
     }
 
-    // Максимальное N-значное число (99 для 2-значных, 999 для 3-значных и т.д.)
+    // Максимальное N-значное число:
+    // digitCount=2: 99, digitCount=3: 999, digitCount=4: 9999, ..., digitCount=9: 999999999
     return Math.pow(10, digitCount) - 1;
   }
 }
