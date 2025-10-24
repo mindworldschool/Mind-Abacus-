@@ -39,7 +39,7 @@ export class Simple6Rule extends BaseRule {
       ...config
     };
 
-    console.log(`✅ Создано правило: ${this.name}, цифры: [${this.config.selectedDigits.join(', ')}]`);
+    console.log(`✅ Создано правило: ${this.name}, цифры: [${this.config.selectedDigits.join(', ')}], digitCount=${this.config.digitCount}, combineLevels=${this.config.combineLevels}`);
   }
 
   /**

@@ -29,10 +29,13 @@ export class UnifiedSimpleRule extends BaseRule {
       selectedDigits: selectedDigits,
       hasFive: hasFive,
       onlyFiveSelected: config.onlyFiveSelected || false,
-      firstActionMustBePositive: true
+      firstActionMustBePositive: true,
+      // КРИТИЧНО: не теряем digitCount и combineLevels из входящего config
+      digitCount: config.digitCount || 1,
+      combineLevels: config.combineLevels || false
     };
-    
-    console.log(`✅ Создано правило: ${this.name}, цифры: [${selectedDigits.join(', ')}]`);
+
+    console.log(`✅ Создано правило: ${this.name}, цифры: [${selectedDigits.join(', ')}], digitCount=${this.config.digitCount}, combineLevels=${this.config.combineLevels}`);
   }
 
 /**
