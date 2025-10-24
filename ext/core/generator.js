@@ -14,7 +14,10 @@ export function generateExample(settings) {
 }
 
 function createRuleFromSettings(settings) {
-  const { blocks, actions } = settings;
+  const { blocks, actions, digits, combineLevels } = settings;
+
+  // Получаем количество разрядов из settings.digits (1=однозначные, 2=двузначные и т.д.)
+  const digitCount = parseInt(digits, 10) || 1;
 
   let selectedDigits = (blocks?.simple?.digits?.length > 0)
     ? blocks.simple.digits.map(d => parseInt(d, 10))
@@ -61,7 +64,9 @@ function createRuleFromSettings(settings) {
     onlyFiveSelected,
     onlyAddition,
     onlySubtraction,
-    requireBlock
+    requireBlock,
+    digitCount,                    // Количество разрядов (1, 2, 3, ...)
+    combineLevels: combineLevels || false  // Комбинировать разряды
   };
 
   // === ВЫБОР ПРАВИЛА НА ОСНОВЕ ВЫБРАННЫХ ЦИФР ===

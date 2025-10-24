@@ -34,6 +34,8 @@ export class Simple9Rule extends BaseRule {
       requireBlock: config.requireBlock !== false, // по умолчанию true
       onlyAddition: config.onlyAddition || false,
       onlySubtraction: config.onlySubtraction || false,
+      digitCount: config.digitCount || 1,
+      combineLevels: config.combineLevels || false,
       ...config
     };
 
@@ -42,16 +44,20 @@ export class Simple9Rule extends BaseRule {
 
   /**
    * Получает доступные действия с физической валидацией
-   * @param {number} currentState - Текущее состояние (0-9)
+   * @param {number|number[]} currentState - Текущее состояние
    * @param {boolean} isFirstAction - Первое ли это действие
-   * @returns {number[]} - Массив доступных действий
+   * @param {number} position - Для multi-digit: позиция разряда
+   * @returns {Array<number|Object>} - Массив доступных действий
    */
-  getAvailableActions(currentState, isFirstAction = false) {
-    const { selectedDigits, onlyAddition, onlySubtraction } = this.config;
+  getAvailableActions(currentState, isFirstAction = false, position = 0) {
+    const { selectedDigits, onlyAddition, onlySubtraction, digitCount } = this.config;
 
-    // Физическая модель абакуса
-    const isUpperActive = (currentState >= 5);
-    const activeLower = isUpperActive ? currentState - 5 : currentState;
+    // Получаем значение конкретного разряда
+    const digitValue = this.getDigitValue(currentState, position);
+
+    // Физическая модель абакуса для этого разряда
+    const isUpperActive = (digitValue >= 5);
+    const activeLower = isUpperActive ? digitValue - 5 : digitValue;
     const inactiveLower = 4 - activeLower;
 
     let validActions = [];
@@ -62,17 +68,17 @@ export class Simple9Rule extends BaseRule {
       if (!onlySubtraction) {
         if (digit === 5) {
           // +5: верхняя НЕ активна и не выходим за 9
-          if (!isUpperActive && (currentState + 5 <= 9)) {
+          if (!isUpperActive && (digitValue + 5 <= 9)) {
             validActions.push(5);
           }
         } else if (digit === 9) {
-          // +9: верхняя не активна И есть все 4 свободные нижние (только из 0)
-          if (!isUpperActive && inactiveLower >= 4 && currentState === 0) {
+          // +9: верхняя не активна И есть все 4 свободные нижние (только из 0) и не выходим за 9
+          if (!isUpperActive && inactiveLower >= 4 && digitValue === 0 && (digitValue + 9 <= 9)) {
             validActions.push(9);
           }
         } else if (digit < 5) {
-          // +1..+4: есть достаточно свободных нижних
-          if (inactiveLower >= digit) {
+          // +1..+4: есть достаточно свободных нижних и не выходим за 9
+          if (inactiveLower >= digit && (digitValue + digit <= 9)) {
             validActions.push(digit);
           }
         }
@@ -81,18 +87,18 @@ export class Simple9Rule extends BaseRule {
       // === ОТРИЦАТЕЛЬНЫЕ ДЕЙСТВИЯ ===
       if (!onlyAddition && !isFirstAction) {
         if (digit === 5) {
-          // -5: верхняя активна
-          if (isUpperActive) {
+          // -5: верхняя активна и не уходим ниже 0
+          if (isUpperActive && (digitValue - 5 >= 0)) {
             validActions.push(-5);
           }
         } else if (digit === 9) {
-          // -9: верхняя активна И есть все 4 активные нижние (только из 9)
-          if (isUpperActive && activeLower >= 4 && currentState === 9) {
+          // -9: верхняя активна И есть все 4 активные нижние (только из 9) и не уходим ниже 0
+          if (isUpperActive && activeLower >= 4 && digitValue === 9 && (digitValue - 9 >= 0)) {
             validActions.push(-9);
           }
         } else if (digit < 5) {
-          // -1..-4: есть активные нижние
-          if (activeLower >= digit) {
+          // -1..-4: есть активные нижние и не уходим ниже 0
+          if (activeLower >= digit && (digitValue - digit >= 0)) {
             validActions.push(-digit);
           }
         }
@@ -105,11 +111,17 @@ export class Simple9Rule extends BaseRule {
     }
 
     // ПРАВИЛО: из 0 только положительные
-    if (currentState === 0 && !isFirstAction) {
+    if (digitValue === 0 && !isFirstAction) {
       validActions = validActions.filter(a => a > 0);
     }
 
-    console.log(`✅ Действия из ${currentState} (${this.name}, верх:${isUpperActive}, акт:${activeLower}, неакт:${inactiveLower}): [${validActions.join(', ')}]`);
+    // Для multi-digit режима преобразуем действия в формат {position, value}
+    if (digitCount && digitCount > 1) {
+      validActions = validActions.map(value => ({ position, value }));
+    }
+
+    const stateStr = Array.isArray(currentState) ? `[${currentState.join(', ')}]` : currentState;
+    console.log(`✅ Действия из ${stateStr} позиция ${position} (${this.name}, верх:${isUpperActive}, акт:${activeLower}, неакт:${inactiveLower}): [${validActions.map(a => typeof a === 'object' ? `{${a.position}:${a.value}}` : a).join(', ')}]`);
 
     return validActions;
   }

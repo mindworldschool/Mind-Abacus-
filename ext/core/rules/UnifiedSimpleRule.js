@@ -38,31 +38,34 @@ export class UnifiedSimpleRule extends BaseRule {
 /**
  * Получает доступные действия с учётом физики абакуса
  */
-getAvailableActions(currentState, isFirstAction = false) {
-  const { hasFive, selectedDigits } = this.config;
-  
-  // Определяем физическое состояние абакуса
-  const isUpperActive = hasFive && (currentState >= 5);
-  const activeLower = isUpperActive ? currentState - 5 : currentState;
+getAvailableActions(currentState, isFirstAction = false, position = 0) {
+  const { hasFive, selectedDigits, digitCount } = this.config;
+
+  // Получаем значение конкретного разряда
+  const digitValue = this.getDigitValue(currentState, position);
+
+  // Определяем физическое состояние абакуса для этого разряда
+  const isUpperActive = hasFive && (digitValue >= 5);
+  const activeLower = isUpperActive ? digitValue - 5 : digitValue;
   const inactiveLower = 4 - activeLower;
   
   let validActions = [];
-  
+
   // Проходим по всем выбранным цифрам
   for (const digit of selectedDigits) {
     // Положительные действия
     if (digit === 5 && hasFive) {
       // +5: верхняя не активна и не выходим за 9
-      if (!isUpperActive && (currentState + 5 <= 9)) {
-        validActions.push(5);
+      if (!isUpperActive && (digitValue + 5 <= 9)) {
+        validActions.push(digit);
       }
     } else if (digit < 5) {
-      // +1..+4: есть достаточно неактивных нижних
-      if (inactiveLower >= digit) {
+      // +1..+4: есть достаточно неактивных нижних и не выходим за 9
+      if (inactiveLower >= digit && (digitValue + digit <= 9)) {
         validActions.push(digit);
       }
     }
-    
+
     // Отрицательные действия (только если не первое)
     if (!isFirstAction) {
       if (digit === 5 && hasFive) {
@@ -71,8 +74,8 @@ getAvailableActions(currentState, isFirstAction = false) {
           validActions.push(-5);
         }
       } else if (digit < 5) {
-        // -1..-4: есть достаточно активных нижних
-        if (activeLower >= digit) {
+        // -1..-4: есть достаточно активных нижних и не уходим ниже 0
+        if (activeLower >= digit && (digitValue - digit >= 0)) {
           validActions.push(-digit);
         }
       }
@@ -83,12 +86,12 @@ getAvailableActions(currentState, isFirstAction = false) {
   if (isFirstAction) {
     validActions = validActions.filter(a => a > 0);
   }
-  
-  // ПРАВИЛО: из 0 только положительные
-  if (currentState === 0 && !isFirstAction) {
+
+  // ПРАВИЛО: из 0 только положительные (для однозначных или конкретного разряда = 0)
+  if (digitValue === 0 && !isFirstAction) {
     validActions = validActions.filter(a => a > 0);
   }
-  
+
   // Если выбрана только 5 - приоритет ±5
   if (this.config.onlyFiveSelected && hasFive) {
     const only5 = validActions.filter(a => Math.abs(a) === 5);
@@ -96,8 +99,14 @@ getAvailableActions(currentState, isFirstAction = false) {
       validActions = only5;
     }
   }
-  
-  console.log(`✅ Действия из ${currentState} (${this.name}): [${validActions.join(', ')}]`);
+
+  // Для multi-digit режима преобразуем действия в формат {position, value}
+  if (digitCount && digitCount > 1) {
+    validActions = validActions.map(value => ({ position, value }));
+  }
+
+  const stateStr = Array.isArray(currentState) ? `[${currentState.join(', ')}]` : currentState;
+  console.log(`✅ Действия из ${stateStr} позиция ${position} (${this.name}): [${validActions.map(a => typeof a === 'object' ? `{${a.position}:${a.value}}` : a).join(', ')}]`);
   return validActions;
 }
   /**
@@ -105,44 +114,57 @@ getAvailableActions(currentState, isFirstAction = false) {
    */
   validateExample(example) {
     const { start, steps, answer } = example;
-    const { maxFinalState, hasFive } = this.config;
-    
-    // 1. Старт = 0
-    if (start !== 0) {
-      console.error(`❌ Начальное состояние ${start} ≠ 0`);
+    const { maxFinalState, hasFive, digitCount } = this.config;
+
+    // 1. Старт = 0 (или массив нулей)
+    const startNum = this.stateToNumber(start);
+    if (startNum !== 0) {
+      console.error(`❌ Начальное состояние ${startNum} ≠ 0`);
       return false;
     }
-    
+
     // 2. Первое действие положительное
-    if (steps.length > 0 && steps[0].action <= 0) {
-      console.error(`❌ Первое действие ${steps[0].action} не положительное`);
-      return false;
-    }
-    
-    // 3. Финал должен закрыться
-    if (answer > maxFinalState || answer < 0) {
-      console.error(`❌ Финал ${answer} вне диапазона 0-${maxFinalState}`);
-      return false;
-    }
-    
-    // 4. Все промежуточные состояния валидны
-    for (const step of steps) {
-      if (step.toState < 0 || step.toState > this.config.maxState) {
-        console.error(`❌ Состояние ${step.toState} вне диапазона`);
+    if (steps.length > 0) {
+      const firstAction = steps[0].action;
+      const firstValue = typeof firstAction === 'object' ? firstAction.value : firstAction;
+      if (firstValue <= 0) {
+        console.error(`❌ Первое действие ${firstValue} не положительное`);
         return false;
       }
     }
-    
+
+    // 3. Финал должен закрыться (для однозначных)
+    if (digitCount === 1) {
+      const answerNum = this.stateToNumber(answer);
+      if (answerNum > maxFinalState || answerNum < 0) {
+        console.error(`❌ Финал ${answerNum} вне диапазона 0-${maxFinalState}`);
+        return false;
+      }
+    }
+
+    // 4. Все промежуточные состояния валидны
+    for (const step of steps) {
+      if (!this.isValidState(step.toState)) {
+        const stateStr = Array.isArray(step.toState) ? `[${step.toState.join(', ')}]` : step.toState;
+        console.error(`❌ Состояние ${stateStr} не валидно`);
+        return false;
+      }
+    }
+
     // 5. Расчёт совпадает
     let calc = start;
     for (const step of steps) {
-      calc += step.action;
+      calc = this.applyAction(calc, step.action);
     }
-    if (calc !== answer) {
-      console.error(`❌ Расчёт ${calc} ≠ ответу ${answer}`);
+
+    // Сравниваем с учетом формата (число или массив)
+    const calcNum = this.stateToNumber(calc);
+    const answerNum = this.stateToNumber(answer);
+    if (calcNum !== answerNum) {
+      console.error(`❌ Расчёт ${calcNum} ≠ ответу ${answerNum}`);
       return false;
     }
-    
+
     console.log(`✅ Пример валиден (${this.name})`);
     return true;
   }
