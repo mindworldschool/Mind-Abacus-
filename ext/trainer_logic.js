@@ -56,7 +56,7 @@ function createTrainerLayout(displayMode, exampleCount, t) {
   const resultsCapsuleExt = createResultsCapsule(exampleCount);
 
   // Progress container
-  const progressContainer = createProgressContainer();
+  const progressContainer = createProgressContainer(t);
 
   // Timer
   const timerContainer = document.createElement("div");
@@ -151,7 +151,7 @@ function createResultsCapsule(exampleCount) {
   return container;
 }
 
-function createProgressContainer() {
+function createProgressContainer(t) {
   const container = document.createElement("div");
   container.className = "progress-container";
 
