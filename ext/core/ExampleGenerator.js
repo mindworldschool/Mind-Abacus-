@@ -77,10 +77,25 @@ _generateAttempt() {
   for (let i = 0; i < stepsCount; i++) {
     const isFirstAction = (i === 0 && steps.length === 0);
     const isLastAction = (i === stepsCount - 1);
-    let availableActions = this.rule.getAvailableActions(currentState, isFirstAction);
+
+    let availableActions = [];
+
+    // Для multi-digit режима генерируем действия для всех позиций
+    const digitCount = this.rule.config?.digitCount || 1;
+    if (digitCount > 1 && Array.isArray(currentState)) {
+      // Собираем доступные действия для всех позиций
+      for (let position = 0; position < digitCount; position++) {
+        const actionsForPosition = this.rule.getAvailableActions(currentState, isFirstAction, position);
+        availableActions = availableActions.concat(actionsForPosition);
+      }
+    } else {
+      // Legacy: однозначный режим
+      availableActions = this.rule.getAvailableActions(currentState, isFirstAction);
+    }
 
     if (availableActions.length === 0) {
-      throw new Error(`Нет доступных действий из состояния ${currentState}`);
+      const stateStr = Array.isArray(currentState) ? `[${currentState.join(', ')}]` : currentState;
+      throw new Error(`Нет доступных действий из состояния ${stateStr}`);
     }
 
     // === ПОПЫТКА ВСТАВИТЬ БЛОК В СЕРЕДИНЕ/КОНЦЕ ===
@@ -111,16 +126,20 @@ _generateAttempt() {
     // ✅ Если есть 5 в выбранных цифрах и её ещё не было - повышаем шанс в середине
     const hasFive = this.rule.config?.hasFive;
     if (hasFive && !has5Action && i >= Math.floor(stepsCount / 3)) {
-      const actions5 = availableActions.filter(a => Math.abs(a) === 5);
+      const actions5 = availableActions.filter(a => {
+        const value = typeof a === 'object' ? a.value : a;
+        return Math.abs(value) === 5;
+      });
       if (actions5.length > 0 && Math.random() < 0.4) { // 40% шанс вместо 80%
         availableActions = actions5;
       }
     }
 
-    // ✅ На последнем шаге избегаем действий, ведущих к 0 (если можно)
-    if (isLastAction && currentState <= 4) {
+    // ✅ На последнем шаге избегаем действий, ведущих к 0 (только для однозначных)
+    if (isLastAction && typeof currentState === 'number' && currentState <= 4) {
       const nonZeroActions = availableActions.filter(action => {
-        const result = currentState + action;
+        const value = typeof action === 'object' ? action.value : action;
+        const result = currentState + value;
         return result !== 0;
       });
       if (nonZeroActions.length > 0) {
@@ -133,7 +152,8 @@ _generateAttempt() {
     const newState = this.rule.applyAction(currentState, action);
 
     // Отмечаем если использовали ±5
-    if (Math.abs(action) === 5) {
+    const actionValue = typeof action === 'object' ? action.value : action;
+    if (Math.abs(actionValue) === 5) {
       has5Action = true;
     }
 
