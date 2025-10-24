@@ -70,7 +70,8 @@ const defaultState = {
   },
   results: {
     success: 0,
-    total: 0
+    total: 0,
+    wrongExamples: [] // Массив неправильно решенных примеров
   }
 };
 
@@ -205,7 +206,7 @@ export function setResults(results) {
  * Reset results
  */
 export function resetResults() {
-  setState({ results: { success: 0, total: 0 } }, false);
+  setState({ results: { success: 0, total: 0, wrongExamples: [] } }, false);
 }
 
 /**
