@@ -262,9 +262,7 @@ export function mountTrainerUI(container, { t, state }) {
     document.body.appendChild(abacusWrapper);
 
     const exampleView = new ExampleView(document.getElementById("area-example"));
-    const abacus = new Abacus(document.getElementById("floating-abacus-container"), {
-      digitCount: abacusDigits
-    });
+    const abacus = new Abacus(document.getElementById("floating-abacus-container"), abacusDigits);
 
     const overlayColor =
       getComputedStyle(document.documentElement).getPropertyValue("--color-primary")?.trim() || "#EC8D00";

@@ -324,13 +324,13 @@ _generateAttempt() {
   /**
    * Конвертирует пример в формат для trainer_logic.js
    * @param {Object} example - Пример {start, steps, answer}
-   * @returns {Object} - Пример в формате {start, steps: string[], answer}
+   * @returns {Object} - Пример в формате {start: number, steps: string[], answer: number}
    */
   toTrainerFormat(example) {
     return {
-      start: example.start, // Сохраняем оригинальный формат (число или массив)
+      start: this.rule.stateToNumber(example.start),  // Всегда преобразуем в число
       steps: example.steps.map(step => this.rule.formatAction(step.action)),
-      answer: example.answer // Сохраняем оригинальный формат (число или массив)
+      answer: this.rule.stateToNumber(example.answer) // Всегда преобразуем в число
     };
   }
 
