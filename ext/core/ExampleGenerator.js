@@ -15,9 +15,10 @@ export class ExampleGenerator {
    * @returns {Object} - Пример в формате {start, steps, answer}
    */
   generate() {
-    // Для больших разрядов увеличиваем количество попыток
+    // Для многозначных чисел увеличиваем количество попыток
     const digitCount = this.rule.config?.digitCount || 1;
-    const maxAttempts = digitCount >= 4 ? 200 : 100;
+    // digitCount=1: 100, digitCount=2-3: 150, digitCount=4+: 200
+    const maxAttempts = digitCount === 1 ? 100 : (digitCount <= 3 ? 150 : 200);
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
@@ -97,7 +98,7 @@ _generateAttempt() {
         const highestPosition = digitCount - 1;
         const highestDigitValue = currentState[highestPosition] || 0;
 
-        // КРИТИЧНО: для больших digitCount нужно активировать старший разряд как можно раньше
+        // КРИТИЧНО: для N-значных чисел нужно активировать старший разряд
         // Если старший разряд всё ещё 0, сильно приоритизируем действия на него
         if (highestDigitValue === 0) {
           const highPriorityActions = availableActions.filter(a =>
@@ -105,10 +106,16 @@ _generateAttempt() {
           );
 
           if (highPriorityActions.length > 0) {
-            // Вероятность зависит от количества разрядов и текущего шага
-            // Для больших чисел (6-9 разрядов) приоритет выше
-            const priorityChance = digitCount >= 4 ? 0.85 : 0.7;
-            if (Math.random() < priorityChance || i >= Math.floor(stepsCount * 0.4)) {
+            // Прогрессивная вероятность: чем больше разрядов и позже шаг, тем выше приоритет
+            // digitCount=2: 75-95%, digitCount=3: 78-95%, digitCount=4+: 85-99%
+            const baseChance = Math.min(0.70 + (digitCount * 0.025), 0.85);
+            const progressMultiplier = Math.min(i / stepsCount, 1);
+            const priorityChance = baseChance + (progressMultiplier * 0.15);
+
+            // Критический момент: если уже прошло 50% шагов, приоритет 100%
+            const isCritical = i >= Math.floor(stepsCount * 0.5);
+
+            if (isCritical || Math.random() < priorityChance) {
               availableActions = highPriorityActions;
             }
           }
@@ -125,7 +132,9 @@ _generateAttempt() {
             return pos >= Math.floor(digitCount / 2) && posValue === 0 && a.value > 0;
           });
 
-          if (upperHalfActions.length > 0 && Math.random() < 0.6) {
+          // Вероятность зависит от прогресса
+          const upperChance = 0.5 + (Math.min(i / stepsCount, 1) * 0.3);
+          if (upperHalfActions.length > 0 && Math.random() < upperChance) {
             availableActions = upperHalfActions;
           }
         }
@@ -259,15 +268,37 @@ _generateAttempt() {
     currentState = this._repairToRange(steps, currentState);
   }
 
-  // === ПРОВЕРКА ДИАПАЗОНА ДЛЯ MULTI-DIGIT ===
+  // === ПРОВЕРКА И РЕМОНТ ДИАПАЗОНА ДЛЯ MULTI-DIGIT ===
   const digitCount = this.rule.config?.digitCount || 1;
   if (digitCount > 1 && Array.isArray(currentState)) {
     const finalNumber = this.rule.stateToNumber(currentState);
     const minFinal = this.rule.getMinFinalNumber();
     const maxFinal = this.rule.getMaxFinalNumber();
+    const combineLevels = this.rule.config?.combineLevels || false;
 
-    if (finalNumber < minFinal || finalNumber > maxFinal) {
-      throw new Error(`Финальное число ${finalNumber} вне диапазона ${minFinal}-${maxFinal}`);
+    // Если число меньше минимума и combineLevels=false, пытаемся добавить к старшему разряду
+    if (!combineLevels && finalNumber < minFinal) {
+      const highestPosition = digitCount - 1;
+      const highestDigitValue = currentState[highestPosition] || 0;
+
+      // Если старший разряд = 0, активируем его минимальным значием (+1)
+      if (highestDigitValue === 0) {
+        const repairAction = { position: highestPosition, value: 1 };
+        const newState = this.rule.applyAction(currentState, repairAction);
+        steps.push({
+          action: repairAction,
+          fromState: currentState,
+          toState: newState
+        });
+        currentState = newState;
+        console.log(`🔧 Repair: активирован старший разряд ${highestPosition}, число: ${this.rule.stateToNumber(currentState)}`);
+      }
+    }
+
+    // Финальная проверка
+    const finalCheck = this.rule.stateToNumber(currentState);
+    if (finalCheck < minFinal || finalCheck > maxFinal) {
+      throw new Error(`Финальное число ${finalCheck} вне диапазона ${minFinal}-${maxFinal}`);
     }
   }
 
