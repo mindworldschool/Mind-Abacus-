@@ -401,10 +401,36 @@ _generateAttempt() {
    * @returns {Object} - Пример в формате {start: number, steps: string[], answer: number}
    */
   toTrainerFormat(example) {
+    const digitCount = this.rule.config?.digitCount || 1;
+
+    // Для многозначных чисел показываем изменения между полными числами
+    if (digitCount > 1 && Array.isArray(example.start)) {
+      const formattedSteps = [];
+      let previousNumber = this.rule.stateToNumber(example.start); // 0
+
+      for (const step of example.steps) {
+        const currentNumber = this.rule.stateToNumber(step.toState);
+        const delta = currentNumber - previousNumber;
+
+        // Форматируем дельту как действие
+        const sign = delta > 0 ? '+' : '';
+        formattedSteps.push(`${sign}${delta}`);
+
+        previousNumber = currentNumber;
+      }
+
+      return {
+        start: this.rule.stateToNumber(example.start),
+        steps: formattedSteps,
+        answer: this.rule.stateToNumber(example.answer)
+      };
+    }
+
+    // Legacy: для однозначных чисел как раньше
     return {
-      start: this.rule.stateToNumber(example.start),  // Всегда преобразуем в число
+      start: this.rule.stateToNumber(example.start),
       steps: example.steps.map(step => this.rule.formatAction(step.action)),
-      answer: this.rule.stateToNumber(example.answer) // Всегда преобразуем в число
+      answer: this.rule.stateToNumber(example.answer)
     };
   }
 
