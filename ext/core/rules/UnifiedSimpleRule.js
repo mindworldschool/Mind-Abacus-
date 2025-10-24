@@ -169,7 +169,7 @@ getAvailableActions(currentState, isFirstAction = false, position = 0) {
 
     // Сравниваем с учетом формата (число или массив)
     const calcNum = this.stateToNumber(calc);
-    const answerNum = this.stateToNumber(answer);
+    // answerNum уже объявлен выше на строке 137
     if (calcNum !== answerNum) {
       console.error(`❌ Расчёт ${calcNum} ≠ ответу ${answerNum}`);
       return false;
