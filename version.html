@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Версия приложения - Abacuc</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 2rem;
+    }
+    .version {
+      color: #667eea;
+      font-size: 1.2rem;
+      margin-bottom: 30px;
+      font-weight: 600;
+    }
+    .status {
+      background: #f0f9ff;
+      border-left: 4px solid #0ea5e9;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 4px;
+    }
+    .status.success {
+      background: #f0fdf4;
+      border-left-color: #22c55e;
+    }
+    .status.error {
+      background: #fef2f2;
+      border-left-color: #ef4444;
+    }
+    .feature-list {
+      list-style: none;
+      margin: 20px 0;
+    }
+    .feature-list li {
+      padding: 10px 0;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      align-items: center;
+    }
+    .feature-list li:last-child {
+      border-bottom: none;
+    }
+    .icon {
+      margin-right: 10px;
+      font-size: 1.2rem;
+    }
+    .btn {
+      display: inline-block;
+      background: #667eea;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      text-decoration: none;
+      margin-top: 20px;
+      transition: transform 0.2s;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      background: #5568d3;
+    }
+    code {
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+    }
+    .timestamp {
+      color: #6b7280;
+      font-size: 0.875rem;
+      margin-top: 30px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧮 Abacuc</h1>
+    <div class="version">Версия: 2.0.0 (Build 2025-10-23)</div>
+
+    <div class="status success">
+      <strong>✅ Статус:</strong> Все обновления применены успешно
+    </div>
+
+    <h2>📦 Последние обновления:</h2>
+    <ul class="feature-list">
+      <li>
+        <span class="icon">✨</span>
+        <span><strong>Режимы "Просто 6-9"</strong> - комбинированные числа (6=5+1, 7=5+2, 8=5+3, 9=5+4)</span>
+      </li>
+      <li>
+        <span class="icon">🔒</span>
+        <span><strong>Исправление безопасности</strong> - защита от XSS в UI</span>
+      </li>
+      <li>
+        <span class="icon">🐛</span>
+        <span><strong>Исправлен logger.js</strong> - правильное определение окружения</span>
+      </li>
+      <li>
+        <span class="icon">🎨</span>
+        <span><strong>Добавлен favicon</strong> - иконка в табе браузера</span>
+      </li>
+      <li>
+        <span class="icon">🌍</span>
+        <span><strong>Подсказки для цифр 6-9</strong> - на 4 языках (EN, ES, RU, UA)</span>
+      </li>
+    </ul>
+
+    <div class="status">
+      <strong>ℹ️ Важно:</strong> Если вы не видите изменений:
+      <ul style="margin: 10px 0 0 20px;">
+        <li>Очистите кеш браузера: <code>Ctrl + Shift + R</code></li>
+        <li>Или откройте в режиме инкогнито</li>
+        <li>Подождите 2-5 минут для обновления GitHub Pages</li>
+      </ul>
+    </div>
+
+    <a href="./" class="btn">🚀 Открыть приложение</a>
+
+    <div class="timestamp">
+      Последнее обновление: <span id="update-time"></span>
+    </div>
+  </div>
+
+  <script>
+    // Показываем текущее время
+    const now = new Date();
+    const formatted = now.toLocaleString('ru-RU', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    document.getElementById('update-time').textContent = formatted;
+
+    // Проверяем, работает ли logger правильно
+    if (typeof window !== 'undefined') {
+      console.log('✅ version.html загружена успешно');
+      console.log('ℹ️ Hostname:', window.location.hostname);
+      console.log('ℹ️ Protocol:', window.location.protocol);
+    }
+  </script>
+</body>
+</html>
