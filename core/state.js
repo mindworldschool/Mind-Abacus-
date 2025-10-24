@@ -31,8 +31,8 @@ const defaultState = {
     combineLevels: false,
     actions: { count: 1, infinite: false },
     examples: { count: 2, infinite: false },
-    timeLimit: "off",
-    speed: "off",
+    timeLimit: "none",
+    speed: "none",
     toggles: {
       hard: false,
       dictation: false,

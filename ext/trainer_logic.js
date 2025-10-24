@@ -15,7 +15,7 @@ const CONTEXT = 'Trainer';
 /**
  * Create layout structure using createElement (secure)
  */
-function createTrainerLayout(displayMode, exampleCount) {
+function createTrainerLayout(displayMode, exampleCount, t) {
   const layout = document.createElement("div");
   layout.className = `mws-trainer mws-trainer--${displayMode}`;
 
@@ -38,7 +38,7 @@ function createTrainerLayout(displayMode, exampleCount) {
 
   const answerLabel = document.createElement("div");
   answerLabel.className = "answer-label";
-  answerLabel.textContent = "Ответ:";
+  answerLabel.textContent = t("trainer.answerLabel");
 
   const answerInput = document.createElement("input");
   answerInput.type = "number";
@@ -48,7 +48,7 @@ function createTrainerLayout(displayMode, exampleCount) {
   const submitBtn = document.createElement("button");
   submitBtn.className = "btn btn--primary";
   submitBtn.id = "btn-submit";
-  submitBtn.textContent = "Ответить";
+  submitBtn.textContent = t("trainer.submitButton");
 
   answerSection.append(answerLabel, answerInput, submitBtn);
 
@@ -75,7 +75,7 @@ function createTrainerLayout(displayMode, exampleCount) {
   const abacusBtn = document.createElement("button");
   abacusBtn.className = "btn btn--secondary btn--fullwidth";
   abacusBtn.id = "btn-show-abacus";
-  abacusBtn.textContent = "🧮 Показать абакус";
+  abacusBtn.textContent = t("trainer.showAbacus");
   panelCard.appendChild(abacusBtn);
 
   panelControls.append(
@@ -175,7 +175,7 @@ function createProgressContainer() {
 
   const correctLabel = document.createElement("span");
   correctLabel.className = "progress-label__correct";
-  correctLabel.textContent = "Правильно: ";
+  correctLabel.textContent = t("trainer.correctLabel");
   const correctPercent = document.createElement("strong");
   correctPercent.id = "percent-correct";
   correctPercent.textContent = "0%";
@@ -183,7 +183,7 @@ function createProgressContainer() {
 
   const incorrectLabel = document.createElement("span");
   incorrectLabel.className = "progress-label__incorrect";
-  incorrectLabel.textContent = "Ошибки: ";
+  incorrectLabel.textContent = t("trainer.incorrectLabel");
   const incorrectPercent = document.createElement("strong");
   incorrectPercent.id = "percent-incorrect";
   incorrectPercent.textContent = "0%";
@@ -250,7 +250,7 @@ export function mountTrainerUI(container, { t, state }) {
     logger.info(CONTEXT, `Retry mode: ${retryMode}, examples to retry: ${retryExamples.length}`);
 
     // === Create Layout (secure) ===
-    const layout = createTrainerLayout(displayMode, exampleCount);
+    const layout = createTrainerLayout(displayMode, exampleCount, t);
     container.appendChild(layout);
 
     // === Create Abacus ===
@@ -270,7 +270,7 @@ export function mountTrainerUI(container, { t, state }) {
     const shouldShowAbacus = st.mode === "abacus";
     if (shouldShowAbacus) {
       abacusWrapper.classList.add("visible");
-      document.getElementById("btn-show-abacus").textContent = "🧮 Скрыть абакус";
+      document.getElementById("btn-show-abacus").textContent = t("trainer.hideAbacus");
     }
 
     // === State ===
@@ -421,7 +421,7 @@ export function mountTrainerUI(container, { t, state }) {
 
       if (isNaN(userAnswer)) {
         // Replace alert() with toast
-        toast.warning("Пожалуйста, введите число");
+        toast.warning(t("trainer.pleaseEnterNumber"));
         return;
       }
 
@@ -549,13 +549,13 @@ export function mountTrainerUI(container, { t, state }) {
       abacusWrapper.classList.toggle("visible");
       const btn = document.getElementById("btn-show-abacus");
       btn.textContent = abacusWrapper.classList.contains("visible")
-        ? "🧮 Скрыть абакус"
-        : "🧮 Показать абакус";
+        ? t("trainer.hideAbacus")
+        : t("trainer.showAbacus");
     });
 
     addListener(document.getElementById("btn-close-abacus"), "click", () => {
       abacusWrapper.classList.remove("visible");
-      document.getElementById("btn-show-abacus").textContent = "🧮 Показать абакус";
+      document.getElementById("btn-show-abacus").textContent = t("trainer.showAbacus");
     });
 
     addListener(document.getElementById("btn-submit"), "click", checkAnswer);
