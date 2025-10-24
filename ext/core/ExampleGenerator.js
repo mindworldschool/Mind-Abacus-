@@ -46,7 +46,8 @@ _generateAttempt() {
   const start = this.rule.generateStartState();
   let stepsCount = this.rule.generateStepsCount();
 
-  console.log(`🎲 Генерация примера: старт=${start}, шагов=${stepsCount}`);
+  const startStr = Array.isArray(start) ? `[${start.join(', ')}]` : start;
+  console.log(`🎲 Генерация примера: старт=${startStr}, шагов=${stepsCount}`);
 
   const steps = [];
   let currentState = start;
@@ -187,43 +188,48 @@ _generateAttempt() {
   /**
    * Корректирует финал до допустимого диапазона
    * @param {Array} steps - Массив шагов (изменяется)
-   * @param {number} currentState - Текущее состояние
-   * @returns {number} - Скорректированное состояние
+   * @param {number|number[]} currentState - Текущее состояние
+   * @returns {number|number[]} - Скорректированное состояние
    * @private
    */
   _repairToRange(steps, currentState) {
     const maxFinal = this.rule.config.maxFinalState;
 
-    console.log(`🔧 Repair to range: ${currentState} → 0..${maxFinal}`);
+    const stateStr = Array.isArray(currentState) ? `[${currentState.join(', ')}]` : currentState;
+    console.log(`🔧 Repair to range: ${stateStr} → 0..${maxFinal}`);
 
     let attempts = 0;
     const maxAttempts = 10;
 
-    while (currentState > maxFinal && attempts < maxAttempts) {
-      const isUpperActive = (currentState >= 5);
-      const activeLower = isUpperActive ? currentState - 5 : currentState;
+    // Legacy: работает только для однозначных чисел
+    if (typeof currentState === 'number') {
+      while (currentState > maxFinal && attempts < maxAttempts) {
+        const isUpperActive = (currentState >= 5);
+        const activeLower = isUpperActive ? currentState - 5 : currentState;
 
-      let action;
+        let action;
 
-      // Пытаемся -5, если верхняя активна и результат не ниже допустимого
-      if (isUpperActive && (currentState - 5 <= maxFinal) && (currentState - 5 >= 0)) {
-        action = -5;
-      } else if (activeLower > 0) {
-        // Иначе снимаем нижние (столько, сколько нужно, но не больше активных)
-        const needed = Math.min(activeLower, currentState - maxFinal);
-        action = -needed;
-      } else {
-        console.warn(`⚠️ Не удалось скорректировать состояние ${currentState} до ${maxFinal}`);
-        break;
+        // Пытаемся -5, если верхняя активна и результат не ниже допустимого
+        if (isUpperActive && (currentState - 5 <= maxFinal) && (currentState - 5 >= 0)) {
+          action = -5;
+        } else if (activeLower > 0) {
+          // Иначе снимаем нижние (столько, сколько нужно, но не больше активных)
+          const needed = Math.min(activeLower, currentState - maxFinal);
+          action = -needed;
+        } else {
+          console.warn(`⚠️ Не удалось скорректировать состояние ${currentState} до ${maxFinal}`);
+          break;
+        }
+
+        const newState = this.rule.applyAction(currentState, action);
+        steps.push({ action, fromState: currentState, toState: newState });
+        currentState = newState;
+        attempts++;
+
+        console.log(`  🔧 Шаг ${attempts}: ${this.rule.formatAction(action)} → ${currentState}`);
       }
-
-      const newState = this.rule.applyAction(currentState, action);
-      steps.push({ action, fromState: currentState, toState: newState });
-      currentState = newState;
-      attempts++;
-
-      console.log(`  🔧 Шаг ${attempts}: ${this.rule.formatAction(action)} → ${currentState}`);
     }
+    // TODO: Для многозначных чисел repair не требуется в режиме "Просто"
 
     return currentState;
   }
@@ -248,16 +254,20 @@ _generateAttempt() {
    */
   formatForDisplay(example) {
     const { start, steps, answer } = example;
-    
+
     const stepsStr = steps
       .map(step => this.rule.formatAction(step.action))
       .join(' ');
-    
+
+    // Преобразуем start и answer в числа для отображения
+    const startNum = this.rule.stateToNumber(start);
+    const answerNum = this.rule.stateToNumber(answer);
+
     // Если старт = 0, не показываем его
-    if (start === 0) {
-      return `${stepsStr} = ${answer}`;
+    if (startNum === 0) {
+      return `${stepsStr} = ${answerNum}`;
     } else {
-      return `${start} ${stepsStr} = ${answer}`;
+      return `${startNum} ${stepsStr} = ${answerNum}`;
     }
   }
 
@@ -268,9 +278,9 @@ _generateAttempt() {
    */
   toTrainerFormat(example) {
     return {
-      start: example.start,
+      start: example.start, // Сохраняем оригинальный формат (число или массив)
       steps: example.steps.map(step => this.rule.formatAction(step.action)),
-      answer: example.answer
+      answer: example.answer // Сохраняем оригинальный формат (число или массив)
     };
   }
 
