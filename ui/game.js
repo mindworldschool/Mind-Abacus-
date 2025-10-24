@@ -31,7 +31,8 @@ export async function renderGame(container, { t, state, navigate }) {
     logger.info(CONTEXT, 'Training finished, navigating to results');
     setResults({
       success: stats.correct || 0,
-      total: stats.total || 10
+      total: stats.total || 10,
+      wrongExamples: stats.wrongExamples || [] // Сохраняем неправильные примеры
     });
     navigate("results");
   });

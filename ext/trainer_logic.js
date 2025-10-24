@@ -242,7 +242,13 @@ export function mountTrainerUI(container, { t, state }) {
     const digits = parseInt(st.digits, 10) || 1;
     const abacusDigits = digits + 1;
     const displayMode = st.inline ? "inline" : "column";
-    const exampleCount = getExampleCount(examplesCfg);
+
+    // === Режим пересчета ошибок ===
+    const retryMode = state?.retryMode?.enabled || false;
+    const retryExamples = retryMode ? (state?.retryMode?.examples || []) : [];
+    const exampleCount = retryMode ? retryExamples.length : getExampleCount(examplesCfg);
+
+    logger.info(CONTEXT, `Retry mode: ${retryMode}, examples to retry: ${retryExamples.length}`);
 
     // === Create Layout (secure) ===
     const layout = createTrainerLayout(displayMode, exampleCount);
@@ -274,7 +280,8 @@ export function mountTrainerUI(container, { t, state }) {
     const session = {
       currentExample: null,
       stats: { correct: 0, incorrect: 0, total: exampleCount },
-      completed: 0
+      completed: 0,
+      wrongExamples: [] // Массив неправильно решенных примеров
     };
 
     let isShowing = false;
@@ -330,18 +337,26 @@ export function mountTrainerUI(container, { t, state }) {
           return;
         }
 
-        const selectedDigits =
-          blockSimpleDigits.length > 0
-            ? blockSimpleDigits.map(d => parseInt(d, 10))
-            : [1, 2, 3, 4];
+        // === Режим пересчета: используем сохраненные примеры ===
+        if (retryMode && session.completed < retryExamples.length) {
+          const retryData = retryExamples[session.completed];
+          session.currentExample = retryData.example;
+          logger.info(CONTEXT, `Retry example ${session.completed + 1}/${retryExamples.length}`);
+        } else {
+          // === Обычный режим: генерируем новый пример ===
+          const selectedDigits =
+            blockSimpleDigits.length > 0
+              ? blockSimpleDigits.map(d => parseInt(d, 10))
+              : [1, 2, 3, 4];
 
-        session.currentExample = generateExample({
-          blocks: { simple: { digits: selectedDigits } },
-          actions: {
-            min: actionsCfg.infinite ? DEFAULTS.ACTIONS_MIN : (actionsCfg.count ?? DEFAULTS.ACTIONS_MIN),
-            max: actionsCfg.infinite ? DEFAULTS.ACTIONS_MAX : (actionsCfg.count ?? DEFAULTS.ACTIONS_MAX)
-          }
-        });
+          session.currentExample = generateExample({
+            blocks: { simple: { digits: selectedDigits } },
+            actions: {
+              min: actionsCfg.infinite ? DEFAULTS.ACTIONS_MIN : (actionsCfg.count ?? DEFAULTS.ACTIONS_MIN),
+              max: actionsCfg.infinite ? DEFAULTS.ACTIONS_MAX : (actionsCfg.count ?? DEFAULTS.ACTIONS_MAX)
+            }
+          });
+        }
 
         if (!session.currentExample || !Array.isArray(session.currentExample.steps))
           throw new Error("Empty example generated");
@@ -420,8 +435,16 @@ export function mountTrainerUI(container, { t, state }) {
       }
 
       const isCorrect = userAnswer === session.currentExample.answer;
-      if (isCorrect) session.stats.correct++;
-      else session.stats.incorrect++;
+      if (isCorrect) {
+        session.stats.correct++;
+      } else {
+        session.stats.incorrect++;
+        // Сохраняем неправильно решенный пример
+        session.wrongExamples.push({
+          example: session.currentExample,
+          userAnswer: userAnswer
+        });
+      }
       session.completed++;
       updateStats();
       playSound(isCorrect ? "correct" : "wrong");
@@ -435,6 +458,13 @@ export function mountTrainerUI(container, { t, state }) {
       logger.warn(CONTEXT, 'Time expired! Correct answer:', correct);
       if (st.beepOnTimeout) playSound("wrong");
       session.stats.incorrect++;
+      // Сохраняем пример с таймаутом как ошибку
+      if (session.currentExample) {
+        session.wrongExamples.push({
+          example: session.currentExample,
+          userAnswer: null // null означает таймаут
+        });
+      }
       session.completed++;
       updateStats();
       setTimeout(() => showNextExample(), UI.TIMEOUT_DELAY_MS);
@@ -462,13 +492,21 @@ export function mountTrainerUI(container, { t, state }) {
       overlay.clear();
       abacusWrapper.classList.remove("visible");
 
+      // Очищаем режим пересчета после завершения
+      if (state.retryMode) {
+        state.retryMode = { enabled: false, examples: [] };
+        logger.info(CONTEXT, 'Retry mode cleared');
+      }
+
       // Use eventBus instead of window.finishTraining
       eventBus.emit(EVENTS.TRAINING_FINISH, {
         correct: session.stats.correct,
-        total: session.stats.total
+        total: session.stats.total,
+        wrongExamples: session.wrongExamples // Передаем неправильные примеры
       });
 
       logger.info(CONTEXT, 'Training finished:', session.stats);
+      logger.info(CONTEXT, 'Wrong examples:', session.wrongExamples.length);
     }
 
     // === Sequential playback with color alternation ===

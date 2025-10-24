@@ -60,6 +60,7 @@ export function renderResults(container, { t, navigate }) {
   const actions = document.createElement("div");
   actions.className = "form__actions";
 
+  // Кнопка "Запустить новое задание"
   const repeatButton = createButton({
     label: t("results.cta"),
     onClick: () => {
@@ -69,6 +70,24 @@ export function renderResults(container, { t, navigate }) {
   });
 
   actions.appendChild(repeatButton);
+
+  // Кнопка "Исправить ошибки" (показывается только если есть ошибки)
+  const wrongExamples = state.results.wrongExamples || [];
+  if (wrongExamples.length > 0) {
+    const retryButton = createButton({
+      label: t("results.retryErrors") || `Исправить ошибки (${wrongExamples.length})`,
+      onClick: () => {
+        // Сохраняем примеры для пересчета
+        state.retryMode = {
+          enabled: true,
+          examples: wrongExamples
+        };
+        navigate("game");
+      }
+    });
+    retryButton.classList.add("btn--secondary"); // Вторичный стиль кнопки
+    actions.appendChild(retryButton);
+  }
 
   body.append(progressCard, actions);
   container.appendChild(section);

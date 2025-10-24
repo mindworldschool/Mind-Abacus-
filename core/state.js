@@ -70,7 +70,8 @@ const defaultState = {
   },
   results: {
     success: 0,
-    total: 0
+    total: 0,
+    wrongExamples: [] // Массив неправильно решенных примеров
   }
 };
 
