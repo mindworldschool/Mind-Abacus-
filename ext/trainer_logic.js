@@ -578,7 +578,7 @@ export function mountTrainerUI(container, { t, state }) {
 
     // === Start ===
     showNextExample();
-    logger.info(CONTEXT, `Trainer started (${abacusDigits} columns, ${digits}-digit numbers)`);
+    logger.info(CONTEXT, `Trainer started (${digits + 1} columns, ${digits}-digit numbers)`);
 
     // === Cleanup function ===
     return () => {
