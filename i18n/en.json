@@ -94,6 +94,15 @@
   "examples": "Examples",
   "correct": "Correct",
   "mistakes": "Mistakes"
+},
+"trainer": {
+  "answerLabel": "Answer:",
+  "submitButton": "Submit",
+  "showAbacus": "🧮 Show Abacus",
+  "hideAbacus": "🧮 Hide Abacus",
+  "pleaseEnterNumber": "Please enter a number",
+  "correctLabel": "Correct: ",
+  "incorrectLabel": "Mistakes: "
 }
 }
 
