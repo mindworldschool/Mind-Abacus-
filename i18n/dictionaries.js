@@ -191,7 +191,8 @@ export const dictionaries = {
       "description": "Here is how it went.",
       "success": "Correct",
       "mistakes": "Mistakes",
-      "cta": "Start new setup"
+      "cta": "Start new setup",
+      "retryErrors": "Retry errors"
     }
   },
   "es": {
@@ -385,7 +386,8 @@ export const dictionaries = {
       "description": "Así fue el intento.",
       "success": "Correctos",
       "mistakes": "Errores",
-      "cta": "Iniciar nueva configuración"
+      "cta": "Iniciar nueva configuración",
+      "retryErrors": "Corregir errores"
     }
   },
   "ru": {
@@ -579,7 +581,8 @@ export const dictionaries = {
       "description": "Так прошла попытка.",
       "success": "Верно",
       "mistakes": "Ошибки",
-      "cta": "Запустить новое задание"
+      "cta": "Запустить новое задание",
+      "retryErrors": "Исправить ошибки"
     }
   },
   "ua": {
@@ -773,7 +776,8 @@ export const dictionaries = {
       "description": "Так минула спроба.",
       "success": "Правильно",
       "mistakes": "Помилки",
-      "cta": "Почати нове налаштування"
+      "cta": "Почати нове налаштування",
+      "retryErrors": "Виправити помилки"
     }
   }
 };
