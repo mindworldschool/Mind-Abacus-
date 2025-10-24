@@ -15,8 +15,10 @@ export class ExampleGenerator {
    * @returns {Object} - Пример в формате {start, steps, answer}
    */
   generate() {
-    const maxAttempts = 100; // Максимум попыток генерации
-    
+    // Для больших разрядов увеличиваем количество попыток
+    const digitCount = this.rule.config?.digitCount || 1;
+    const maxAttempts = digitCount >= 4 ? 200 : 100;
+
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const example = this._generateAttempt();
@@ -89,21 +91,62 @@ _generateAttempt() {
         availableActions = availableActions.concat(actionsForPosition);
       }
 
-      // Стратегия: если без combineLevels и старший разряд = 0, повышаем приоритет действий на старший разряд
+      // Стратегия: если без combineLevels, приоритизируем старшие разряды
       const combineLevels = this.rule.config?.combineLevels || false;
-      if (!combineLevels && i >= Math.floor(stepsCount / 2)) {
+      if (!combineLevels) {
         const highestPosition = digitCount - 1;
         const highestDigitValue = currentState[highestPosition] || 0;
 
-        // Если старший разряд всё ещё 0, приоритизируем действия на него
+        // КРИТИЧНО: для больших digitCount нужно активировать старший разряд как можно раньше
+        // Если старший разряд всё ещё 0, сильно приоритизируем действия на него
         if (highestDigitValue === 0) {
           const highPriorityActions = availableActions.filter(a =>
             typeof a === 'object' && a.position === highestPosition && a.value > 0
           );
 
-          if (highPriorityActions.length > 0 && Math.random() < 0.7) {
-            availableActions = highPriorityActions;
+          if (highPriorityActions.length > 0) {
+            // Вероятность зависит от количества разрядов и текущего шага
+            // Для больших чисел (6-9 разрядов) приоритет выше
+            const priorityChance = digitCount >= 4 ? 0.85 : 0.7;
+            if (Math.random() < priorityChance || i >= Math.floor(stepsCount * 0.4)) {
+              availableActions = highPriorityActions;
+            }
           }
+        }
+
+        // Дополнительная стратегия: приоритизируем средние и старшие разряды
+        // чтобы гарантировать достижение минимального N-значного числа
+        if (i >= 2 && highestDigitValue === 0) {
+          // Ищем любые старшие разряды, которые ещё 0
+          const upperHalfActions = availableActions.filter(a => {
+            if (typeof a !== 'object') return false;
+            const pos = a.position;
+            const posValue = currentState[pos] || 0;
+            return pos >= Math.floor(digitCount / 2) && posValue === 0 && a.value > 0;
+          });
+
+          if (upperHalfActions.length > 0 && Math.random() < 0.6) {
+            availableActions = upperHalfActions;
+          }
+        }
+      }
+
+      // Стратегия: добавляем разнообразие - приоритизируем отрицательные действия
+      // если уже есть активированные разряды и еще не было отрицательных
+      const hasNegativeAction = steps.some(step => {
+        const actionValue = typeof step.action === 'object' ? step.action.value : step.action;
+        return actionValue < 0;
+      });
+
+      if (!hasNegativeAction && i >= 3 && !isFirstAction) {
+        // Ищем отрицательные действия на уже активированных разрядах
+        const negativeActions = availableActions.filter(a => {
+          if (typeof a !== 'object') return false;
+          return a.value < 0;
+        });
+
+        if (negativeActions.length > 0 && Math.random() < 0.4) {
+          availableActions = negativeActions;
         }
       }
     } else {
