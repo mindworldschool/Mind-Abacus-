@@ -235,24 +235,6 @@ function createBlockCard({
   card.append(header, digitWrap);
   updateAllToggle();
 
-  // === ПОДСКАЗКА ДЛЯ РЕЖИМОВ 6-9 (только для блока "simple") ===
-  if (key === "simple") {
-    const hint = document.createElement("div");
-    hint.className = "block-card__hint";
-
-    const hintIcon = document.createElement("span");
-    hintIcon.className = "hint-icon";
-    hintIcon.textContent = "ℹ️";
-
-    const hintText = document.createElement("span");
-    hintText.className = "hint-text";
-    hintText.textContent = t("settings.blocks.simple.hint");  // ✅ Теперь t доступна!
-
-    hint.appendChild(hintIcon);
-    hint.appendChild(hintText);
-    card.appendChild(hint);
-  }
-
   const footer = document.createElement("div");
   footer.className = "block-card__footer";
 
