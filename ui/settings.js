@@ -235,25 +235,29 @@ function createBlockCard({
   card.append(header, digitWrap);
   updateAllToggle();
 
-  const footer = document.createElement("div");
-  footer.className = "block-card__footer";
+  // Footer с кнопками "Только сложение" и "Только вычитание"
+  // Показывается для всех блоков КРОМЕ "simple"
+  if (key !== "simple") {
+    const footer = document.createElement("div");
+    footer.className = "block-card__footer";
 
-  const additionToggle = createCheckbox(
-    additionLabel,
-    stateBlock.onlyAddition,
-    (checked) => onUpdate({ onlyAddition: checked }),
-    "settings-checkbox settings-checkbox--outline"
-  );
+    const additionToggle = createCheckbox(
+      additionLabel,
+      stateBlock.onlyAddition,
+      (checked) => onUpdate({ onlyAddition: checked }),
+      "settings-checkbox settings-checkbox--outline"
+    );
 
-  const subtractionToggle = createCheckbox(
-    subtractionLabel,
-    stateBlock.onlySubtraction,
-    (checked) => onUpdate({ onlySubtraction: checked }),
-    "settings-checkbox settings-checkbox--outline"
-  );
+    const subtractionToggle = createCheckbox(
+      subtractionLabel,
+      stateBlock.onlySubtraction,
+      (checked) => onUpdate({ onlySubtraction: checked }),
+      "settings-checkbox settings-checkbox--outline"
+    );
 
-  footer.append(additionToggle, subtractionToggle);
-  card.appendChild(footer);
+    footer.append(additionToggle, subtractionToggle);
+    card.appendChild(footer);
+  }
 
   return card;
 }
@@ -435,14 +439,17 @@ baseGrid.appendChild(timeRow.row);
   toggleList.className = "toggle-list";
 
   const toggleTranslations = t("settings.toggles");
-  Object.entries(toggleTranslations).forEach(([key, label]) => {
-    const toggle = createCheckbox(label, Boolean(settingsState.toggles[key]), (checked) => {
-      updateSettings({
-        toggles: { ...state.settings.toggles, [key]: checked }
-      });
-    }, "toggle-pill");
-    toggleList.appendChild(toggle);
-  });
+  // Фильтруем toggles: убираем "hard" (Усложнение примера)
+  Object.entries(toggleTranslations)
+    .filter(([key]) => key !== "hard")
+    .forEach(([key, label]) => {
+      const toggle = createCheckbox(label, Boolean(settingsState.toggles[key]), (checked) => {
+        updateSettings({
+          toggles: { ...state.settings.toggles, [key]: checked }
+        });
+      }, "toggle-pill");
+      toggleList.appendChild(toggle);
+    });
   advancedSection.appendChild(toggleList);
   form.appendChild(advancedSection);
 

@@ -70,7 +70,8 @@
     "description": "Here is how the attempt went.",
     "success": "Correct",
     "mistakes": "Mistakes",
-    "cta": "Start new setup"
+    "cta": "Start new setup",
+    "retryErrors": "Retry errors"
   },
   "timer": {
   "out": "Time is up!",

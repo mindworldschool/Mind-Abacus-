@@ -70,7 +70,8 @@
     "description": "Así fue el intento.",
     "success": "Correctos",
     "mistakes": "Errores",
-    "cta": "Iniciar nueva configuración"
+    "cta": "Iniciar nueva configuración",
+    "retryErrors": "Corregir errores"
   },
   "timer": {
   "out": "¡Tiempo agotado!",
