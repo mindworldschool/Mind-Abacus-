@@ -75,7 +75,7 @@ export function renderResults(container, { t, navigate }) {
   const wrongExamples = state.results.wrongExamples || [];
   if (wrongExamples.length > 0) {
     const retryButton = createButton({
-      label: t("results.retryErrors") || `Исправить ошибки (${wrongExamples.length})`,
+      label: `${t("results.retryErrors")} (${wrongExamples.length})`,
       onClick: () => {
         // Сохраняем примеры для пересчета
         state.retryMode = {
