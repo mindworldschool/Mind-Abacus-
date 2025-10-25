@@ -274,11 +274,10 @@ _generateAttempt() {
     const finalNumber = this.rule.stateToNumber(currentState);
     const minFinal = this.rule.getMinFinalNumber();
     const maxFinal = this.rule.getMaxFinalNumber();
-    const combineLevels = this.rule.config?.combineLevels || false;
 
-    // Если число меньше минимума и combineLevels=false, ГАРАНТИРУЕМ достижение минимума
-    if (!combineLevels && finalNumber < minFinal) {
-      console.log(`⚠️ Число ${finalNumber} < минимума ${minFinal} (digitCount=${digitCount}, combineLevels=false)`);
+    // Если число меньше минимума, ГАРАНТИРУЕМ достижение минимума
+    if (finalNumber < minFinal) {
+      console.log(`⚠️ Число ${finalNumber} < минимума ${minFinal} (digitCount=${digitCount})`);
 
       const highestPosition = digitCount - 1;
       const highestDigitValue = currentState[highestPosition] || 0;

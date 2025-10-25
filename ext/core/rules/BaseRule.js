@@ -211,21 +211,15 @@ export class BaseRule {
    * @returns {number}
    */
   getMinFinalNumber() {
-    const { digitCount, combineLevels } = this.config;
+    const { digitCount } = this.config;
 
     if (digitCount === 1) {
       return 0;
     }
 
-    // Без combineLevels: число должно иметь точно N разрядов
-    if (!combineLevels) {
-      // Минимальное N-значное число:
-      // digitCount=2: 10, digitCount=3: 100, digitCount=4: 1000, ..., digitCount=9: 100000000
-      return Math.pow(10, digitCount - 1);
-    }
-
-    // С combineLevels: допустимы числа от 1 до максимального N-значного
-    return 1;
+    // Минимальное N-значное число (независимо от combineLevels):
+    // digitCount=2: 10, digitCount=3: 100, digitCount=4: 1000, ..., digitCount=9: 100000000
+    return Math.pow(10, digitCount - 1);
   }
 
   /**
