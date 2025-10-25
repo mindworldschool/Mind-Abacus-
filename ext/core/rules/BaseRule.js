@@ -138,9 +138,23 @@ export class BaseRule {
       return 0;
     }
 
-    // Новый формат: массив разрядов, все начинаем с 0
-    // [units, tens, hundreds, ...]
-    return new Array(digitCount).fill(0);
+    // Новый формат: генерируем случайное N-разрядное число
+    const minNumber = this.getMinFinalNumber();
+    const maxNumber = this.getMaxFinalNumber();
+
+    // Случайное число в диапазоне [minNumber, maxNumber]
+    const randomNumber = Math.floor(Math.random() * (maxNumber - minNumber + 1)) + minNumber;
+
+    // Преобразуем число в массив разрядов [units, tens, hundreds, ...]
+    const state = new Array(digitCount).fill(0);
+    let num = randomNumber;
+    for (let i = 0; i < digitCount; i++) {
+      state[i] = num % 10;
+      num = Math.floor(num / 10);
+    }
+
+    console.log(`🎲 Начальное состояние: ${randomNumber} → [${state.join(', ')}]`);
+    return state;
   }
 
   /**
