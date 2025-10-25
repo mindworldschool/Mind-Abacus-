@@ -37,9 +37,31 @@ export class BaseRule {
     // Новый формат (массив разрядов)
     if (Array.isArray(state)) {
       // Проверяем, что каждый разряд в диапазоне 0-9
-      return state.every(digit =>
+      const digitsValid = state.every(digit =>
         digit >= this.config.minState && digit <= this.config.maxState
       );
+
+      if (!digitsValid) {
+        return false;
+      }
+
+      // Для multi-digit: проверяем итоговое число с учетом combineLevels
+      const { digitCount, combineLevels } = this.config;
+      if (digitCount > 1) {
+        const finalNumber = this.stateToNumber(state);
+        const maxAllowed = this.getMaxFinalNumber();
+
+        // Если combineLevels=false: число должно быть строго N-разрядным
+        if (!combineLevels) {
+          const minAllowed = this.getMinFinalNumber();
+          return finalNumber >= minAllowed && finalNumber <= maxAllowed;
+        }
+
+        // Если combineLevels=true: число может быть от 0 до максимального N-разрядного
+        return finalNumber >= 0 && finalNumber <= maxAllowed;
+      }
+
+      return true;
     }
 
     return false;
@@ -138,9 +160,23 @@ export class BaseRule {
       return 0;
     }
 
-    // Новый формат: массив разрядов, все начинаем с 0
-    // [units, tens, hundreds, ...]
-    return new Array(digitCount).fill(0);
+    // Новый формат: генерируем случайное N-разрядное число
+    const minNumber = this.getMinFinalNumber();
+    const maxNumber = this.getMaxFinalNumber();
+
+    // Случайное число в диапазоне [minNumber, maxNumber]
+    const randomNumber = Math.floor(Math.random() * (maxNumber - minNumber + 1)) + minNumber;
+
+    // Преобразуем число в массив разрядов [units, tens, hundreds, ...]
+    const state = new Array(digitCount).fill(0);
+    let num = randomNumber;
+    for (let i = 0; i < digitCount; i++) {
+      state[i] = num % 10;
+      num = Math.floor(num / 10);
+    }
+
+    console.log(`🎲 Начальное состояние: ${randomNumber} → [${state.join(', ')}]`);
+    return state;
   }
 
   /**
