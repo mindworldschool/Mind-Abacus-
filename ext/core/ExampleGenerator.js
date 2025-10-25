@@ -276,14 +276,23 @@ _generateAttempt() {
     const maxFinal = this.rule.getMaxFinalNumber();
     const combineLevels = this.rule.config?.combineLevels || false;
 
-    // Если число меньше минимума и combineLevels=false, пытаемся добавить к старшему разряду
+    // Если число меньше минимума и combineLevels=false, ГАРАНТИРУЕМ достижение минимума
     if (!combineLevels && finalNumber < minFinal) {
+      console.log(`⚠️ Число ${finalNumber} < минимума ${minFinal} (digitCount=${digitCount}, combineLevels=false)`);
+
       const highestPosition = digitCount - 1;
       const highestDigitValue = currentState[highestPosition] || 0;
 
-      // Если старший разряд = 0, активируем его минимальным значием (+1)
-      if (highestDigitValue === 0) {
-        const repairAction = { position: highestPosition, value: 1 };
+      // Вычисляем сколько нужно добавить к старшему разряду
+      // Минимальное N-значное число: 10^(N-1)
+      // Например, для digitCount=2: minFinal=10, нужно чтобы десятки >= 1
+      const neededValue = Math.max(1, Math.ceil((minFinal - finalNumber) / Math.pow(10, highestPosition)));
+
+      // Но не больше чем можно добавить (0-9)
+      const addValue = Math.min(neededValue, 9 - highestDigitValue);
+
+      if (addValue > 0 && highestDigitValue + addValue <= 9) {
+        const repairAction = { position: highestPosition, value: addValue };
         const newState = this.rule.applyAction(currentState, repairAction);
         steps.push({
           action: repairAction,
@@ -291,7 +300,8 @@ _generateAttempt() {
           toState: newState
         });
         currentState = newState;
-        console.log(`🔧 Repair: активирован старший разряд ${highestPosition}, число: ${this.rule.stateToNumber(currentState)}`);
+        const repairedNumber = this.rule.stateToNumber(currentState);
+        console.log(`🔧 Repair: добавлено +${addValue} к разряду ${highestPosition}, было ${finalNumber} → стало ${repairedNumber}`);
       }
     }
 
@@ -402,6 +412,7 @@ _generateAttempt() {
    */
   toTrainerFormat(example) {
     const digitCount = this.rule.config?.digitCount || 1;
+    const combineLevels = this.rule.config?.combineLevels || false;
 
     // Для многозначных чисел показываем изменения между полными числами
     if (digitCount > 1 && Array.isArray(example.start)) {
@@ -419,10 +430,16 @@ _generateAttempt() {
         previousNumber = currentNumber;
       }
 
+      const finalAnswer = this.rule.stateToNumber(example.answer);
+      const minFinal = this.rule.getMinFinalNumber();
+      const maxFinal = this.rule.getMaxFinalNumber();
+
+      console.log(`📊 Пример сгенерирован: digitCount=${digitCount}, combineLevels=${combineLevels}, answer=${finalAnswer}, диапазон=${minFinal}-${maxFinal}`);
+
       return {
         start: this.rule.stateToNumber(example.start),
         steps: formattedSteps,
-        answer: this.rule.stateToNumber(example.answer)
+        answer: finalAnswer
       };
     }
 
