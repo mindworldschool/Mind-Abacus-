@@ -153,19 +153,30 @@ export class BaseRule {
    * @returns {number|number[]} - Число или массив разрядов (все 0)
    */
   generateStartState() {
-    const { digitCount } = this.config;
+    const { digitCount, combineLevels } = this.config;
 
     // Legacy формат: одно число
     if (digitCount === 1) {
       return 0;
     }
 
-    // Новый формат: генерируем случайное N-разрядное число
+    // Новый формат: генерируем N-разрядное число
     const minNumber = this.getMinFinalNumber();
     const maxNumber = this.getMaxFinalNumber();
 
-    // Случайное число в диапазоне [minNumber, maxNumber]
-    const randomNumber = Math.floor(Math.random() * (maxNumber - minNumber + 1)) + minNumber;
+    let randomNumber;
+
+    // Для combineLevels=false: начинаем с середины диапазона для большей стабильности
+    if (!combineLevels) {
+      const midPoint = Math.floor((minNumber + maxNumber) / 2);
+      const range = Math.floor((maxNumber - minNumber) * 0.3); // ±30% от диапазона
+      const rangeMin = Math.max(minNumber, midPoint - range);
+      const rangeMax = Math.min(maxNumber, midPoint + range);
+      randomNumber = Math.floor(Math.random() * (rangeMax - rangeMin + 1)) + rangeMin;
+    } else {
+      // Для combineLevels=true: случайное число во всем диапазоне
+      randomNumber = Math.floor(Math.random() * (maxNumber - minNumber + 1)) + minNumber;
+    }
 
     // Преобразуем число в массив разрядов [units, tens, hundreds, ...]
     const state = new Array(digitCount).fill(0);
@@ -175,7 +186,7 @@ export class BaseRule {
       num = Math.floor(num / 10);
     }
 
-    console.log(`🎲 Начальное состояние: ${randomNumber} → [${state.join(', ')}]`);
+    console.log(`🎲 Начальное состояние: ${randomNumber} → [${state.join(', ')}] (combineLevels=${combineLevels})`);
     return state;
   }
 
