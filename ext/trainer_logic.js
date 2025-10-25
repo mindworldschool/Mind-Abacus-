@@ -250,7 +250,7 @@ export function mountTrainerUI(container, { t, state }) {
     logger.info(CONTEXT, `Retry mode: ${retryMode}, examples to retry: ${retryExamples.length}`);
 
     // === Create Layout (secure) ===
-    const layout = createTrainerLayout(displayMode, exampleCount);
+    const layout = createTrainerLayout(displayMode, exampleCount, t);
     container.appendChild(layout);
 
     // === Create Abacus ===
@@ -270,7 +270,7 @@ export function mountTrainerUI(container, { t, state }) {
     const shouldShowAbacus = st.mode === "abacus";
     if (shouldShowAbacus) {
       abacusWrapper.classList.add("visible");
-      document.getElementById("btn-show-abacus").textContent = "🧮 Скрыть абакус";
+      document.getElementById("btn-show-abacus").textContent = t("trainer.hideAbacus");
     }
 
     // === State ===
@@ -346,13 +346,18 @@ export function mountTrainerUI(container, { t, state }) {
               ? blockSimpleDigits.map(d => parseInt(d, 10))
               : [1, 2, 3, 4];
 
-          session.currentExample = generateExample({
+          const generatorSettings = {
             blocks: { simple: { digits: selectedDigits } },
             actions: {
               min: actionsCfg.infinite ? DEFAULTS.ACTIONS_MIN : (actionsCfg.count ?? DEFAULTS.ACTIONS_MIN),
               max: actionsCfg.infinite ? DEFAULTS.ACTIONS_MAX : (actionsCfg.count ?? DEFAULTS.ACTIONS_MAX)
-            }
-          });
+            },
+            digits: st.digits,           // КРИТИЧНО: передаем количество разрядов!
+            combineLevels: st.combineLevels || false  // КРИТИЧНО: комбинирование разрядов
+          };
+
+          logger.info(CONTEXT, `Generating example with digits=${st.digits}, combineLevels=${st.combineLevels}`);
+          session.currentExample = generateExample(generatorSettings);
         }
 
         if (!session.currentExample || !Array.isArray(session.currentExample.steps))
