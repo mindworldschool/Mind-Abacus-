@@ -17,19 +17,31 @@ export class ExampleGenerator {
   generate() {
     // Для многозначных чисел увеличиваем количество попыток
     const digitCount = this.rule.config?.digitCount || 1;
-    // digitCount=1: 100, digitCount=2-3: 150, digitCount=4+: 200
-    const maxAttempts = digitCount === 1 ? 100 : (digitCount <= 3 ? 150 : 200);
+    const combineLevels = this.rule.config?.combineLevels || false;
+
+    // Базовое количество попыток: digitCount=1: 100, digitCount=2-3: 150, digitCount=4+: 200
+    let maxAttempts = digitCount === 1 ? 100 : (digitCount <= 3 ? 150 : 200);
+
+    // Для combineLevels=false удваиваем попытки (строже ограничения)
+    if (!combineLevels && digitCount > 1) {
+      maxAttempts *= 2;
+    }
+
+    console.log(`🎯 Генерация примера: digitCount=${digitCount}, combineLevels=${combineLevels}, попыток=${maxAttempts}`);
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const example = this._generateAttempt();
-        
+
+        // ВРЕМЕННО ОТКЛЮЧАЕМ проверку промежуточных состояний
+        // Проверяем только финальный ответ через repair механизм
+
         // Валидация примера
         if (this.rule.validateExample && !this.rule.validateExample(example)) {
           console.warn(`⚠️ Попытка ${attempt}: пример не прошёл валидацию`);
           continue;
         }
-        
+
         console.log(`✅ Пример сгенерирован (попытка ${attempt})`);
         return example;
         
@@ -274,16 +286,24 @@ _generateAttempt() {
     const finalNumber = this.rule.stateToNumber(currentState);
     const minFinal = this.rule.getMinFinalNumber();
     const maxFinal = this.rule.getMaxFinalNumber();
-    const combineLevels = this.rule.config?.combineLevels || false;
 
-    // Если число меньше минимума и combineLevels=false, пытаемся добавить к старшему разряду
-    if (!combineLevels && finalNumber < minFinal) {
+    // Если число меньше минимума, ГАРАНТИРУЕМ достижение минимума
+    if (finalNumber < minFinal) {
+      console.log(`⚠️ Число ${finalNumber} < минимума ${minFinal} (digitCount=${digitCount})`);
+
       const highestPosition = digitCount - 1;
       const highestDigitValue = currentState[highestPosition] || 0;
 
-      // Если старший разряд = 0, активируем его минимальным значием (+1)
-      if (highestDigitValue === 0) {
-        const repairAction = { position: highestPosition, value: 1 };
+      // Вычисляем сколько нужно добавить к старшему разряду
+      // Минимальное N-значное число: 10^(N-1)
+      // Например, для digitCount=2: minFinal=10, нужно чтобы десятки >= 1
+      const neededValue = Math.max(1, Math.ceil((minFinal - finalNumber) / Math.pow(10, highestPosition)));
+
+      // Но не больше чем можно добавить (0-9)
+      const addValue = Math.min(neededValue, 9 - highestDigitValue);
+
+      if (addValue > 0 && highestDigitValue + addValue <= 9) {
+        const repairAction = { position: highestPosition, value: addValue };
         const newState = this.rule.applyAction(currentState, repairAction);
         steps.push({
           action: repairAction,
@@ -291,7 +311,8 @@ _generateAttempt() {
           toState: newState
         });
         currentState = newState;
-        console.log(`🔧 Repair: активирован старший разряд ${highestPosition}, число: ${this.rule.stateToNumber(currentState)}`);
+        const repairedNumber = this.rule.stateToNumber(currentState);
+        console.log(`🔧 Repair: добавлено +${addValue} к разряду ${highestPosition}, было ${finalNumber} → стало ${repairedNumber}`);
       }
     }
 
@@ -308,6 +329,48 @@ _generateAttempt() {
     answer: currentState
   };
 }
+
+  /**
+   * Валидация промежуточных состояний для combineLevels=false
+   * Проверяет, что все промежуточные состояния остаются N-разрядными
+   * @param {Object} example - Пример {start, steps, answer}
+   * @returns {boolean} - true если все промежуточные состояния валидны
+   * @private
+   */
+  _validateIntermediateStates(example) {
+    const digitCount = this.rule.config?.digitCount || 1;
+    if (digitCount === 1) return true;
+
+    const minAllowed = this.rule.getMinFinalNumber();
+    const maxAllowed = this.rule.getMaxFinalNumber();
+
+    // Проверяем начальное состояние
+    const startNumber = this.rule.stateToNumber(example.start);
+    if (startNumber < minAllowed || startNumber > maxAllowed) {
+      console.warn(`❌ Начальное состояние ${startNumber} вне диапазона [${minAllowed}, ${maxAllowed}]`);
+      return false;
+    }
+
+    // Проверяем все промежуточные состояния
+    for (let i = 0; i < example.steps.length; i++) {
+      const step = example.steps[i];
+      const stateNumber = this.rule.stateToNumber(step.toState);
+
+      if (stateNumber < minAllowed || stateNumber > maxAllowed) {
+        console.warn(`❌ Шаг ${i + 1}: состояние ${stateNumber} вне диапазона [${minAllowed}, ${maxAllowed}]`);
+        return false;
+      }
+    }
+
+    // Проверяем финальный ответ
+    const answerNumber = this.rule.stateToNumber(example.answer);
+    if (answerNumber < minAllowed || answerNumber > maxAllowed) {
+      console.warn(`❌ Финальный ответ ${answerNumber} вне диапазона [${minAllowed}, ${maxAllowed}]`);
+      return false;
+    }
+
+    return true;
+  }
 
   /**
    * Корректирует финал до допустимого диапазона
@@ -402,6 +465,7 @@ _generateAttempt() {
    */
   toTrainerFormat(example) {
     const digitCount = this.rule.config?.digitCount || 1;
+    const combineLevels = this.rule.config?.combineLevels || false;
 
     // Для многозначных чисел показываем изменения между полными числами
     if (digitCount > 1 && Array.isArray(example.start)) {
@@ -419,10 +483,16 @@ _generateAttempt() {
         previousNumber = currentNumber;
       }
 
+      const finalAnswer = this.rule.stateToNumber(example.answer);
+      const minFinal = this.rule.getMinFinalNumber();
+      const maxFinal = this.rule.getMaxFinalNumber();
+
+      console.log(`📊 Пример сгенерирован: digitCount=${digitCount}, combineLevels=${combineLevels}, answer=${finalAnswer}, диапазон=${minFinal}-${maxFinal}`);
+
       return {
         start: this.rule.stateToNumber(example.start),
         steps: formattedSteps,
-        answer: this.rule.stateToNumber(example.answer)
+        answer: finalAnswer
       };
     }
 

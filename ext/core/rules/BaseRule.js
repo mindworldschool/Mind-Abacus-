@@ -36,7 +36,9 @@ export class BaseRule {
 
     // Новый формат (массив разрядов)
     if (Array.isArray(state)) {
-      // Проверяем, что каждый разряд в диапазоне 0-9
+      // Проверяем только, что каждый разряд в диапазоне 0-9
+      // НЕ проверяем итоговое число здесь, чтобы не блокировать генерацию
+      // Проверка диапазона будет выполнена после генерации всего примера
       return state.every(digit =>
         digit >= this.config.minState && digit <= this.config.maxState
       );
@@ -139,8 +141,11 @@ export class BaseRule {
     }
 
     // Новый формат: массив разрядов, все начинаем с 0
-    // [units, tens, hundreds, ...]
-    return new Array(digitCount).fill(0);
+    // Это ГАРАНТИРУЕТ успешную генерацию, т.к. все действия будут положительными
+    const state = new Array(digitCount).fill(0);
+
+    console.log(`🎲 Начальное состояние: 0 → [${state.join(', ')}]`);
+    return state;
   }
 
   /**
@@ -211,21 +216,15 @@ export class BaseRule {
    * @returns {number}
    */
   getMinFinalNumber() {
-    const { digitCount, combineLevels } = this.config;
+    const { digitCount } = this.config;
 
     if (digitCount === 1) {
       return 0;
     }
 
-    // Без combineLevels: число должно иметь точно N разрядов
-    if (!combineLevels) {
-      // Минимальное N-значное число:
-      // digitCount=2: 10, digitCount=3: 100, digitCount=4: 1000, ..., digitCount=9: 100000000
-      return Math.pow(10, digitCount - 1);
-    }
-
-    // С combineLevels: допустимы числа от 1 до максимального N-значного
-    return 1;
+    // Минимальное N-значное число (независимо от combineLevels):
+    // digitCount=2: 10, digitCount=3: 100, digitCount=4: 1000, ..., digitCount=9: 100000000
+    return Math.pow(10, digitCount - 1);
   }
 
   /**

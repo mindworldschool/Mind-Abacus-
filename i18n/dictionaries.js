@@ -193,6 +193,15 @@ export const dictionaries = {
       "mistakes": "Mistakes",
       "cta": "Start new setup",
       "retryErrors": "Retry errors"
+    },
+    "trainer": {
+      "answerLabel": "Answer:",
+      "submitButton": "Submit",
+      "showAbacus": "🧮 Show Abacus",
+      "hideAbacus": "🧮 Hide Abacus",
+      "pleaseEnterNumber": "Please enter a number",
+      "correctLabel": "Correct: ",
+      "incorrectLabel": "Mistakes: "
     }
   },
   "es": {
@@ -388,6 +397,15 @@ export const dictionaries = {
       "mistakes": "Errores",
       "cta": "Iniciar nueva configuración",
       "retryErrors": "Corregir errores"
+    },
+    "trainer": {
+      "answerLabel": "Respuesta:",
+      "submitButton": "Enviar",
+      "showAbacus": "🧮 Mostrar Ábaco",
+      "hideAbacus": "🧮 Ocultar Ábaco",
+      "pleaseEnterNumber": "Por favor ingrese un número",
+      "correctLabel": "Correctos: ",
+      "incorrectLabel": "Errores: "
     }
   },
   "ru": {
@@ -583,6 +601,15 @@ export const dictionaries = {
       "mistakes": "Ошибки",
       "cta": "Запустить новое задание",
       "retryErrors": "Исправить ошибки"
+    },
+    "trainer": {
+      "answerLabel": "Ответ:",
+      "submitButton": "Ответить",
+      "showAbacus": "🧮 Показать абакус",
+      "hideAbacus": "🧮 Скрыть абакус",
+      "pleaseEnterNumber": "Пожалуйста, введите число",
+      "correctLabel": "Правильно: ",
+      "incorrectLabel": "Ошибки: "
     }
   },
   "ua": {
@@ -778,6 +805,15 @@ export const dictionaries = {
       "mistakes": "Помилки",
       "cta": "Почати нове налаштування",
       "retryErrors": "Виправити помилки"
+    },
+    "trainer": {
+      "answerLabel": "Відповідь:",
+      "submitButton": "Відповісти",
+      "showAbacus": "🧮 Показати абакус",
+      "hideAbacus": "🧮 Сховати абакус",
+      "pleaseEnterNumber": "Будь ласка, введіть число",
+      "correctLabel": "Правильно: ",
+      "incorrectLabel": "Помилки: "
     }
   }
 };
