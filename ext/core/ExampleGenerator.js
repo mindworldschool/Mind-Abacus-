@@ -33,8 +33,13 @@ export class ExampleGenerator {
       try {
         const example = this._generateAttempt();
 
-        // ВРЕМЕННО ОТКЛЮЧАЕМ проверку промежуточных состояний
-        // Проверяем только финальный ответ через repair механизм
+        // Для combineLevels=false проверяем промежуточные состояния
+        if (!combineLevels && digitCount > 1) {
+          if (!this._validateIntermediateStates(example)) {
+            console.warn(`⚠️ Попытка ${attempt}: промежуточные состояния вышли за диапазон`);
+            continue;
+          }
+        }
 
         // Валидация примера
         if (this.rule.validateExample && !this.rule.validateExample(example)) {

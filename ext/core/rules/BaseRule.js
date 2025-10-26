@@ -130,21 +130,34 @@ export class BaseRule {
 
   /**
    * Генерирует начальное состояние
-   * @returns {number|number[]} - Число или массив разрядов (все 0)
+   * @returns {number|number[]} - Число или массив разрядов
    */
   generateStartState() {
-    const { digitCount } = this.config;
+    const { digitCount, combineLevels } = this.config;
 
-    // Legacy формат: одно число
+    // Legacy формат: одно число (всегда начинаем с 0)
     if (digitCount === 1) {
       return 0;
     }
 
-    // Новый формат: массив разрядов, все начинаем с 0
-    // Это ГАРАНТИРУЕТ успешную генерацию, т.к. все действия будут положительными
+    // Новый формат: массив разрядов
     const state = new Array(digitCount).fill(0);
 
-    console.log(`🎲 Начальное состояние: 0 → [${state.join(', ')}]`);
+    // КРИТИЧНО: Логика зависит от combineLevels
+    if (!combineLevels) {
+      // combineLevels=false: начинаем с минимального N-значного числа
+      // digitCount=2: [0, 1] = 10
+      // digitCount=3: [0, 0, 1] = 100
+      // digitCount=4: [0, 0, 0, 1] = 1000
+      state[digitCount - 1] = 1;
+      const startNumber = this.stateToNumber(state);
+      console.log(`🎲 Начальное состояние (combineLevels=false): ${startNumber} → [${state.join(', ')}]`);
+    } else {
+      // combineLevels=true: начинаем с 0
+      // state уже заполнен нулями
+      console.log(`🎲 Начальное состояние (combineLevels=true): 0 → [${state.join(', ')}]`);
+    }
+
     return state;
   }
 
