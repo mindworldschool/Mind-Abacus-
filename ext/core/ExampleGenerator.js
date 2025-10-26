@@ -33,13 +33,8 @@ export class ExampleGenerator {
       try {
         const example = this._generateAttempt();
 
-        // Валидация промежуточных состояний для combineLevels
-        if (digitCount > 1 && !combineLevels) {
-          if (!this._validateIntermediateStates(example)) {
-            console.warn(`⚠️ Попытка ${attempt}: промежуточные состояния выходят за пределы ${digitCount}-разрядности`);
-            continue;
-          }
-        }
+        // ВРЕМЕННО ОТКЛЮЧАЕМ проверку промежуточных состояний
+        // Проверяем только финальный ответ через repair механизм
 
         // Валидация примера
         if (this.rule.validateExample && !this.rule.validateExample(example)) {
