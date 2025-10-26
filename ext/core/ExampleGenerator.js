@@ -17,8 +17,17 @@ export class ExampleGenerator {
   generate() {
     // Для многозначных чисел увеличиваем количество попыток
     const digitCount = this.rule.config?.digitCount || 1;
-    // digitCount=1: 100, digitCount=2-3: 150, digitCount=4+: 200
-    const maxAttempts = digitCount === 1 ? 100 : (digitCount <= 3 ? 150 : 200);
+    const combineLevels = this.rule.config?.combineLevels || false;
+
+    // Базовое количество попыток: digitCount=1: 100, digitCount=2-3: 150, digitCount=4+: 200
+    let maxAttempts = digitCount === 1 ? 100 : (digitCount <= 3 ? 150 : 200);
+
+    // Для combineLevels=false удваиваем попытки (строже ограничения)
+    if (!combineLevels && digitCount > 1) {
+      maxAttempts *= 2;
+    }
+
+    console.log(`🎯 Генерация примера: digitCount=${digitCount}, combineLevels=${combineLevels}, попыток=${maxAttempts}`);
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
