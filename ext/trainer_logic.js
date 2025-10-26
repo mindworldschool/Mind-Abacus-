@@ -346,17 +346,52 @@ export function mountTrainerUI(container, { t, state }) {
               ? blockSimpleDigits.map(d => parseInt(d, 10))
               : [1, 2, 3, 4];
 
+          // <<< CHANGED: мы теперь передаём во все уровни генерации нужные флаги блока настроек
           const generatorSettings = {
-            blocks: { simple: { digits: selectedDigits } },
-            actions: {
-              min: actionsCfg.infinite ? DEFAULTS.ACTIONS_MIN : (actionsCfg.count ?? DEFAULTS.ACTIONS_MIN),
-              max: actionsCfg.infinite ? DEFAULTS.ACTIONS_MAX : (actionsCfg.count ?? DEFAULTS.ACTIONS_MAX)
+            blocks: {
+              simple: {
+                digits: selectedDigits,
+                includeFive:
+                  (st.blocks?.simple?.includeFive ?? selectedDigits.includes(5)),
+                onlyAddition:
+                  (st.blocks?.simple?.onlyAddition ?? false),
+                onlySubtraction:
+                  (st.blocks?.simple?.onlySubtraction ?? false)
+              },
+              brothers: {
+                active: st.blocks?.brothers?.active ?? false
+              },
+              friends: {
+                active: st.blocks?.friends?.active ?? false
+              },
+              mix: {
+                active: st.blocks?.mix?.active ?? false
+              }
             },
-            digits: st.digits,           // КРИТИЧНО: передаем количество разрядов!
-            combineLevels: st.combineLevels || false  // КРИТИЧНО: комбинирование разрядов
-          };
 
-          logger.info(CONTEXT, `Generating example with digits=${st.digits}, combineLevels=${st.combineLevels}`);
+            actions: {
+              min: actionsCfg.infinite
+                ? DEFAULTS.ACTIONS_MIN
+                : (actionsCfg.count ?? DEFAULTS.ACTIONS_MIN),
+              max: actionsCfg.infinite
+                ? DEFAULTS.ACTIONS_MAX
+                : (actionsCfg.count ?? DEFAULTS.ACTIONS_MAX)
+            },
+
+            // сколько разрядов (1,2,3,... до 9)
+            digits: st.digits,
+
+            // использовать ли несколько разрядов одновременно при построении шага
+            combineLevels: st.combineLevels || false
+          };
+          // <<< END CHANGED
+
+          logger.info(
+            CONTEXT,
+            `Generating example with digits=${st.digits}, combineLevels=${st.combineLevels}, blocks=`,
+            generatorSettings.blocks
+          );
+
           session.currentExample = generateExample(generatorSettings);
         }
 
@@ -411,7 +446,13 @@ export function mountTrainerUI(container, { t, state }) {
           input.focus();
         }
 
-        logger.debug(CONTEXT, 'New example:', session.currentExample.steps, 'Answer:', session.currentExample.answer);
+        logger.debug(
+          CONTEXT,
+          'New example:',
+          session.currentExample.steps,
+          'Answer:',
+          session.currentExample.answer
+        );
       } catch (e) {
         showFatalError(e);
       }
@@ -518,8 +559,8 @@ export function mountTrainerUI(container, { t, state }) {
           if (showAbort) break;
 
           const s = steps[i];
-          const isOdd = (i % 2) === 0; // 0-indexed: 0,2,4... are "first, third, fifth..."
-          const color = isOdd ? "#EC8D00" : "#6db45c"; // Orange for odd positions, green for even
+          const isOdd = (i % 2) === 0; // 0,2,4... считаем "первый, третий, пятый..."
+          const color = isOdd ? "#EC8D00" : "#6db45c"; // оранжевый / зелёный
 
           overlay.show(formatStep(s), color);
           if (beepOnStep) playSound("tick");
@@ -631,5 +672,7 @@ function showFatalError(err) {
 /** Get example count */
 function getExampleCount(examplesCfg) {
   if (!examplesCfg) return DEFAULTS.EXAMPLES_COUNT;
-  return examplesCfg.infinite ? DEFAULTS.EXAMPLES_COUNT : (examplesCfg.count ?? DEFAULTS.EXAMPLES_COUNT);
+  return examplesCfg.infinite
+    ? DEFAULTS.EXAMPLES_COUNT
+    : (examplesCfg.count ?? DEFAULTS.EXAMPLES_COUNT);
 }
