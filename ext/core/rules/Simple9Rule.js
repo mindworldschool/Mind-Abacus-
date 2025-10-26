@@ -118,6 +118,19 @@ export class Simple9Rule extends BaseRule {
     // Для multi-digit режима преобразуем действия в формат {position, value}
     if (digitCount && digitCount > 1) {
       validActions = validActions.map(value => ({ position, value }));
+
+      // КРИТИЧНО: Для combineLevels=false не позволяем опускаться ниже минимального N-значного числа
+      const combineLevels = this.config.combineLevels ?? false;
+      if (!combineLevels) {
+        const minFinal = this.getMinFinalNumber();
+
+        // Фильтруем действия: оставляем только те, после которых число >= minFinal
+        validActions = validActions.filter(action => {
+          const newState = this.applyAction(currentState, action);
+          const newNumber = this.stateToNumber(newState);
+          return newNumber >= minFinal;
+        });
+      }
     }
 
     const stateStr = Array.isArray(currentState) ? `[${currentState.join(', ')}]` : currentState;
