@@ -24,15 +24,19 @@ export class UnifiedSimpleRule extends BaseRule {
       minState: 0,
       maxState: hasFive ? 9 : 4,
       maxFinalState: hasFive ? 5 : 4,
-      minSteps: config.minSteps || 2,
-      maxSteps: config.maxSteps || 4,
+      minSteps: config.minSteps ?? 2,
+      maxSteps: config.maxSteps ?? 4,
       selectedDigits: selectedDigits,
       hasFive: hasFive,
       onlyFiveSelected: config.onlyFiveSelected || false,
       firstActionMustBePositive: true,
-      // КРИТИЧНО: не теряем digitCount и combineLevels из входящего config
-      digitCount: config.digitCount || 1,
-      combineLevels: config.combineLevels || false
+
+      // КРИТИЧНО: передаём digitCount и combineLevels
+      digitCount: config.digitCount ?? 1,
+      combineLevels: config.combineLevels ?? false,
+
+      // Добавляем остальные параметры из config
+      ...config
     };
 
     console.log(`✅ Создано правило: ${this.name}, цифры: [${selectedDigits.join(', ')}], digitCount=${this.config.digitCount}, combineLevels=${this.config.combineLevels}`);
