@@ -90,11 +90,16 @@ export class UnifiedSimpleRule extends BaseRule {
 
   /**
    * Получаем доступные действия для текущего состояния.
-   * Для 1 разряда возвращает массив чисел [+1, -2, +5 ...].
+   * Для одного разряда возвращает массив чисел [+1, -2, +5 ...].
    * Для нескольких разрядов возвращает массив объектов вида { position, value },
    * где position — индекс разряда (0 = единицы), value — шаг на этом разряде.
    *
-   * @param {number|number[]} currentState - текущее состояние (одна цифра или массив разрядов)
+   * ВАЖНО:
+   * - Используем ТОЛЬКО цифры из selectedDigits (1..9), которые задал пользователь через блок «Просто».
+   * - Если пятёрка запрещена (includeFive=false), не генерируем ±5.
+   * - В многозначном режиме на выходе должны остаться только шаги, состоящие из допустимых цифр.
+   *
+   * @param {number|number[]} currentState - текущее состояние (число или массив разрядов)
    * @param {boolean} isFirstAction - это первый шаг в примере?
    * @param {number} position - с каким разрядом работаем (0 — младший)
    * @returns {Array<number|{position:number,value:number}>}
@@ -108,40 +113,49 @@ export class UnifiedSimpleRule extends BaseRule {
       onlySubtraction
     } = this.config;
 
-    // получаем текущее значение конкретного разряда
+    // текущее значение конкретного разряда
     const digitValue = this.getDigitValue(currentState, position);
 
-    // раскладываем это значение на физику абакуса
-    // верхняя косточка активна, если значение >=5 и вообще разрешено работать с 5
+    // физика стойки:
+    // верхняя косточка считается "поднятой", если значение >=5 и пятёрка вообще разрешена методически
     const isUpperActive = includeFive && digitValue >= 5;
-    const activeLower = isUpperActive ? digitValue - 5 : digitValue; // сколько нижних косточек уже поднято
-    const inactiveLower = 4 - activeLower; // сколько нижних косточек ещё свободны
+    const activeLower = isUpperActive ? digitValue - 5 : digitValue; // сколько нижних бусин уже поднято
+    const inactiveLower = 4 - activeLower; // сколько нижних бусин ещё свободно
 
     let validActions = [];
 
+    // Перебор разрешённых цифр (только то, что пользователь выбрал)
     for (const digit of selectedDigits) {
-      // положительные шаги
+      if (Number.isNaN(digit)) continue;
+      if (digit <= 0) continue;
+
+      // ПОЛОЖИТЕЛЬНЫЕ ШАГИ (сложение)
       if (digit === 5 && includeFive) {
-        // +5: можно только если верхняя сейчас не активна и не вылезем за 9
+        // +5 можно сделать, только если верхняя косточка не активна
+        // и не превысим 9 в этом разряде
         if (!isUpperActive && digitValue + 5 <= 9) {
-          validActions.push(digit);
+          validActions.push(+5);
         }
       } else if (digit < 5) {
-        // +1..+4: можно если есть свободные нижние косточки и не перелезем за 9
+        // +1..+4
+        // можно только если есть достаточно "свободных" нижних бусин
+        // и не переполним стойку (>9 запрещено)
         if (inactiveLower >= digit && digitValue + digit <= 9) {
-          validActions.push(digit);
+          validActions.push(+digit);
         }
       }
 
-      // отрицательные шаги
+      // ОТРИЦАТЕЛЬНЫЕ ШАГИ (вычитание)
+      // Первое действие не может быть отрицательным по методике
       if (!isFirstAction) {
         if (digit === 5 && includeFive) {
-          // -5: можно только если верхняя активна
-          if (isUpperActive) {
+          // -5 возможно только если верхняя косточка активна
+          if (isUpperActive && digitValue - 5 >= 0) {
             validActions.push(-5);
           }
         } else if (digit < 5) {
-          // -1..-4: можно если есть активные нижние косточки и не уходим ниже 0
+          // -1..-4 допустимы, только если есть поднятые нижние бусины
+          // и не уйдём ниже 0
           if (activeLower >= digit && digitValue - digit >= 0) {
             validActions.push(-digit);
           }
@@ -151,23 +165,32 @@ export class UnifiedSimpleRule extends BaseRule {
 
     // правило: первое действие должно быть положительным
     if (isFirstAction) {
-      validActions = validActions.filter(a => a > 0);
+      validActions = validActions.filter(a => {
+        const v = typeof a === "object" ? a.value : a;
+        return v > 0;
+      });
     }
 
-    // правило: если в этом разряде сейчас 0 — не даём чисто отрицательного старта
+    // правило: если текущее значение разряда = 0, не начинаем с чистого минуса
     if (digitValue === 0 && !isFirstAction) {
-      validActions = validActions.filter(a => a > 0);
+      validActions = validActions.filter(a => {
+        const v = typeof a === "object" ? a.value : a;
+        return v > 0;
+      });
     }
 
     // правило "только пятёрка"
     if (this.config.onlyFiveSelected && includeFive) {
-      const only5 = validActions.filter(a => Math.abs(a) === 5);
+      const only5 = validActions.filter(a => {
+        const v = typeof a === "object" ? a.value : a;
+        return Math.abs(v) === 5;
+      });
       if (only5.length > 0) {
         validActions = only5;
       }
     }
 
-    // ограничение направления (только плюс / только минус)
+    // Ограничение направления (только плюс / только минус)
     if (onlyAddition) {
       validActions = validActions.filter(a => {
         const v = typeof a === "object" ? a.value : a;
@@ -181,22 +204,51 @@ export class UnifiedSimpleRule extends BaseRule {
       });
     }
 
-    // многозначный режим → действия становятся объектами { position, value }
+    // === МНОГОРАЗРЯДНЫЙ РЕЖИМ ===
+    // Преобразуем чистые числа в структуру { position, value }
+    // и сделаем дополнительную фильтрацию безопасности.
     if (digitCount && digitCount > 1) {
-      validActions = validActions.map(value => ({ position, value }));
+      validActions = validActions.map(value => ({
+        position,
+        value
+      }));
 
       const combineLevels = this.config.combineLevels ?? false;
-      if (!combineLevels) {
-        // при combineLevels=false не разрешаем действия,
-        // которые приведут число ниже минимального N-разрядного значения
-        const minFinal = this.getMinFinalNumber();
 
+      // Если combineLevels=false,
+      // то мы не разрешаем шаги, которые "обрушат" всё число ниже минимально допустимого
+      // (например, сделать из 20 -> 03 в режиме, который не разрешает падать ниже 10).
+      if (!combineLevels) {
+        const minFinal = this.getMinFinalNumber();
         validActions = validActions.filter(action => {
           const newState = this.applyAction(currentState, action);
           const newNumber = this.stateToNumber(newState);
           return newNumber >= minFinal;
         });
       }
+
+      // ДОПОЛНИТЕЛЬНАЯ ГАРАНТИЯ ПУНКТА 4:
+      // убедиться, что абсолютное значение шага в этом разряде входит в selectedDigits
+      // (и что пятёрка допустима только если includeFive)
+      validActions = validActions.filter(action => {
+        const absVal = Math.abs(action.value);
+
+        // если шаг 5, но includeFive=false → нельзя
+        if (absVal === 5 && !includeFive) return false;
+
+        // если шага нет в разрешённых цифрах → нельзя
+        return selectedDigits.includes(absVal);
+      });
+    } else {
+      // ОДНОРАЗРЯДНЫЙ РЕЖИМ:
+      // тоже гарантируем, что |шаг| допустим с точки зрения выбранных цифр
+      validActions = validActions.filter(a => {
+        const absVal = Math.abs(typeof a === "object" ? a.value : a);
+
+        if (absVal === 5 && !includeFive) return false;
+
+        return selectedDigits.includes(absVal);
+      });
     }
 
     const stateStr = Array.isArray(currentState)
@@ -204,11 +256,11 @@ export class UnifiedSimpleRule extends BaseRule {
       : currentState;
 
     console.log(
-      `✅ Доступные действия из ${stateStr} (разряд ${position}, ${
-        this.name
-      }): [${validActions
+      `✅ Доступные действия из ${stateStr} (разряд ${position}, ${this.name}): [${validActions
         .map(a =>
-          typeof a === "object" ? `{${a.position}:${a.value}}` : a
+          typeof a === "object"
+            ? `{${a.position}:${a.value}}`
+            : a
         )
         .join(", ")}]`
     );
@@ -217,7 +269,7 @@ export class UnifiedSimpleRule extends BaseRule {
   }
 
   /**
-   * Валидация целого примера
+   * Валидация целого примера.
    * Проверяем:
    *  - стартовое состояние валидно,
    *  - первое действие положительное,
@@ -251,8 +303,7 @@ export class UnifiedSimpleRule extends BaseRule {
     const answerNum = this.stateToNumber(answer);
 
     if (digitCount === 1) {
-      // однозначные: ответ должен "закрываться" обратно в 0..4 или 0..5,
-      // в зависимости от includeFive / методики
+      // однозначные: ответ должен "закрываться" обратно в 0..4 или 0..5
       if (answerNum > maxFinalState || answerNum < 0) {
         console.error(
           `❌ Финал ${answerNum} вне диапазона 0-${maxFinalState}`
@@ -261,8 +312,7 @@ export class UnifiedSimpleRule extends BaseRule {
       }
     } else {
       // многозначные:
-      // - мы больше НЕ ограничиваем верхнюю границу
-      // - единственное правило: ответ не может быть отрицательным
+      // единственное правило: ответ не может быть отрицательным
       if (answerNum < 0) {
         console.error(
           `❌ Финал ${answerNum} не может быть отрицательным при ${digitCount} разрядах`
@@ -282,7 +332,7 @@ export class UnifiedSimpleRule extends BaseRule {
       }
     }
 
-    // 5. контроль арифметики (сумма шагов действительно даёт answer)
+    // 5. контроль арифметики
     let calc = start;
     for (const step of steps) {
       calc = this.applyAction(calc, step.action);
