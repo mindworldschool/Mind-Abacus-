@@ -1,208 +1,218 @@
 // ext/core/generator.js
-import { ExampleGenerator } from './ExampleGenerator.js';
-import { UnifiedSimpleRule } from './rules/UnifiedSimpleRule.js';
-import { Simple6Rule } from './rules/Simple6Rule.js';
-import { Simple7Rule } from './rules/Simple7Rule.js';
-import { Simple8Rule } from './rules/Simple8Rule.js';
-import { Simple9Rule } from './rules/Simple9Rule.js';
+//
+// Генератор примеров для тренажёра.
+// Отвечает за:
+//  - чтение настроек из UI,
+//  - подготовку конфигурации правил,
+//  - выбор правильного правила,
+//  - вызов ExampleGenerator и адаптацию результата под trainer_logic.js.
+//
+// Зависимости:
+//  - UnifiedSimpleRule (базовая логика "Просто"),
+//  - ExampleGenerator (строит последовательности шагов по правилу).
+
+import { UnifiedSimpleRule } from "./rules/UnifiedSimpleRule.js";
+import { ExampleGenerator } from "./ExampleGenerator.js";
 
 /**
- * Публичная точка входа: сгенерировать пример и вернуть в формате,
- * который понимает тренажёр (steps[], answer, meta...).
+ * Основная внешняя функция.
+ * Вызывается из trainer_logic.js при показе каждого нового примера.
+ * @param {Object} settings - настройки, пришедшие из UI
+ * @returns {Object} { start:number, steps:string[], answer:number }
+ *          в формате, который trainer_logic.js уже умеет показывать
  */
-export function generateExample(settings) {
-  const rule = createRuleFromSettings(settings);
-  const generator = new ExampleGenerator(rule);
-  const example = generator.generate();
-  return generator.toTrainerFormat(example);
-}
+export function generateExample(settings = {}) {
+  console.log("🧠 [generator] входные настройки:", settings);
 
-/**
- * Берёт настройки из UI (trainer_logic -> generatorSettings),
- * приводит их к единому ruleConfig и выбирает нужное правило.
- */
-function createRuleFromSettings(settings) {
-  const { blocks, actions, digits, combineLevels } = settings || {};
+  // 1. Считываем ключевые параметры тренировки
+  const digitCount = parseInt(settings.digits, 10) || 1; // разрядность: 1..9
+  const combineLevels = settings.combineLevels === true; // true -> многоразрядный шаг сразу по всем разрядам
+  const actionsCfg = settings.actions || {};
+  const blocks = settings.blocks || {};
 
-  //
-  // 1. РАЗРЯДНОСТЬ
-  //
-  // digits приходит строкой "1","2","3"... → делаем число.
-  const digitCount = parseInt(digits, 10) || 1;
+  // Ограничение по количеству шагов (действий):
+  //  - если режим "бесконечно" не включён, то actions.count задаёт и min, и max
+  const minStepsRaw = actionsCfg.infinite
+    ? 2
+    : (actionsCfg.min ?? actionsCfg.count ?? 2);
+  const maxStepsRaw = actionsCfg.infinite
+    ? 12
+    : (actionsCfg.max ?? actionsCfg.count ?? 4);
 
-  //
-  // 2. ИСХОДНЫЙ ВЫБОР ЦИФР ПОЛЬЗОВАТЕЛЯ
-  //
-  // Пользователь может выбрать только некоторые цифры (на экране "Просто"):
-  // например [1,2,3,4] или [5] или [7] и т.д.
-  //
-  const originalDigits = (blocks?.simple?.digits?.length > 0)
-    ? blocks.simple.digits.map(d => parseInt(d, 10))
+  // Для многозначных примеров без комбинированного шага (combineLevels=false)
+  // генератору всё ещё тяжело строить очень длинные цепочки.
+  // Чтобы не сыпаться в "300 попыток не удалось", мы подрежем длину.
+  let minSteps = minStepsRaw;
+  let maxSteps = maxStepsRaw;
+  if (digitCount > 1 && !combineLevels) {
+    minSteps = Math.min(minStepsRaw, 4);
+    maxSteps = Math.min(maxStepsRaw, 4);
+  }
+
+  // 2. Читаем блок "Просто" (основные цифры, которые можно использовать)
+  //    Пример: [1,2,3,4,5] или [1,2,3] и т.д.
+  const originalDigits = Array.isArray(blocks?.simple?.digits)
+    ? blocks.simple.digits
+        .map(n => parseInt(n, 10))
+        .filter(n => !Number.isNaN(n))
     : [1, 2, 3, 4];
 
+  // includeFive управляет режимом "Просто 4" vs "Просто 5"
+  // приоритет:
+  //  1) settings.blocks.simple.includeFive,
+  //  2) settings.includeFive,
+  //  3) сам факт, что среди выбранных цифр есть 5
+  const includeFive =
+    (blocks?.simple?.includeFive ??
+      settings.includeFive ??
+      originalDigits.includes(5)) === true;
+
+  // Только сложение / только вычитание (ограничение направления)
+  const onlyAddition =
+    (blocks?.simple?.onlyAddition ?? settings.onlyAddition ?? false) === true;
+  const onlySubtraction =
+    (blocks?.simple?.onlySubtraction ??
+      settings.onlySubtraction ??
+      false) === true;
+
+  // Спец-блоки (методические формулы)
+  const brothersActive = blocks?.brothers?.active === true;
+  const friendsActive = blocks?.friends?.active === true;
+  const mixActive = blocks?.mix?.active === true;
+
+  // 3. Готовим final selectedDigits
   //
-  // 3. ДОПОЛНЕНИЕ ЦИФР ДЛЯ КОМПОЗИТНЫХ ЧИСЕЛ 6..9
+  // Логика:
+  //  - Если digitCount === 1 (один разряд), и выбраны числа 6,7,8,9,
+  //    нам нужно автоматически добавить составляющие этих чисел
+  //    (7 => 5 и 2, 9 => 5 и 4 и т.д.), чтобы правило умело строить эти шаги.
   //
-  // Если выбрана, например, 7 — нам нужны ходы с 5 и 2.
-  // Мы расширяем набор допустимых шагов, чтобы правило знало, чем вообще можно оперировать.
+  //  - Если digitCount > 1 (многозначные числа),
+  //    мы НИЧЕГО не расширяем. Берём ТОЛЬКО то, что реально выбрал пользователь.
   //
   let selectedDigits = [...originalDigits];
-  const digitsToAdd = new Set(selectedDigits);
 
-  if (selectedDigits.includes(6)) {
-    digitsToAdd.add(5);
-    digitsToAdd.add(1);
+  if (digitCount === 1) {
+    const digitsToAdd = new Set(selectedDigits);
+
+    // 6 = 5+1
+    if (selectedDigits.includes(6)) {
+      digitsToAdd.add(5);
+      digitsToAdd.add(1);
+    }
+
+    // 7 = 5+2
+    if (selectedDigits.includes(7)) {
+      digitsToAdd.add(5);
+      digitsToAdd.add(2);
+    }
+
+    // 8 = 5+3
+    if (selectedDigits.includes(8)) {
+      digitsToAdd.add(5);
+      digitsToAdd.add(3);
+    }
+
+    // 9 = 5+4
+    if (selectedDigits.includes(9)) {
+      digitsToAdd.add(5);
+      digitsToAdd.add(4);
+    }
+
+    selectedDigits = Array.from(digitsToAdd).sort((a, b) => a - b);
+  } else {
+    console.log(
+      `ℹ️ [generator] Многозначный режим (${digitCount}-разрядные): используем только выбранные цифры [${selectedDigits.join(
+        ", "
+      )}]`
+    );
   }
-  if (selectedDigits.includes(7)) {
-    digitsToAdd.add(5);
-    digitsToAdd.add(2);
-  }
-  if (selectedDigits.includes(8)) {
-    digitsToAdd.add(5);
-    digitsToAdd.add(3);
-  }
-  if (selectedDigits.includes(9)) {
-    digitsToAdd.add(5);
-    digitsToAdd.add(4);
-  }
 
-  selectedDigits = Array.from(digitsToAdd).sort((a, b) => a - b);
-
+  // 4. Сконструируем ruleConfig
   //
-  // 4. ФЛАГИ ДЛЯ "ПРОСТО"
-  //
-  // onlyFiveSelected:
-  //   ребёнок тренирует только пятёрку (особый случай "только верхняя косточка")
-  //   это ДОЛЖНО считаться по изначальному выбору пользователя, а не после расширения.
-  //
-  const onlyFiveSelected =
-    (originalDigits.length === 1 && originalDigits[0] === 5);
-
-  // Разрешено ли использовать пятёрку как отдельную косточку (верхнюю)?
-  // Это определяет режим "Просто 4" (includeFive=false) vs "Просто 5" (includeFive=true).
-  // Логика:
-  //  - если UI прислал blocks.simple.includeFive → используем это,
-  //  - иначе считаем, что если среди цифр есть 5, то пятёрку можно.
-  //
-  const includeFive =
-    (blocks?.simple?.includeFive ?? selectedDigits.includes(5));
-
-  // Ограничение направления: только сложение / только вычитание.
-  const onlyAddition     = blocks?.simple?.onlyAddition     ?? false;
-  const onlySubtraction  = blocks?.simple?.onlySubtraction  ?? false;
-
-  //
-  // 5. КОЛИЧЕСТВО ШАГОВ В ПРИМЕРЕ
-  //
-  const minSteps = actions?.min ?? 2;
-  const maxSteps = actions?.max ?? 4;
-
-  //
-  // 6. АКТИВНЫЕ МЕТОДИЧЕСКИЕ БЛОКИ
-  //
-  // Эти флаги нам понадобятся в следующих этапах:
-  //  - brothersActive: отработка "брат 5" (+5 -1 и т.д.)
-  //  - friendsActive: отработка друзей (5+2, 5+3 и т.п. для 7/8/9)
-  //  - mixActive: комбинированная тренировка (обязать пример содержать оба типа паттернов)
-  //
-  const brothersActive = blocks?.brothers?.active ?? false;
-  const friendsActive  = blocks?.friends?.active  ?? false;
-  const mixActive      = blocks?.mix?.active      ?? false;
-
-  //
-  // 7. REQUIRE BLOCK (будущее поведение)
-  //
-  // В перспективе: если, скажем, включён brothersActive,
-  // мы будем требовать, чтобы в каждом примере был блок вида [+5, -1].
-  // Пока это не жёстко включено => false.
-  //
-  const requireBlock = false;
-
-  //
-  // 8. СБОРКА CONFIG ДЛЯ ПРАВИЛА
-  //
-  // Это то, что попадёт в UnifiedSimpleRule / Simple6Rule / ...,
-  // и дальше в ExampleGenerator.
+  // Этот объект мы передаём в UnifiedSimpleRule.
+  // Он описывает ВСЮ методику примера.
   //
   const ruleConfig = {
-    // Разрядность
-    digitCount,                            // сколько разрядов мы тренируем (1..9)
-    combineLevels: combineLevels ?? false, // разрешаем использовать сразу несколько разрядов внутри шага
+    // --- структура соробана / примеров ---
+    digitCount: digitCount,          // 1..9
+    combineLevels: combineLevels,    // если true — шаг может менять сразу все разряды
 
-    // Длина примера
-    minSteps,
-    maxSteps,
+    // --- длина примера ---
+    minSteps: minSteps,
+    maxSteps: maxSteps,
 
-    // Цифры и разрешённые дельты
-    selectedDigits,
-    onlyFiveSelected,
-    includeFive,
+    // --- доступные шаги (цифры из блока Просто) ---
+    selectedDigits: selectedDigits,
 
-    // Направление действий
-    onlyAddition,
-    onlySubtraction,
+    // --- режим Просто 4 / Просто 5 ---
+    includeFive: includeFive,
+    hasFive: includeFive, // для совместимости с существующей логикой
 
-    // Обучающие блоки
-    requireBlock,
-    brothersActive,
-    friendsActive,
-    mixActive,
+    // --- направление (если в UI включили "только плюс" или "только минус") ---
+    onlyAddition: onlyAddition,
+    onlySubtraction: onlySubtraction,
 
-    // Полная структура блоков и действий (нужно для следующих этапов,
-    // и чтобы правило могло проанализировать настройки глубже)
-    blocks,
-    actions
+    // --- блоки методик (братья / друзья / микс) ---
+    brothersActive: brothersActive,
+    friendsActive: friendsActive,
+    mixActive: mixActive,
+
+    // --- прочие поля, которые сейчас используют правило/генератор ---
+    firstActionMustBePositive: true,
+
+    // флаги для блоков с "обязательным вставлением формулы"
+    // пока неактивно по умолчанию, но оставляем, чтобы не поломать старый код
+    requireBlock: false,
+    blockPlacement: "auto",
+
+    // исходные блоки — пробрасываем на всякий случай, чтобы правило могло посмотреть
+    blocks: blocks
   };
 
-  //
-  // 9. ВЫБОР КОНКРЕТНОГО ПРАВИЛА
-  //
-  // Здесь мы определяем, какое правило использовать.
-  // Логика:
-  //   - если пользователь явно выбрал цифры 9/8/7/6
-  //     (в исходном выборе originalDigits), и при этом пятёрка разрешена,
-  //     то мы берём спец-правило (Simple9Rule и т.д.).
-  //   - иначе берём UnifiedSimpleRule (базовая "Просто").
-  //
-  const has5 = selectedDigits.includes(5);
-  const has9 = originalDigits.includes(9);
-  const has8 = originalDigits.includes(8);
-  const has7 = originalDigits.includes(7);
-  const has6 = originalDigits.includes(6);
-
-  // Правила "Просто 9", "Просто 8", ... требуют уметь работать с пятёркой
-  // (верхняя косточка должна быть включена).
-  if (has9 && has5) {
-    console.log(
-      `✅ Правило создано: Просто 9 | digits=[${selectedDigits.join(', ')}] | digitCount=${digitCount}`
-    );
-    return new Simple9Rule(ruleConfig);
-  }
-
-  if (has8 && has5) {
-    console.log(
-      `✅ Правило создано: Просто 8 | digits=[${selectedDigits.join(', ')}] | digitCount=${digitCount}`
-    );
-    return new Simple8Rule(ruleConfig);
-  }
-
-  if (has7 && has5) {
-    console.log(
-      `✅ Правило создано: Просто 7 | digits=[${selectedDigits.join(', ')}] | digitCount=${digitCount}`
-    );
-    return new Simple7Rule(ruleConfig);
-  }
-
-  if (has6 && has5) {
-    console.log(
-      `✅ Правило создано: Просто 6 | digits=[${selectedDigits.join(', ')}] | digitCount=${digitCount}`
-    );
-    return new Simple6Rule(ruleConfig);
-  }
-
-  // Базовое правило "Просто" (1..5)
   console.log(
-    `✅ Правило создано: Просто | digits=[${selectedDigits.join(', ')}] | digitCount=${digitCount} | includeFive=${includeFive}`
+    "🧩 [generator] ruleConfig:",
+    JSON.stringify(
+      {
+        digitCount: ruleConfig.digitCount,
+        combineLevels: ruleConfig.combineLevels,
+        minSteps: ruleConfig.minSteps,
+        maxSteps: ruleConfig.maxSteps,
+        selectedDigits: ruleConfig.selectedDigits,
+        includeFive: ruleConfig.includeFive,
+        onlyAddition: ruleConfig.onlyAddition,
+        onlySubtraction: ruleConfig.onlySubtraction,
+        brothersActive: ruleConfig.brothersActive,
+        friendsActive: ruleConfig.friendsActive,
+        mixActive: ruleConfig.mixActive
+      },
+      null,
+      2
+    )
   );
-  return new UnifiedSimpleRule(ruleConfig);
+
+  // 5. Выбор правила
+  //
+  // На будущее:
+  // - если brothersActive === true → можно подключать BrothersRule
+  // - если friendsActive === true → FriendsRule
+  // - если mixActive === true → случайный выбор
+  //
+  // Пока (по твоему текущему требованию): всегда базовое правило UnifiedSimpleRule.
+  //
+  const rule = new UnifiedSimpleRule(ruleConfig);
+
+  // 6. Генерируем пример через ExampleGenerator
+  const gen = new ExampleGenerator(rule);
+  const rawExample = gen.generate();
+
+  // 7. Адаптируем результат к формату, который тренажёр использует в UI
+  const formatted = gen.toTrainerFormat(rawExample);
+
+  console.log(
+    "✅ [generator] пример готов:",
+    JSON.stringify(formatted, null, 2)
+  );
+
+  return formatted;
 }
