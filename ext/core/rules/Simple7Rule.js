@@ -215,24 +215,41 @@ export class Simple7Rule extends BaseRule {
    */
   validateExample(example) {
     const { start, steps, answer } = example;
-    const { maxFinalState, requireBlock } = this.config;
+    const { maxFinalState, requireBlock, digitCount } = this.config;
 
-    // 1. Старт = 0
-    if (start !== 0) {
-      console.error(`❌ Начальное состояние ${start} ≠ 0`);
+    // 1. Старт = 0 (число или массив нулей)
+    const startNum = this.stateToNumber(start);
+    if (startNum !== 0) {
+      console.error(`❌ Начальное состояние ${startNum} ≠ 0`);
       return false;
     }
 
     // 2. Первое действие положительное
-    if (steps.length > 0 && steps[0].action <= 0) {
-      console.error(`❌ Первое действие ${steps[0].action} не положительное`);
-      return false;
+    if (steps.length > 0) {
+      const firstAction = steps[0].action;
+      const firstValue = typeof firstAction === 'object' ? firstAction.value : firstAction;
+      if (firstValue <= 0) {
+        console.error(`❌ Первое действие ${firstValue} не положительное`);
+        return false;
+      }
     }
 
-    // 3. Финал в диапазоне 0-7
-    if (answer > maxFinalState || answer < 0) {
-      console.error(`❌ Финал ${answer} вне диапазона 0-${maxFinalState}`);
-      return false;
+    // 3. Финал в диапазоне
+    const answerNum = this.stateToNumber(answer);
+    if (digitCount === 1) {
+      // Для однозначных: 0-maxFinalState
+      if (answerNum > maxFinalState || answerNum < 0) {
+        console.error(`❌ Финал ${answerNum} вне диапазона 0-${maxFinalState}`);
+        return false;
+      }
+    } else {
+      // Для многозначных: проверяем диапазон разрядности
+      const minFinal = this.getMinFinalNumber();
+      const maxFinal = this.getMaxFinalNumber();
+      if (answerNum < minFinal || answerNum > maxFinal) {
+        console.error(`❌ Финал ${answerNum} вне диапазона ${minFinal}-${maxFinal}`);
+        return false;
+      }
     }
 
     // 4. Проверка блока ±7 (если требуется)
@@ -247,49 +264,62 @@ export class Simple7Rule extends BaseRule {
     // 5. Физическая валидация каждого шага
     let state = start;
     for (const step of steps) {
-      const isUpperActive = (state >= 5);
-      const activeLower = isUpperActive ? state - 5 : state;
-      const inactiveLower = 4 - activeLower;
       const action = step.action;
 
+      // Для multi-digit извлекаем position и value
+      let position = 0;
+      let actionValue = action;
+      if (typeof action === 'object' && action !== null) {
+        position = action.position;
+        actionValue = action.value;
+      }
+
+      // Получаем значение конкретного разряда
+      const digitValue = this.getDigitValue(state, position);
+
+      const isUpperActive = (digitValue >= 5);
+      const activeLower = isUpperActive ? digitValue - 5 : digitValue;
+      const inactiveLower = 4 - activeLower;
+
       // Проверка физической возможности
-      if (action === 5) {
+      if (actionValue === 5) {
         if (isUpperActive) {
-          console.error(`❌ Физически невозможно: +5 из ${state} (верхняя уже активна)`);
+          console.error(`❌ Физически невозможно: +5 из ${digitValue} (верхняя уже активна) в разряде ${position}`);
           return false;
         }
-      } else if (action === -5) {
+      } else if (actionValue === -5) {
         if (!isUpperActive) {
-          console.error(`❌ Физически невозможно: -5 из ${state} (верхняя не активна)`);
+          console.error(`❌ Физически невозможно: -5 из ${digitValue} (верхняя не активна) в разряде ${position}`);
           return false;
         }
-      } else if (action === 7) {
+      } else if (actionValue === 7) {
         // +7 требует: верхняя не активна, хотя бы 2 свободные нижние
         if (isUpperActive || inactiveLower < 2) {
-          console.error(`❌ Физически невозможно: +7 из ${state} (верх:${isUpperActive}, свободно:${inactiveLower})`);
+          console.error(`❌ Физически невозможно: +7 из ${digitValue} (верх:${isUpperActive}, свободно:${inactiveLower}) в разряде ${position}`);
           return false;
         }
-      } else if (action === -7) {
+      } else if (actionValue === -7) {
         // -7 требует: верхняя активна, хотя бы 2 активные нижние
         if (!isUpperActive || activeLower < 2) {
-          console.error(`❌ Физически невозможно: -7 из ${state} (верх:${isUpperActive}, активно:${activeLower})`);
+          console.error(`❌ Физически невозможно: -7 из ${digitValue} (верх:${isUpperActive}, активно:${activeLower}) в разряде ${position}`);
           return false;
         }
-      } else if (action > 0 && action < 5) {
-        if (inactiveLower < action) {
-          console.error(`❌ Физически невозможно: +${action} из ${state} (свободно ${inactiveLower} < ${action})`);
+      } else if (actionValue > 0 && actionValue < 5) {
+        if (inactiveLower < actionValue) {
+          console.error(`❌ Физически невозможно: +${actionValue} из ${digitValue} (свободно ${inactiveLower} < ${actionValue}) в разряде ${position}`);
           return false;
         }
-      } else if (action < 0 && action > -5) {
-        if (activeLower < Math.abs(action)) {
-          console.error(`❌ Физически невозможно: ${action} из ${state} (активно ${activeLower} < ${Math.abs(action)})`);
+      } else if (actionValue < 0 && actionValue > -5) {
+        if (activeLower < Math.abs(actionValue)) {
+          console.error(`❌ Физически невозможно: ${actionValue} из ${digitValue} (активно ${activeLower} < ${Math.abs(actionValue)}) в разряде ${position}`);
           return false;
         }
       }
 
       // Проверка состояния после действия
-      if (step.toState < 0 || step.toState > 9) {
-        console.error(`❌ Промежуточное состояние ${step.toState} вне диапазона 0-9`);
+      if (!this.isValidState(step.toState)) {
+        const stateStr = Array.isArray(step.toState) ? `[${step.toState.join(', ')}]` : step.toState;
+        console.error(`❌ Промежуточное состояние ${stateStr} не валидно`);
         return false;
       }
 
@@ -302,12 +332,15 @@ export class Simple7Rule extends BaseRule {
       calculatedState = this.applyAction(calculatedState, step.action);
     }
 
-    if (calculatedState !== answer) {
-      console.error(`❌ Расчётное состояние ${calculatedState} ≠ ответу ${answer}`);
+    // Сравниваем числа, а не массивы
+    const calcNum = this.stateToNumber(calculatedState);
+    // answerNum уже объявлен выше
+    if (calcNum !== answerNum) {
+      console.error(`❌ Расчётное состояние ${calcNum} ≠ ответу ${answerNum}`);
       return false;
     }
 
-    console.log(`✅ Пример валиден (${this.name}): ${steps.map(s => this.formatAction(s.action)).join(' ')} = ${answer}`);
+    console.log(`✅ Пример валиден (${this.name}): ${steps.map(s => this.formatAction(s.action)).join(' ')} = ${answerNum}`);
     return true;
   }
 }
