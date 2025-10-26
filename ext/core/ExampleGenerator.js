@@ -89,6 +89,18 @@ _generateAttempt() {
   }
 
   // === ГЕНЕРАЦИЯ ОСНОВНЫХ ШАГОВ ===
+
+  // КРИТИЧНО: Для combineLevels=false выбираем ОДИН разряд для всего примера
+  const digitCount = this.rule.config?.digitCount || 1;
+  const combineLevels = this.rule.config?.combineLevels || false;
+  let fixedPosition = null;
+
+  if (digitCount > 1 && !combineLevels) {
+    // Выбираем старший разряд (для двузначных: position=1, для трехзначных: position=2, и т.д.)
+    fixedPosition = digitCount - 1;
+    console.log(`🔒 combineLevels=false: работаем ТОЛЬКО с разрядом ${fixedPosition} (${['единицы', 'десятки', 'сотни', 'тысячи', 'десятки тысяч', 'сотни тысяч', 'миллионы', 'десятки миллионов', 'сотни миллионов'][fixedPosition]})`);
+  }
+
   for (let i = 0; i < stepsCount; i++) {
     const isFirstAction = (i === 0 && steps.length === 0);
     const isLastAction = (i === stepsCount - 1);
@@ -96,17 +108,20 @@ _generateAttempt() {
     let availableActions = [];
 
     // Для multi-digit режима генерируем действия для всех позиций
-    const digitCount = this.rule.config?.digitCount || 1;
     if (digitCount > 1 && Array.isArray(currentState)) {
-      // Собираем доступные действия для всех позиций
-      for (let position = 0; position < digitCount; position++) {
-        const actionsForPosition = this.rule.getAvailableActions(currentState, isFirstAction, position);
-        availableActions = availableActions.concat(actionsForPosition);
+      // КРИТИЧНО: если combineLevels=false, собираем действия ТОЛЬКО для fixedPosition
+      if (!combineLevels && fixedPosition !== null) {
+        availableActions = this.rule.getAvailableActions(currentState, isFirstAction, fixedPosition);
+      } else {
+        // combineLevels=true: собираем доступные действия для всех позиций
+        for (let position = 0; position < digitCount; position++) {
+          const actionsForPosition = this.rule.getAvailableActions(currentState, isFirstAction, position);
+          availableActions = availableActions.concat(actionsForPosition);
+        }
       }
 
-      // Стратегия: если без combineLevels, приоритизируем старшие разряды
-      const combineLevels = this.rule.config?.combineLevels || false;
-      if (!combineLevels) {
+      // Стратегия приоритизации (только для combineLevels=true)
+      if (combineLevels) {
         const highestPosition = digitCount - 1;
         const highestDigitValue = currentState[highestPosition] || 0;
 
@@ -150,24 +165,24 @@ _generateAttempt() {
             availableActions = upperHalfActions;
           }
         }
-      }
 
-      // Стратегия: добавляем разнообразие - приоритизируем отрицательные действия
-      // если уже есть активированные разряды и еще не было отрицательных
-      const hasNegativeAction = steps.some(step => {
-        const actionValue = typeof step.action === 'object' ? step.action.value : step.action;
-        return actionValue < 0;
-      });
-
-      if (!hasNegativeAction && i >= 3 && !isFirstAction) {
-        // Ищем отрицательные действия на уже активированных разрядах
-        const negativeActions = availableActions.filter(a => {
-          if (typeof a !== 'object') return false;
-          return a.value < 0;
+        // Стратегия: добавляем разнообразие - приоритизируем отрицательные действия
+        // если уже есть активированные разряды и еще не было отрицательных
+        const hasNegativeAction = steps.some(step => {
+          const actionValue = typeof step.action === 'object' ? step.action.value : step.action;
+          return actionValue < 0;
         });
 
-        if (negativeActions.length > 0 && Math.random() < 0.4) {
-          availableActions = negativeActions;
+        if (!hasNegativeAction && i >= 3 && !isFirstAction) {
+          // Ищем отрицательные действия на уже активированных разрядах
+          const negativeActions = availableActions.filter(a => {
+            if (typeof a !== 'object') return false;
+            return a.value < 0;
+          });
+
+          if (negativeActions.length > 0 && Math.random() < 0.4) {
+            availableActions = negativeActions;
+          }
         }
       }
     } else {
@@ -281,7 +296,6 @@ _generateAttempt() {
   }
 
   // === ПРОВЕРКА И РЕМОНТ ДИАПАЗОНА ДЛЯ MULTI-DIGIT ===
-  const digitCount = this.rule.config?.digitCount || 1;
   if (digitCount > 1 && Array.isArray(currentState)) {
     const finalNumber = this.rule.stateToNumber(currentState);
     const minFinal = this.rule.getMinFinalNumber();
@@ -289,21 +303,22 @@ _generateAttempt() {
 
     // Если число меньше минимума, ГАРАНТИРУЕМ достижение минимума
     if (finalNumber < minFinal) {
-      console.log(`⚠️ Число ${finalNumber} < минимума ${minFinal} (digitCount=${digitCount})`);
+      console.log(`⚠️ Число ${finalNumber} < минимума ${minFinal} (digitCount=${digitCount}, combineLevels=${combineLevels})`);
 
-      const highestPosition = digitCount - 1;
-      const highestDigitValue = currentState[highestPosition] || 0;
+      // КРИТИЧНО: для combineLevels=false используем fixedPosition
+      const targetPosition = (!combineLevels && fixedPosition !== null) ? fixedPosition : (digitCount - 1);
+      const targetDigitValue = currentState[targetPosition] || 0;
 
-      // Вычисляем сколько нужно добавить к старшему разряду
+      // Вычисляем сколько нужно добавить к целевому разряду
       // Минимальное N-значное число: 10^(N-1)
       // Например, для digitCount=2: minFinal=10, нужно чтобы десятки >= 1
-      const neededValue = Math.max(1, Math.ceil((minFinal - finalNumber) / Math.pow(10, highestPosition)));
+      const neededValue = Math.max(1, Math.ceil((minFinal - finalNumber) / Math.pow(10, targetPosition)));
 
       // Но не больше чем можно добавить (0-9)
-      const addValue = Math.min(neededValue, 9 - highestDigitValue);
+      const addValue = Math.min(neededValue, 9 - targetDigitValue);
 
-      if (addValue > 0 && highestDigitValue + addValue <= 9) {
-        const repairAction = { position: highestPosition, value: addValue };
+      if (addValue > 0 && targetDigitValue + addValue <= 9) {
+        const repairAction = { position: targetPosition, value: addValue };
         const newState = this.rule.applyAction(currentState, repairAction);
         steps.push({
           action: repairAction,
@@ -312,7 +327,7 @@ _generateAttempt() {
         });
         currentState = newState;
         const repairedNumber = this.rule.stateToNumber(currentState);
-        console.log(`🔧 Repair: добавлено +${addValue} к разряду ${highestPosition}, было ${finalNumber} → стало ${repairedNumber}`);
+        console.log(`🔧 Repair: добавлено +${addValue} к разряду ${targetPosition}, было ${finalNumber} → стало ${repairedNumber}`);
       }
     }
 
