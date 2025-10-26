@@ -221,7 +221,7 @@ export class UnifiedSimpleRule extends BaseRule {
    * Проверяем:
    *  - стартовое состояние валидно,
    *  - первое действие положительное,
-   *  - финальное состояние в допустимом диапазоне,
+   *  - финальное состояние валидно,
    *  - все промежуточные состояния валидны,
    *  - арифметика сходится.
    */
@@ -247,14 +247,12 @@ export class UnifiedSimpleRule extends BaseRule {
       }
     }
 
-    // 3. финальное состояние в допустимом диапазоне
+    // 3. финальное состояние
     const answerNum = this.stateToNumber(answer);
-    const minFinal = this.getMinFinalNumber();
-    const maxFinal = this.getMaxFinalNumber();
 
     if (digitCount === 1) {
       // однозначные: ответ должен "закрываться" обратно в 0..4 или 0..5,
-      // в зависимости от includeFive
+      // в зависимости от includeFive / методики
       if (answerNum > maxFinalState || answerNum < 0) {
         console.error(
           `❌ Финал ${answerNum} вне диапазона 0-${maxFinalState}`
@@ -262,10 +260,12 @@ export class UnifiedSimpleRule extends BaseRule {
         return false;
       }
     } else {
-      // многозначные: ответ просто должен оставаться в разрешённом диапазоне разрядности
-      if (answerNum < minFinal || answerNum > maxFinal) {
+      // многозначные:
+      // - мы больше НЕ ограничиваем верхнюю границу
+      // - единственное правило: ответ не может быть отрицательным
+      if (answerNum < 0) {
         console.error(
-          `❌ Финал ${answerNum} вне диапазона ${minFinal}-${maxFinal}`
+          `❌ Финал ${answerNum} не может быть отрицательным при ${digitCount} разрядах`
         );
         return false;
       }
