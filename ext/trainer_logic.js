@@ -1,678 +1,704 @@
-// ext/trainer_logic.js — Improved trainer logic with security fixes
-import { ExampleView } from "./components/ExampleView.js";
-import { Abacus } from "./components/AbacusNew.js";
-import { generateExample } from "./core/generator.js";
-import { startAnswerTimer, stopAnswerTimer } from "../js/utils/timer.js";
-import { BigStepOverlay } from "../ui/components/BigStepOverlay.js";
-import { playSound } from "../js/utils/sound.js";
-import { logger } from "../core/utils/logger.js";
-import { UI, FONT_SIZE, DEFAULTS } from "../core/utils/constants.js";
-import { eventBus, EVENTS } from "../core/utils/events.js";
-import toast from "../ui/components/Toast.js";
-
-const CONTEXT = 'Trainer';
+// ext/core/ExampleGenerator.js - Генератор примеров на основе правил
 
 /**
- * Create layout structure using createElement (secure)
+ * ExampleGenerator - класс для генерации примеров на основе заданного правила
+ * Использует правила (BaseRule, SimpleRule, Simple5Rule и др.) для создания валидных примеров
  */
-function createTrainerLayout(displayMode, exampleCount) {
-  const layout = document.createElement("div");
-  layout.className = `mws-trainer mws-trainer--${displayMode}`;
+export class ExampleGenerator {
+  constructor(rule) {
+    this.rule = rule;
+    console.log(`⚙️ Генератор создан с правилом: ${rule.name}`);
+  }
 
-  // Main area
-  const trainerMain = document.createElement("div");
-  trainerMain.className = `trainer-main trainer-main--${displayMode}`;
+  /**
+   * Генерирует один пример
+   * @returns {Object} - Пример в формате {start, steps, answer}
+   */
+  generate() {
+    // Для многозначных чисел увеличиваем количество попыток
+    const digitCount = this.rule.config?.digitCount || 1;
+    const combineLevels = this.rule.config?.combineLevels || false;
 
-  const exampleArea = document.createElement("div");
-  exampleArea.id = "area-example";
-  exampleArea.className = "example-view";
-  trainerMain.appendChild(exampleArea);
+    // Базовое количество попыток: digitCount=1: 100, digitCount=2-3: 150, digitCount=4+: 200
+    let maxAttempts = digitCount === 1 ? 100 : (digitCount <= 3 ? 150 : 200);
 
-  // Controls panel
-  const panelControls = document.createElement("div");
-  panelControls.id = "panel-controls";
-
-  // Answer section
-  const answerSection = document.createElement("div");
-  answerSection.className = "answer-section-panel";
-
-  const answerLabel = document.createElement("div");
-  answerLabel.className = "answer-label";
-  answerLabel.textContent = "Ответ:";
-
-  const answerInput = document.createElement("input");
-  answerInput.type = "number";
-  answerInput.id = "answer-input";
-  answerInput.placeholder = "";
-
-  const submitBtn = document.createElement("button");
-  submitBtn.className = "btn btn--primary";
-  submitBtn.id = "btn-submit";
-  submitBtn.textContent = "Ответить";
-
-  answerSection.append(answerLabel, answerInput, submitBtn);
-
-  // Results capsule
-  const resultsCapsuleExt = createResultsCapsule(exampleCount);
-
-  // Progress container
-  const progressContainer = createProgressContainer();
-
-  // Timer
-  const timerContainer = document.createElement("div");
-  timerContainer.id = "answer-timer";
-  const timerBar = document.createElement("div");
-  timerBar.className = "bar";
-  timerContainer.appendChild(timerBar);
-
-  const timerText = document.createElement("div");
-  timerText.id = "answerTimerText";
-  timerText.className = "answer-timer__text";
-
-  // Abacus toggle
-  const panelCard = document.createElement("div");
-  panelCard.className = "panel-card panel-card--compact";
-  const abacusBtn = document.createElement("button");
-  abacusBtn.className = "btn btn--secondary btn--fullwidth";
-  abacusBtn.id = "btn-show-abacus";
-  abacusBtn.textContent = "🧮 Показать абакус";
-  panelCard.appendChild(abacusBtn);
-
-  panelControls.append(
-    answerSection,
-    resultsCapsuleExt,
-    progressContainer,
-    timerContainer,
-    timerText,
-    panelCard
-  );
-
-  layout.append(trainerMain, panelControls);
-  return layout;
-}
-
-function createResultsCapsule(exampleCount) {
-  const container = document.createElement("div");
-  container.className = "results-capsule-extended";
-
-  const header = document.createElement("div");
-  header.className = "results-capsule-extended__header";
-
-  const label = document.createElement("span");
-  label.className = "results-capsule-extended__label";
-  label.textContent = "Примеры:";
-
-  const counter = document.createElement("span");
-  counter.className = "results-capsule-extended__counter";
-
-  const completed = document.createElement("span");
-  completed.id = "stats-completed";
-  completed.textContent = "0";
-
-  const total = document.createElement("span");
-  total.id = "stats-total";
-  total.textContent = String(exampleCount);
-
-  counter.append(completed, " / ", total);
-  header.append(label, counter);
-
-  const capsule = document.createElement("div");
-  capsule.className = "results-capsule";
-
-  // Correct side
-  const correctSide = document.createElement("div");
-  correctSide.className = "results-capsule__side results-capsule__side--correct";
-  const correctIcon = document.createElement("div");
-  correctIcon.className = "results-capsule__icon";
-  correctIcon.textContent = "✓";
-  const correctValue = document.createElement("div");
-  correctValue.className = "results-capsule__value";
-  correctValue.id = "stats-correct";
-  correctValue.textContent = "0";
-  correctSide.append(correctIcon, correctValue);
-
-  const divider = document.createElement("div");
-  divider.className = "results-capsule__divider";
-
-  // Incorrect side
-  const incorrectSide = document.createElement("div");
-  incorrectSide.className = "results-capsule__side results-capsule__side--incorrect";
-  const incorrectIcon = document.createElement("div");
-  incorrectIcon.className = "results-capsule__icon";
-  incorrectIcon.textContent = "✗";
-  const incorrectValue = document.createElement("div");
-  incorrectValue.className = "results-capsule__value";
-  incorrectValue.id = "stats-incorrect";
-  incorrectValue.textContent = "0";
-  incorrectSide.append(incorrectIcon, incorrectValue);
-
-  capsule.append(correctSide, divider, incorrectSide);
-  container.append(header, capsule);
-  return container;
-}
-
-function createProgressContainer() {
-  const container = document.createElement("div");
-  container.className = "progress-container";
-
-  const progressBar = document.createElement("div");
-  progressBar.className = "progress-bar";
-
-  const correctBar = document.createElement("div");
-  correctBar.className = "progress-bar__correct";
-  correctBar.id = "progress-correct";
-  correctBar.style.width = "0%";
-
-  const incorrectBar = document.createElement("div");
-  incorrectBar.className = "progress-bar__incorrect";
-  incorrectBar.id = "progress-incorrect";
-  incorrectBar.style.width = "0%";
-
-  progressBar.append(correctBar, incorrectBar);
-
-  const labels = document.createElement("div");
-  labels.className = "progress-label";
-
-  const correctLabel = document.createElement("span");
-  correctLabel.className = "progress-label__correct";
-  correctLabel.textContent = "Правильно: ";
-  const correctPercent = document.createElement("strong");
-  correctPercent.id = "percent-correct";
-  correctPercent.textContent = "0%";
-  correctLabel.appendChild(correctPercent);
-
-  const incorrectLabel = document.createElement("span");
-  incorrectLabel.className = "progress-label__incorrect";
-  incorrectLabel.textContent = "Ошибки: ";
-  const incorrectPercent = document.createElement("strong");
-  incorrectPercent.id = "percent-incorrect";
-  incorrectPercent.textContent = "0%";
-  incorrectLabel.appendChild(incorrectPercent);
-
-  labels.append(correctLabel, incorrectLabel);
-  container.append(progressBar, labels);
-  return container;
-}
-
-function createAbacusWrapper() {
-  const wrapper = document.createElement("div");
-  wrapper.className = "abacus-wrapper";
-  wrapper.id = "abacus-wrapper";
-
-  const header = document.createElement("div");
-  header.className = "abacus-header";
-
-  const title = document.createElement("span");
-  title.className = "abacus-title";
-  title.textContent = "🧮 Абакус";
-
-  const closeBtn = document.createElement("button");
-  closeBtn.className = "abacus-close-btn";
-  closeBtn.id = "btn-close-abacus";
-  closeBtn.title = "Закрыть";
-  closeBtn.textContent = "×";
-
-  header.append(title, closeBtn);
-
-  const container = document.createElement("div");
-  container.id = "floating-abacus-container";
-
-  wrapper.append(header, container);
-  return wrapper;
-}
-
-/**
- * Main trainer mounting function
- * @param {HTMLElement} container - Container element
- * @param {Object} context - { t, state }
- * @returns {Function} Cleanup function
- */
-export function mountTrainerUI(container, { t, state }) {
-  try {
-    logger.info(CONTEXT, 'Mounting trainer UI...');
-    logger.debug(CONTEXT, 'Settings:', state?.settings);
-
-    const st = state?.settings ?? {};
-    const actionsCfg = st.actions ?? {};
-    const examplesCfg = st.examples ?? {};
-    const blockSimpleDigits = Array.isArray(st?.blocks?.simple?.digits)
-      ? st.blocks.simple.digits
-      : [];
-
-    const digits = parseInt(st.digits, 10) || 1;
-    const displayMode = st.inline ? "inline" : "column";
-
-    // === Режим пересчета ошибок ===
-    const retryMode = state?.retryMode?.enabled || false;
-    const retryExamples = retryMode ? (state?.retryMode?.examples || []) : [];
-    const exampleCount = retryMode ? retryExamples.length : getExampleCount(examplesCfg);
-
-    logger.info(CONTEXT, `Retry mode: ${retryMode}, examples to retry: ${retryExamples.length}`);
-
-    // === Create Layout (secure) ===
-    const layout = createTrainerLayout(displayMode, exampleCount, t);
-    container.appendChild(layout);
-
-    // === Create Abacus ===
-    const oldAbacus = document.getElementById("abacus-wrapper");
-    if (oldAbacus) oldAbacus.remove();
-
-    const abacusWrapper = createAbacusWrapper();
-    document.body.appendChild(abacusWrapper);
-
-    const exampleView = new ExampleView(document.getElementById("area-example"));
-    const abacus = new Abacus(document.getElementById("floating-abacus-container"), digits);
-
-    const overlayColor =
-      getComputedStyle(document.documentElement).getPropertyValue("--color-primary")?.trim() || "#EC8D00";
-    const overlay = new BigStepOverlay(st.bigDigitScale ?? UI.BIG_DIGIT_SCALE, overlayColor);
-
-    const shouldShowAbacus = st.mode === "abacus";
-    if (shouldShowAbacus) {
-      abacusWrapper.classList.add("visible");
-      document.getElementById("btn-show-abacus").textContent = t("trainer.hideAbacus");
+    // Для combineLevels=false удваиваем попытки (строже ограничения)
+    if (!combineLevels && digitCount > 1) {
+      maxAttempts *= 2;
     }
 
-    // === State ===
-    const session = {
-      currentExample: null,
-      stats: { correct: 0, incorrect: 0, total: exampleCount },
-      completed: 0,
-      wrongExamples: [] // Массив неправильно решенных примеров
-    };
+    console.log(
+      `🎯 Генерация примера: digitCount=${digitCount}, combineLevels=${combineLevels}, попыток=${maxAttempts}`
+    );
 
-    let isShowing = false;
-    let showAbort = false;
-
-    // === Font size calculation ===
-    function calculateFontSize(actions, maxDigits) {
-      let fontSize = FONT_SIZE.BASE_SIZE -
-                     (actions * FONT_SIZE.ACTION_PENALTY) -
-                     (maxDigits * FONT_SIZE.DIGIT_PENALTY);
-      return Math.max(FONT_SIZE.MIN_SIZE, Math.min(FONT_SIZE.BASE_SIZE, fontSize));
-    }
-
-    // === Adaptive font size for example display ===
-    function adaptExampleFontSize(actionsCount, maxDigits) {
-      const exampleLines = document.querySelectorAll('#area-example .example__line');
-
-      logger.debug(CONTEXT, `adaptExampleFontSize called: ${exampleLines.length} lines found, actions: ${actionsCount}, digits: ${maxDigits}`);
-
-      if (!exampleLines.length) return;
-
-      // Base calculation considering both actions and digits
-      // Start with large font for 1 action & 1 digit, scale down to 12 actions & 9 digits
-      const actionsFactor = Math.min(actionsCount, 12) / 12; // 0.083 to 1
-      const digitsFactor = Math.min(maxDigits, 9) / 9; // 0.111 to 1
-
-      // Combined factor (lower = bigger font)
-      const complexityFactor = (actionsFactor + digitsFactor) / 2;
-
-      // Font size range: 24px (most complex) to 96px (simplest)
-      const minFontSize = 24;
-      const maxFontSize = 96;
-      const fontSize = maxFontSize - (complexityFactor * (maxFontSize - minFontSize));
-
-      // Apply to all lines with !important to override CSS
-      exampleLines.forEach(line => {
-        line.style.setProperty('font-size', `${Math.round(fontSize)}px`, 'important');
-        line.style.setProperty('line-height', '1.2', 'important');
-      });
-
-      logger.debug(CONTEXT, `Font size: ${Math.round(fontSize)}px (actions: ${actionsCount}, digits: ${maxDigits})`);
-    }
-
-    // === Show next example ===
-    async function showNextExample() {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        overlay.clear();
-        showAbort = true;
-        isShowing = false;
+        // Сгенерировали набросок примера (без постобработки)
+        let example = this._generateAttempt();
 
-        if (session.completed >= session.stats.total) {
-          finishSession();
-          return;
-        }
+        // 🔧 FIX: trim extra steps до maxSteps и пересчитать answer
+        // ------------------------------------------------------------------
+        const maxStepsAllowed = this.rule.config?.maxSteps ?? example.steps.length;
 
-        // === Режим пересчета: используем сохраненные примеры ===
-        if (retryMode && session.completed < retryExamples.length) {
-          const retryData = retryExamples[session.completed];
-          session.currentExample = retryData.example;
-          logger.info(CONTEXT, `Retry example ${session.completed + 1}/${retryExamples.length}`);
-        } else {
-          // === Обычный режим: генерируем новый пример ===
-          const selectedDigits =
-            blockSimpleDigits.length > 0
-              ? blockSimpleDigits.map(d => parseInt(d, 10))
-              : [1, 2, 3, 4];
-
-          // <<< CHANGED: мы теперь передаём во все уровни генерации нужные флаги блока настроек
-          const generatorSettings = {
-            blocks: {
-              simple: {
-                digits: selectedDigits,
-                includeFive:
-                  (st.blocks?.simple?.includeFive ?? selectedDigits.includes(5)),
-                onlyAddition:
-                  (st.blocks?.simple?.onlyAddition ?? false),
-                onlySubtraction:
-                  (st.blocks?.simple?.onlySubtraction ?? false)
-              },
-              brothers: {
-                active: st.blocks?.brothers?.active ?? false
-              },
-              friends: {
-                active: st.blocks?.friends?.active ?? false
-              },
-              mix: {
-                active: st.blocks?.mix?.active ?? false
-              }
-            },
-
-            actions: {
-              min: actionsCfg.infinite
-                ? DEFAULTS.ACTIONS_MIN
-                : (actionsCfg.count ?? DEFAULTS.ACTIONS_MIN),
-              max: actionsCfg.infinite
-                ? DEFAULTS.ACTIONS_MAX
-                : (actionsCfg.count ?? DEFAULTS.ACTIONS_MAX)
-            },
-
-            // сколько разрядов (1,2,3,... до 9)
-            digits: st.digits,
-
-            // использовать ли несколько разрядов одновременно при построении шага
-            combineLevels: st.combineLevels || false
-          };
-          // <<< END CHANGED
-
-          logger.info(
-            CONTEXT,
-            `Generating example with digits=${st.digits}, combineLevels=${st.combineLevels}, blocks=`,
-            generatorSettings.blocks
+        if (example.steps.length > maxStepsAllowed) {
+          console.warn(
+            `⚠️ Генератор создал ${example.steps.length} шагов при лимите ${maxStepsAllowed}, обрезаем`
           );
 
-          session.currentExample = generateExample(generatorSettings);
-        }
+          // оставляем только разрешённое количество шагов
+          const trimmedSteps = example.steps.slice(0, maxStepsAllowed);
 
-        if (!session.currentExample || !Array.isArray(session.currentExample.steps))
-          throw new Error("Empty example generated");
-
-        const actionsLen = session.currentExample.steps.length;
-        let maxDigits = 1;
-        for (const step of session.currentExample.steps) {
-          const num = parseInt(String(step).replace(/[^\d-]/g, ""), 10);
-          if (!isNaN(num)) maxDigits = Math.max(maxDigits, Math.abs(num).toString().length);
-        }
-
-        const input = document.getElementById("answer-input");
-        input.value = "";
-
-        // === Automatic dictation mode for >12 actions ===
-        const shouldUseDictation = actionsLen > 12;
-        const effectiveShowSpeed = shouldUseDictation ? 2000 : (st.showSpeedMs || 0);
-        const showSpeedActive = st.showSpeedEnabled && effectiveShowSpeed > 0;
-
-        // === Hide example view when speed is enabled or dictation mode ===
-        if (showSpeedActive || shouldUseDictation) {
-          exampleView.clear();
-        } else {
-          exampleView.render(session.currentExample.steps, displayMode);
-          // Adapt font size based on actions and digits (immediate after render)
-          requestAnimationFrame(() => {
-            adaptExampleFontSize(actionsLen, maxDigits);
-          });
-        }
-
-        // === Sequential display ===
-        const lockDuringShow = st.lockInputDuringShow !== false;
-        input.disabled = lockDuringShow;
-
-        if (showSpeedActive || shouldUseDictation) {
-          isShowing = true;
-          showAbort = false;
-          await playSequential(session.currentExample.steps, effectiveShowSpeed, {
-            beepOnStep: !!st.beepOnStep
-          });
-          if (showAbort) return;
-          await delay(st.showSpeedPauseAfterChainMs ?? UI.PAUSE_AFTER_CHAIN_MS);
-          isShowing = false;
-          if (lockDuringShow) {
-            input.disabled = false;
-            input.focus();
+          // пересчитываем финальное состояние answer, применяя только обрезанные шаги
+          let recomputedState = example.start;
+          for (const step of trimmedSteps) {
+            recomputedState = this.rule.applyAction(recomputedState, step.action);
           }
-        } else {
-          input.disabled = false;
-          input.focus();
+
+          example = {
+            start: example.start,
+            steps: trimmedSteps,
+            answer: recomputedState
+          };
+        }
+        // ------------------------------------------------------------------
+
+        // Для combineLevels=false проверяем промежуточные состояния
+        if (!combineLevels && digitCount > 1) {
+          if (!this._validateIntermediateStates(example)) {
+            console.warn(
+              `⚠️ Попытка ${attempt}: промежуточные состояния вышли за диапазон`
+            );
+            continue;
+          }
         }
 
-        logger.debug(
-          CONTEXT,
-          'New example:',
-          session.currentExample.steps,
-          'Answer:',
-          session.currentExample.answer
-        );
-      } catch (e) {
-        showFatalError(e);
-      }
-    }
-
-    // === Check answer ===
-    function checkAnswer() {
-      if (isShowing && (st.lockInputDuringShow !== false)) return;
-
-      const input = document.getElementById("answer-input");
-      const userAnswer = parseInt(input.value, 10);
-
-      if (isNaN(userAnswer)) {
-        // Replace alert() with toast
-        toast.warning("Пожалуйста, введите число");
-        return;
-      }
-
-      if (isShowing && (st.lockInputDuringShow === false)) {
-        showAbort = true;
-        isShowing = false;
-        overlay.clear();
-      }
-
-      const isCorrect = userAnswer === session.currentExample.answer;
-      if (isCorrect) {
-        session.stats.correct++;
-      } else {
-        session.stats.incorrect++;
-        // Сохраняем неправильно решенный пример
-        session.wrongExamples.push({
-          example: session.currentExample,
-          userAnswer: userAnswer
-        });
-      }
-      session.completed++;
-      updateStats();
-      playSound(isCorrect ? "correct" : "wrong");
-
-      setTimeout(() => showNextExample(), UI.TRANSITION_DELAY_MS);
-    }
-
-    // === Handle timeout ===
-    function handleTimeExpired() {
-      const correct = session.currentExample?.answer;
-      logger.warn(CONTEXT, 'Time expired! Correct answer:', correct);
-      if (st.beepOnTimeout) playSound("wrong");
-      session.stats.incorrect++;
-      // Сохраняем пример с таймаутом как ошибку
-      if (session.currentExample) {
-        session.wrongExamples.push({
-          example: session.currentExample,
-          userAnswer: null // null означает таймаут
-        });
-      }
-      session.completed++;
-      updateStats();
-      setTimeout(() => showNextExample(), UI.TIMEOUT_DELAY_MS);
-    }
-
-    // === Update stats ===
-    function updateStats() {
-      const { correct, incorrect, total } = session.stats;
-      const completed = session.completed;
-      document.getElementById("stats-completed").textContent = String(completed);
-      document.getElementById("stats-correct").textContent = String(correct);
-      document.getElementById("stats-incorrect").textContent = String(incorrect);
-      const percentCorrect = completed > 0 ? Math.round((correct / completed) * 100) : 0;
-      const percentIncorrect = completed > 0 ? Math.round((incorrect / completed) * 100) : 0;
-      document.getElementById("progress-correct").style.width = percentCorrect + "%";
-      document.getElementById("progress-incorrect").style.width = percentIncorrect + "%";
-      document.getElementById("percent-correct").textContent = percentCorrect + "%";
-      document.getElementById("percent-incorrect").textContent = percentIncorrect + "%";
-    }
-
-    function finishSession() {
-      stopAnswerTimer();
-      showAbort = true;
-      isShowing = false;
-      overlay.clear();
-      abacusWrapper.classList.remove("visible");
-
-      // Очищаем режим пересчета после завершения
-      if (state.retryMode) {
-        state.retryMode = { enabled: false, examples: [] };
-        logger.info(CONTEXT, 'Retry mode cleared');
-      }
-
-      // Use eventBus instead of window.finishTraining
-      eventBus.emit(EVENTS.TRAINING_FINISH, {
-        correct: session.stats.correct,
-        total: session.stats.total,
-        wrongExamples: session.wrongExamples // Передаем неправильные примеры
-      });
-
-      logger.info(CONTEXT, 'Training finished:', session.stats);
-      logger.info(CONTEXT, 'Wrong examples:', session.wrongExamples.length);
-    }
-
-    // === Sequential playback with color alternation ===
-    async function playSequential(steps, intervalMs, { beepOnStep = false } = {}) {
-      try {
-        for (let i = 0; i < steps.length; i++) {
-          if (showAbort) break;
-
-          const s = steps[i];
-          const isOdd = (i % 2) === 0; // 0,2,4... считаем "первый, третий, пятый..."
-          const color = isOdd ? "#EC8D00" : "#6db45c"; // оранжевый / зелёный
-
-          overlay.show(formatStep(s), color);
-          if (beepOnStep) playSound("tick");
-          await delay(intervalMs);
-          overlay.hide();
-          await delay(UI.DELAY_BETWEEN_STEPS_MS);
+        // Валидация примера
+        if (this.rule.validateExample && !this.rule.validateExample(example)) {
+          console.warn(`⚠️ Попытка ${attempt}: пример не прошёл валидацию`);
+          continue;
         }
-      } finally {
-        overlay.clear();
+
+        console.log(`✅ Пример сгенерирован (попытка ${attempt})`);
+        return example;
+      } catch (error) {
+        console.warn(`⚠️ Попытка ${attempt} неудачна:`, error.message);
       }
     }
 
-    function formatStep(step) {
-      const n = Number(step);
-      if (Number.isNaN(n)) return String(step);
-      return n >= 0 ? `+${n}` : `${n}`;
-    }
-
-    function delay(ms) {
-      return new Promise(r => setTimeout(r, ms));
-    }
-
-    // === Event listeners ===
-    const listeners = [];
-
-    function addListener(element, event, handler) {
-      element.addEventListener(event, handler);
-      listeners.push({ element, event, handler });
-    }
-
-    addListener(document.getElementById("btn-show-abacus"), "click", () => {
-      abacusWrapper.classList.toggle("visible");
-      const btn = document.getElementById("btn-show-abacus");
-      btn.textContent = abacusWrapper.classList.contains("visible")
-        ? "🧮 Скрыть абакус"
-        : "🧮 Показать абакус";
-    });
-
-    addListener(document.getElementById("btn-close-abacus"), "click", () => {
-      abacusWrapper.classList.remove("visible");
-      document.getElementById("btn-show-abacus").textContent = "🧮 Показать абакус";
-    });
-
-    addListener(document.getElementById("btn-submit"), "click", checkAnswer);
-
-    addListener(document.getElementById("answer-input"), "keypress", (e) => {
-      if (e.key === "Enter") checkAnswer();
-    });
-
-    // === Global timer for entire series ===
-    if (st.timeLimitEnabled && st.timePerExampleMs > 0) {
-      startAnswerTimer(st.timePerExampleMs, {
-        onExpire: () => {
-          logger.warn(CONTEXT, 'Series time expired!');
-          finishSession();
-        },
-        textElementId: "answerTimerText",
-        barSelector: "#answer-timer .bar"
-      });
-    }
-
-    // === Start ===
-    showNextExample();
-    logger.info(CONTEXT, `Trainer started (${digits + 1} columns, ${digits}-digit numbers)`);
-
-    // === Cleanup function ===
-    return () => {
-      const wrapper = document.getElementById("abacus-wrapper");
-      if (wrapper) wrapper.remove();
-      showAbort = true;
-      isShowing = false;
-      overlay.clear();
-      stopAnswerTimer();
-
-      // Remove all event listeners
-      listeners.forEach(({ element, event, handler }) => {
-        element.removeEventListener(event, handler);
-      });
-
-      logger.debug(CONTEXT, 'Trainer unmounted, listeners cleaned up');
-    };
-
-  } catch (err) {
-    showFatalError(err);
+    throw new Error(
+      `Не удалось сгенерировать валидный пример за ${maxAttempts} попыток`
+    );
   }
-}
 
-/** Show fatal error using createElement (secure) */
-function showFatalError(err) {
-  const msg = err?.stack || err?.message || String(err);
-  logger.error(CONTEXT, 'Fatal error:', err);
+  /**
+   * Одна попытка генерации примера
+   * @private
+   */
+  _generateAttempt() {
+    const start = this.rule.generateStartState();
+    let stepsCount = this.rule.generateStepsCount();
 
-  const host = document.querySelector(".screen__body") || document.body;
+    const startStr = Array.isArray(start) ? `[${start.join(', ')}]` : start;
+    console.log(`🎲 Генерация примера: старт=${startStr}, шагов=${stepsCount}`);
 
-  const errorDiv = document.createElement("div");
-  errorDiv.style.cssText = "color:#d93025;padding:16px;white-space:pre-wrap";
+    const steps = [];
+    let currentState = start;
+    let has5Action = false; // Отслеживаем использование ±5
+    let blockInserted = false; // Отслеживаем вставку блока ±k
 
-  const title = document.createElement("b");
-  title.textContent = "Не удалось загрузить тренажёр.";
+    const requireBlock = this.rule.config?.requireBlock;
+    const blockPlacement = this.rule.config?.blockPlacement || "auto";
 
-  const br = document.createElement("br");
+    // === ВСТАВКА БЛОКА В НАЧАЛО ===
+    if (requireBlock && blockPlacement === "start" && this.rule.generateBlock) {
+      const block = this.rule.generateBlock(currentState, true);
+      if (block) {
+        console.log(`📦 Вставка блока в начало: [${block.join(', ')}]`);
+        for (const action of block) {
+          const newState = this.rule.applyAction(currentState, action);
+          steps.push({ action, fromState: currentState, toState: newState });
+          currentState = newState;
+          if (Math.abs(action) === 5) has5Action = true;
+        }
+        blockInserted = true;
+        stepsCount -= block.length;
+      }
+    }
 
-  const message = document.createTextNode(msg);
+    // === ГЕНЕРАЦИЯ ОСНОВНЫХ ШАГОВ ===
 
-  errorDiv.append(title, br, message);
-  host.insertBefore(errorDiv, host.firstChild);
-}
+    const digitCount = this.rule.config?.digitCount || 1;
+    const combineLevels = this.rule.config?.combineLevels || false;
 
-/** Get example count */
-function getExampleCount(examplesCfg) {
-  if (!examplesCfg) return DEFAULTS.EXAMPLES_COUNT;
-  return examplesCfg.infinite
-    ? DEFAULTS.EXAMPLES_COUNT
-    : (examplesCfg.count ?? DEFAULTS.EXAMPLES_COUNT);
+    for (let i = 0; i < stepsCount; i++) {
+      const isFirstAction = (i === 0 && steps.length === 0);
+      const isLastAction = (i === stepsCount - 1);
+
+      let availableActions = [];
+
+      // Для multi-digit режима генерируем действия
+      if (digitCount > 1 && Array.isArray(currentState)) {
+        if (!combineLevels) {
+          // КРИТИЧНО: для combineLevels=false на каждом шаге выбираем СЛУЧАЙНЫЙ разряд
+          // Это обеспечивает разнообразие чисел без переходов
+          const randomPosition = Math.floor(Math.random() * digitCount);
+          availableActions = this.rule.getAvailableActions(
+            currentState,
+            isFirstAction,
+            randomPosition
+          );
+          console.log(
+            `🎲 combineLevels=false: шаг ${i + 1}, случайный разряд ${randomPosition} (${[
+              "единицы",
+              "десятки",
+              "сотни",
+              "тысячи",
+              "десятки тысяч",
+              "сотни тысяч",
+              "миллионы",
+              "десятки миллионов",
+              "сотни миллионов"
+            ][randomPosition]})`
+          );
+        } else {
+          // combineLevels=true: собираем доступные действия для всех позиций
+          for (let position = 0; position < digitCount; position++) {
+            const actionsForPosition = this.rule.getAvailableActions(
+              currentState,
+              isFirstAction,
+              position
+            );
+            availableActions = availableActions.concat(actionsForPosition);
+          }
+        }
+
+        // Стратегия приоритизации (только для combineLevels=true)
+        if (combineLevels) {
+          const highestPosition = digitCount - 1;
+          const highestDigitValue = currentState[highestPosition] || 0;
+
+          // если старший разряд ещё 0, приоритизируем его
+          if (highestDigitValue === 0) {
+            const highPriorityActions = availableActions.filter(
+              a =>
+                typeof a === "object" &&
+                a.position === highestPosition &&
+                a.value > 0
+            );
+
+            if (highPriorityActions.length > 0) {
+              const baseChance = Math.min(0.70 + digitCount * 0.025, 0.85);
+              const progressMultiplier = Math.min(i / stepsCount, 1);
+              const priorityChance =
+                baseChance + progressMultiplier * 0.15;
+
+              const isCritical = i >= Math.floor(stepsCount * 0.5);
+
+              if (isCritical || Math.random() < priorityChance) {
+                availableActions = highPriorityActions;
+              }
+            }
+          }
+
+          // приоритизируем старшие разряды после пары шагов
+          if (i >= 2 && highestDigitValue === 0) {
+            const upperHalfActions = availableActions.filter(a => {
+              if (typeof a !== "object") return false;
+              const pos = a.position;
+              const posValue = currentState[pos] || 0;
+              return (
+                pos >= Math.floor(digitCount / 2) &&
+                posValue === 0 &&
+                a.value > 0
+              );
+            });
+
+            const upperChance =
+              0.5 + Math.min(i / stepsCount, 1) * 0.3;
+            if (
+              upperHalfActions.length > 0 &&
+              Math.random() < upperChance
+            ) {
+              availableActions = upperHalfActions;
+            }
+          }
+
+          // добавляем отрицательные действия, если их ещё не было
+          const hasNegativeAction = steps.some(step => {
+            const actionValue =
+              typeof step.action === "object"
+                ? step.action.value
+                : step.action;
+            return actionValue < 0;
+          });
+
+          if (!hasNegativeAction && i >= 3 && !isFirstAction) {
+            const negativeActions = availableActions.filter(a => {
+              if (typeof a !== "object") return false;
+              return a.value < 0;
+            });
+
+            if (
+              negativeActions.length > 0 &&
+              Math.random() < 0.4
+            ) {
+              availableActions = negativeActions;
+            }
+          }
+        }
+      } else {
+        // Legacy: однозначный режим
+        availableActions = this.rule.getAvailableActions(
+          currentState,
+          isFirstAction
+        );
+      }
+
+      if (availableActions.length === 0) {
+        const stateStr = Array.isArray(currentState)
+          ? `[${currentState.join(", ")}]`
+          : currentState;
+        throw new Error(
+          `Нет доступных действий из состояния ${stateStr}`
+        );
+      }
+
+      // === ПОПЫТКА ВСТАВИТЬ БЛОК В СЕРЕДИНЕ/КОНЦЕ ===
+      if (
+        requireBlock &&
+        !blockInserted &&
+        this.rule.generateBlock &&
+        this.rule.canInsertBlock
+      ) {
+        const canInsertPositive = this.rule.canInsertBlock(
+          currentState,
+          true
+        );
+        const canInsertNegative = this.rule.canInsertBlock(
+          currentState,
+          false
+        );
+
+        if (
+          (canInsertPositive || canInsertNegative) &&
+          Math.random() < 0.6
+        ) {
+          const isPositive = canInsertPositive ? true : false;
+          const block = this.rule.generateBlock(
+            currentState,
+            isPositive
+          );
+
+          if (block) {
+            console.log(
+              `📦 Вставка блока в позиции ${steps.length}: [${block.join(
+                ", "
+              )}]`
+            );
+            for (const action of block) {
+              const newState = this.rule.applyAction(
+                currentState,
+                action
+              );
+              steps.push({
+                action,
+                fromState: currentState,
+                toState: newState
+              });
+              currentState = newState;
+              if (Math.abs(action) === 5) has5Action = true;
+            }
+            blockInserted = true;
+            stepsCount -= block.length;
+            continue;
+          }
+        }
+      }
+
+      // приоритет пятёрок (±5) для методики
+      const hasFive = this.rule.config?.hasFive;
+      if (hasFive && !has5Action && i >= Math.floor(stepsCount / 3)) {
+        const actions5 = availableActions.filter(a => {
+          const value =
+            typeof a === "object" ? a.value : a;
+          return Math.abs(value) === 5;
+        });
+        if (actions5.length > 0 && Math.random() < 0.4) {
+          availableActions = actions5;
+        }
+      }
+
+      // На последнем шаге в однозначных не даём вернуться в ноль
+      if (
+        isLastAction &&
+        typeof currentState === "number" &&
+        currentState <= 4
+      ) {
+        const nonZeroActions = availableActions.filter(action => {
+          const value =
+            typeof action === "object" ? action.value : action;
+          const result = currentState + value;
+          return result !== 0;
+        });
+        if (nonZeroActions.length > 0) {
+          availableActions = nonZeroActions;
+        }
+      }
+
+      // Выбираем действие
+      const action =
+        availableActions[
+          Math.floor(Math.random() * availableActions.length)
+        ];
+      const newState = this.rule.applyAction(currentState, action);
+
+      // чек пятёрки
+      const actionValue =
+        typeof action === "object" ? action.value : action;
+      if (Math.abs(actionValue) === 5) {
+        has5Action = true;
+      }
+
+      steps.push({
+        action: action,
+        fromState: currentState,
+        toState: newState
+      });
+
+      currentState = newState;
+    }
+
+    // === ВСТАВКА БЛОКА В КОНЕЦ (если ещё не вставлен) ===
+    if (
+      requireBlock &&
+      !blockInserted &&
+      this.rule.generateBlock &&
+      this.rule.canInsertBlock
+    ) {
+      const canInsertPositive = this.rule.canInsertBlock(
+        currentState,
+        true
+      );
+      const canInsertNegative = this.rule.canInsertBlock(
+        currentState,
+        false
+      );
+
+      if (!canInsertPositive && !canInsertNegative) {
+        throw new Error(
+          `Не удалось вставить обязательный блок ±k`
+        );
+      }
+
+      const isPositive = canInsertPositive ? true : false;
+      const block = this.rule.generateBlock(
+        currentState,
+        isPositive
+      );
+
+      if (block) {
+        console.log(
+          `📦 Вставка блока в конец: [${block.join(", ")}]`
+        );
+        for (const action of block) {
+          const newState = this.rule.applyAction(
+            currentState,
+            action
+          );
+          steps.push({
+            action,
+            fromState: currentState,
+            toState: newState
+          });
+          currentState = newState;
+          if (Math.abs(action) === 5) has5Action = true;
+        }
+        blockInserted = true;
+      } else {
+        throw new Error(
+          `Не удалось сгенерировать блок ±k`
+        );
+      }
+    }
+
+    // === REPAIR TO RANGE (если финал выходит за пределы) ===
+    if (
+      this.rule.config?.maxFinalState !== undefined &&
+      typeof currentState === "number" &&
+      currentState > this.rule.config.maxFinalState
+    ) {
+      currentState = this._repairToRange(steps, currentState);
+    }
+
+    // === ПРОВЕРКА И РЕМОНТ ДИАПАЗОНА ДЛЯ MULTI-DIGIT ===
+    if (digitCount > 1 && Array.isArray(currentState)) {
+      const finalNumber = this.rule.stateToNumber(currentState);
+      const minFinal = this.rule.getMinFinalNumber();
+      const maxFinal = this.rule.getMaxFinalNumber();
+
+      if (finalNumber < minFinal) {
+        console.log(
+          `⚠️ Число ${finalNumber} < минимума ${minFinal} (digitCount=${digitCount}, combineLevels=${combineLevels})`
+        );
+
+        const targetPosition = digitCount - 1;
+        const targetDigitValue = currentState[targetPosition] || 0;
+
+        const neededValue = Math.max(
+          1,
+          Math.ceil(
+            (minFinal - finalNumber) / Math.pow(10, targetPosition)
+          )
+        );
+
+        const addValue = Math.min(
+          neededValue,
+          9 - targetDigitValue
+        );
+
+        if (addValue > 0 && targetDigitValue + addValue <= 9) {
+          const repairAction = {
+            position: targetPosition,
+            value: addValue
+          };
+          const newState = this.rule.applyAction(
+            currentState,
+            repairAction
+          );
+          steps.push({
+            action: repairAction,
+            fromState: currentState,
+            toState: newState
+          });
+          currentState = newState;
+          const repairedNumber = this.rule.stateToNumber(currentState);
+          console.log(
+            `🔧 Repair: добавлено +${addValue} к разряду ${targetPosition}, было ${finalNumber} → стало ${repairedNumber}`
+          );
+        }
+      }
+
+      const finalCheck = this.rule.stateToNumber(currentState);
+      if (finalCheck < minFinal || finalCheck > maxFinal) {
+        throw new Error(
+          `Финальное число ${finalCheck} вне диапазона ${minFinal}-${maxFinal}`
+        );
+      }
+    }
+
+    return {
+      start: start,
+      steps: steps,
+      answer: currentState
+    };
+  }
+
+  /**
+   * Валидация промежуточных состояний для combineLevels=false
+   * Проверяет, что все промежуточные состояния остаются N-разрядными
+   * @param {Object} example - Пример {start, steps, answer}
+   * @returns {boolean} - true если все промежуточные состояния валидны
+   * @private
+   */
+  _validateIntermediateStates(example) {
+    const digitCount = this.rule.config?.digitCount || 1;
+    if (digitCount === 1) return true;
+
+    const minAllowed = this.rule.getMinFinalNumber();
+    const maxAllowed = this.rule.getMaxFinalNumber();
+
+    const startNumber = this.rule.stateToNumber(example.start);
+    if (startNumber < minAllowed || startNumber > maxAllowed) {
+      console.warn(
+        `❌ Начальное состояние ${startNumber} вне диапазона [${minAllowed}, ${maxAllowed}]`
+      );
+      return false;
+    }
+
+    for (let i = 0; i < example.steps.length; i++) {
+      const step = example.steps[i];
+      const stateNumber = this.rule.stateToNumber(step.toState);
+
+      if (stateNumber < minAllowed || stateNumber > maxAllowed) {
+        console.warn(
+          `❌ Шаг ${i + 1}: состояние ${stateNumber} вне диапазона [${minAllowed}, ${maxAllowed}]`
+        );
+        return false;
+      }
+    }
+
+    const answerNumber = this.rule.stateToNumber(example.answer);
+    if (answerNumber < minAllowed || answerNumber > maxAllowed) {
+      console.warn(
+        `❌ Финальный ответ ${answerNumber} вне диапазона [${minAllowed}, ${maxAllowed}]`
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Корректирует финал до допустимого диапазона
+   * @param {Array} steps - Массив шагов (изменяется)
+   * @param {number|number[]} currentState - Текущее состояние
+   * @returns {number|number[]} - Скорректированное состояние
+   * @private
+   */
+  _repairToRange(steps, currentState) {
+    const maxFinal = this.rule.config.maxFinalState;
+
+    const stateStr = Array.isArray(currentState)
+      ? `[${currentState.join(", ")}]`
+      : currentState;
+    console.log(`🔧 Repair to range: ${stateStr} → 0..${maxFinal}`);
+
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    if (typeof currentState === "number") {
+      while (currentState > maxFinal && attempts < maxAttempts) {
+        const isUpperActive = currentState >= 5;
+        const activeLower = isUpperActive
+          ? currentState - 5
+          : currentState;
+
+        let action;
+
+        if (
+          isUpperActive &&
+          currentState - 5 <= maxFinal &&
+          currentState - 5 >= 0
+        ) {
+          action = -5;
+        } else if (activeLower > 0) {
+          const needed = Math.min(
+            activeLower,
+            currentState - maxFinal
+          );
+          action = -needed;
+        } else {
+          console.warn(
+            `⚠️ Не удалось скорректировать состояние ${currentState} до ${maxFinal}`
+          );
+          break;
+        }
+
+        const newState = this.rule.applyAction(
+          currentState,
+          action
+        );
+        steps.push({
+          action,
+          fromState: currentState,
+          toState: newState
+        });
+        currentState = newState;
+        attempts++;
+
+        console.log(
+          `  🔧 Шаг ${attempts}: ${this.rule.formatAction(
+            action
+          )} → ${currentState}`
+        );
+      }
+    }
+
+    return currentState;
+  }
+
+  /**
+   * Генерирует несколько примеров
+   * @param {number} count - Количество примеров
+   * @returns {Array} - Массив примеров
+   */
+  generateMultiple(count) {
+    const examples = [];
+    for (let i = 0; i < count; i++) {
+      examples.push(this.generate());
+    }
+    return examples;
+  }
+
+  /**
+   * Форматирует пример для отображения
+   * @param {Object} example - Пример {start, steps, answer}
+   * @returns {string} - Отформатированная строка
+   */
+  formatForDisplay(example) {
+    const { start, steps, answer } = example;
+
+    const stepsStr = steps
+      .map(step => this.rule.formatAction(step.action))
+      .join(" ");
+
+    const startNum = this.rule.stateToNumber(start);
+    const answerNum = this.rule.stateToNumber(answer);
+
+    if (startNum === 0) {
+      return `${stepsStr} = ${answerNum}`;
+    } else {
+      return `${startNum} ${stepsStr} = ${answerNum}`;
+    }
+  }
+
+  /**
+   * Конвертирует пример в формат для trainer_logic.js
+   * @param {Object} example - Пример {start, steps, answer}
+   * @returns {Object} - Пример в формате {start: number, steps: string[], answer: number}
+   */
+  toTrainerFormat(example) {
+    const digitCount = this.rule.config?.digitCount || 1;
+    const combineLevels = this.rule.config?.combineLevels || false;
+
+    if (digitCount > 1 && Array.isArray(example.start)) {
+      const formattedSteps = [];
+      let previousNumber = this.rule.stateToNumber(example.start); // 0
+
+      for (const step of example.steps) {
+        const currentNumber = this.rule.stateToNumber(step.toState);
+        const delta = currentNumber - previousNumber;
+
+        const sign = delta > 0 ? "+" : "";
+        formattedSteps.push(`${sign}${delta}`);
+
+        previousNumber = currentNumber;
+      }
+
+      const finalAnswer = this.rule.stateToNumber(example.answer);
+      const minFinal = this.rule.getMinFinalNumber();
+      const maxFinal = this.rule.getMaxFinalNumber();
+
+      console.log(
+        `📊 Пример сгенерирован: digitCount=${digitCount}, combineLevels=${combineLevels}, answer=${finalAnswer}, диапазон=${minFinal}-${maxFinal}`
+      );
+
+      return {
+        start: this.rule.stateToNumber(example.start),
+        steps: formattedSteps,
+        answer: finalAnswer
+      };
+    }
+
+    // Legacy: для однозначных чисел как раньше
+    return {
+      start: this.rule.stateToNumber(example.start),
+      steps: example.steps.map(step =>
+        this.rule.formatAction(step.action)
+      ),
+      answer: this.rule.stateToNumber(example.answer)
+    };
+  }
+
+  /**
+   * Валидирует пример
+   * @param {Object} example - Пример для валидации
+   * @returns {boolean}
+   */
+  validate(example) {
+    if (this.rule.validateExample) {
+      return this.rule.validateExample(example);
+    }
+    return true; // Если правило не предоставляет валидацию
+  }
 }
