@@ -90,16 +90,8 @@ _generateAttempt() {
 
   // === ГЕНЕРАЦИЯ ОСНОВНЫХ ШАГОВ ===
 
-  // КРИТИЧНО: Для combineLevels=false выбираем ОДИН разряд для всего примера
   const digitCount = this.rule.config?.digitCount || 1;
   const combineLevels = this.rule.config?.combineLevels || false;
-  let fixedPosition = null;
-
-  if (digitCount > 1 && !combineLevels) {
-    // Выбираем старший разряд (для двузначных: position=1, для трехзначных: position=2, и т.д.)
-    fixedPosition = digitCount - 1;
-    console.log(`🔒 combineLevels=false: работаем ТОЛЬКО с разрядом ${fixedPosition} (${['единицы', 'десятки', 'сотни', 'тысячи', 'десятки тысяч', 'сотни тысяч', 'миллионы', 'десятки миллионов', 'сотни миллионов'][fixedPosition]})`);
-  }
 
   for (let i = 0; i < stepsCount; i++) {
     const isFirstAction = (i === 0 && steps.length === 0);
@@ -107,11 +99,14 @@ _generateAttempt() {
 
     let availableActions = [];
 
-    // Для multi-digit режима генерируем действия для всех позиций
+    // Для multi-digit режима генерируем действия
     if (digitCount > 1 && Array.isArray(currentState)) {
-      // КРИТИЧНО: если combineLevels=false, собираем действия ТОЛЬКО для fixedPosition
-      if (!combineLevels && fixedPosition !== null) {
-        availableActions = this.rule.getAvailableActions(currentState, isFirstAction, fixedPosition);
+      if (!combineLevels) {
+        // КРИТИЧНО: для combineLevels=false на каждом шаге выбираем СЛУЧАЙНЫЙ разряд
+        // Это обеспечивает разнообразие чисел (11, 23, 45, 73...) без переходов
+        const randomPosition = Math.floor(Math.random() * digitCount);
+        availableActions = this.rule.getAvailableActions(currentState, isFirstAction, randomPosition);
+        console.log(`🎲 combineLevels=false: шаг ${i+1}, случайный разряд ${randomPosition} (${['единицы', 'десятки', 'сотни', 'тысячи', 'десятки тысяч', 'сотни тысяч', 'миллионы', 'десятки миллионов', 'сотни миллионов'][randomPosition]})`);
       } else {
         // combineLevels=true: собираем доступные действия для всех позиций
         for (let position = 0; position < digitCount; position++) {
@@ -305,8 +300,8 @@ _generateAttempt() {
     if (finalNumber < minFinal) {
       console.log(`⚠️ Число ${finalNumber} < минимума ${minFinal} (digitCount=${digitCount}, combineLevels=${combineLevels})`);
 
-      // КРИТИЧНО: для combineLevels=false используем fixedPosition
-      const targetPosition = (!combineLevels && fixedPosition !== null) ? fixedPosition : (digitCount - 1);
+      // Для достижения минимального N-значного числа используем старший разряд
+      const targetPosition = digitCount - 1;
       const targetDigitValue = currentState[targetPosition] || 0;
 
       // Вычисляем сколько нужно добавить к целевому разряду
