@@ -32,13 +32,21 @@ export class ExampleGenerator {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const example = this._generateAttempt();
-        
+
+        // Валидация промежуточных состояний для combineLevels
+        if (digitCount > 1 && !combineLevels) {
+          if (!this._validateIntermediateStates(example)) {
+            console.warn(`⚠️ Попытка ${attempt}: промежуточные состояния выходят за пределы ${digitCount}-разрядности`);
+            continue;
+          }
+        }
+
         // Валидация примера
         if (this.rule.validateExample && !this.rule.validateExample(example)) {
           console.warn(`⚠️ Попытка ${attempt}: пример не прошёл валидацию`);
           continue;
         }
-        
+
         console.log(`✅ Пример сгенерирован (попытка ${attempt})`);
         return example;
         
@@ -326,6 +334,48 @@ _generateAttempt() {
     answer: currentState
   };
 }
+
+  /**
+   * Валидация промежуточных состояний для combineLevels=false
+   * Проверяет, что все промежуточные состояния остаются N-разрядными
+   * @param {Object} example - Пример {start, steps, answer}
+   * @returns {boolean} - true если все промежуточные состояния валидны
+   * @private
+   */
+  _validateIntermediateStates(example) {
+    const digitCount = this.rule.config?.digitCount || 1;
+    if (digitCount === 1) return true;
+
+    const minAllowed = this.rule.getMinFinalNumber();
+    const maxAllowed = this.rule.getMaxFinalNumber();
+
+    // Проверяем начальное состояние
+    const startNumber = this.rule.stateToNumber(example.start);
+    if (startNumber < minAllowed || startNumber > maxAllowed) {
+      console.warn(`❌ Начальное состояние ${startNumber} вне диапазона [${minAllowed}, ${maxAllowed}]`);
+      return false;
+    }
+
+    // Проверяем все промежуточные состояния
+    for (let i = 0; i < example.steps.length; i++) {
+      const step = example.steps[i];
+      const stateNumber = this.rule.stateToNumber(step.toState);
+
+      if (stateNumber < minAllowed || stateNumber > maxAllowed) {
+        console.warn(`❌ Шаг ${i + 1}: состояние ${stateNumber} вне диапазона [${minAllowed}, ${maxAllowed}]`);
+        return false;
+      }
+    }
+
+    // Проверяем финальный ответ
+    const answerNumber = this.rule.stateToNumber(example.answer);
+    if (answerNumber < minAllowed || answerNumber > maxAllowed) {
+      console.warn(`❌ Финальный ответ ${answerNumber} вне диапазона [${minAllowed}, ${maxAllowed}]`);
+      return false;
+    }
+
+    return true;
+  }
 
   /**
    * Корректирует финал до допустимого диапазона

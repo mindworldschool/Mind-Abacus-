@@ -36,32 +36,12 @@ export class BaseRule {
 
     // Новый формат (массив разрядов)
     if (Array.isArray(state)) {
-      // Проверяем, что каждый разряд в диапазоне 0-9
-      const digitsValid = state.every(digit =>
+      // Проверяем только, что каждый разряд в диапазоне 0-9
+      // НЕ проверяем итоговое число здесь, чтобы не блокировать генерацию
+      // Проверка диапазона будет выполнена после генерации всего примера
+      return state.every(digit =>
         digit >= this.config.minState && digit <= this.config.maxState
       );
-
-      if (!digitsValid) {
-        return false;
-      }
-
-      // Для multi-digit: проверяем итоговое число с учетом combineLevels
-      const { digitCount, combineLevels } = this.config;
-      if (digitCount > 1) {
-        const finalNumber = this.stateToNumber(state);
-        const maxAllowed = this.getMaxFinalNumber();
-
-        // Если combineLevels=false: число должно быть строго N-разрядным
-        if (!combineLevels) {
-          const minAllowed = this.getMinFinalNumber();
-          return finalNumber >= minAllowed && finalNumber <= maxAllowed;
-        }
-
-        // Если combineLevels=true: число может быть от 0 до максимального N-разрядного
-        return finalNumber >= 0 && finalNumber <= maxAllowed;
-      }
-
-      return true;
     }
 
     return false;
