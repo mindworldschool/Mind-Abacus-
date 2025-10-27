@@ -39,8 +39,7 @@ export class ExampleGenerator {
           example = this._generateMultiDigitAttemptVectorBased();
         }
 
-        // 🔧 FIX бага с лишними шагами:
-        // ограничиваем количество шагов до maxSteps и пересчитываем ответ
+        // 🔧 ограничиваем количество шагов до maxSteps и пересчитываем ответ, если надо
         const maxStepsAllowed = this.rule.config?.maxSteps ?? example.steps.length;
         if (example.steps.length > maxStepsAllowed) {
           console.warn(
@@ -62,7 +61,7 @@ export class ExampleGenerator {
           };
         }
 
-        // Лёгкая валидация промежуточных состояний
+        // Лёгкая проверка промежуточных состояний для многозначного режима
         if (digitCount > 1 && !combineLevels) {
           if (!this._validateIntermediateStates(example)) {
             console.warn(
@@ -72,7 +71,7 @@ export class ExampleGenerator {
           }
         }
 
-        // Валидация правилом
+        // Финальная методическая валидация правилом
         if (this.rule.validateExample && !this.rule.validateExample(example)) {
           console.warn(`⚠️ Попытка ${attempt}: пример не прошёл валидацию`);
           continue;
@@ -91,18 +90,15 @@ export class ExampleGenerator {
   }
 
   /**
-   * НОВЫЙ ГЕНЕРАТОР для многозначных примеров (digitCount > 1).
+   * ГЕНЕРАТОР для многозначных примеров (digitCount > 1).
    *
-   * Логика (согласовано с методикой):
-   * - Состояние — массив по разрядам: [единицы, десятки, сотни, ...] (в твоей системе).
-   * - Каждый шаг = один общий жест по всем выбранным разрядам.
-   *   То есть у десятков своё +N или -N, у единиц своё +M или -M,
-   *   но знак шага ДОЛЖЕН быть общий (всё плюс или всё минус в этот такт).
-   * - Эти дельты по каждому разряду мы больше НЕ синтезируем вручную,
-   *   мы берём их из rule.getAvailableActions(...) — и там уже сидит физика абакуса.
-   * - После применения шага никакой разряд не должен выйти за 0..9
-   *   (никаких переносов).
-   * - Первый шаг не может быть отрицательным.
+   * Логика:
+   * - состояние — массив по разрядам: [единицы, десятки, ...];
+   * - один шаг = общий жест: каждый разряд двигается своим +N/-N,
+   *   но знак шага общий (все плюс или все минус в этом такте);
+   * - getAvailableActions(...) для каждого разряда уже возвращает допустимые дельты;
+   * - первый общий шаг не может быть отрицательным;
+   * - никакой перенос за пределы 0..9.
    */
   _generateMultiDigitAttemptVectorBased() {
     const digitCount = this.rule.config?.digitCount || 2;
@@ -146,7 +142,7 @@ export class ExampleGenerator {
         break;
       }
 
-      // Не нашли ни одного возможного общего шага — на этом заканчиваем пример
+      // Не нашли ни одного возможного общего шага — останавливаем пример
       if (!chosenVector) {
         break;
       }
@@ -174,54 +170,39 @@ export class ExampleGenerator {
    * Построить ВСЕ допустимые векторы действий для одного общего шага,
    * где ВСЕ разряды двигаются с одним знаком (либо все +, либо все -).
    *
-   * Важный момент:
-   * - Мы НЕ придумываем возможные дельты сами.
-   * - Мы спрашиваем rule.getAvailableActions(...) для КАЖДОГО разряда.
-   *   После наших правок в UnifiedSimpleRule.getAvailableActions():
-   *   - в многозначном режиме она возвращает массив объектов { position, value },
-   *     где value уже готовая дельта (например +7, -3), валидная одним жестом.
-   * - Мы фильтруем эти дельты по знаку (все плюсы или все минусы).
-   * - Потом берём декартово произведение, чтобы получить все комбинации
-   *   "каждому разряду по одному действию".
-   * - Отбрасываем комбинации, которые приводят какой-то разряд <0 или >9.
-   *
-   * @param {number[]} currentState текущее состояние массива разрядов
-   * @param {number} sign +1 или -1 (все плюсы или все минусы)
-   * @param {boolean} isFirstStep нужно ли заставлять шаг быть положительным в каждом разряде
-   * @returns {Array<Array<{position:number,value:number}>>>}
+   * - getAvailableActions(...) по каждому разряду возвращает список
+   *   возможных шагов для ЭТОГО разряда.
+   * - фильтруем шаги по знаку.
+   * - собираем декартово произведение, чтобы получить комбинации.
+   * - фильтруем комбинации, которые ломают диапазон (какой-то разряд <0 или >9).
    */
   _buildCandidateVectorsForSign(currentState, sign, isFirstStep) {
     const digitCount = this.rule.config?.digitCount || 2;
 
-    // Шаг 1. Собираем по каждому разряду список локальных допустимых действий
-    // После нашей новой логики getAvailableActions в многозначном режиме
-    // она уже возвращает [{ position, value }, ...]
+    // 1. Список возможных локальных действий по каждому разряду
     const perDigitOptions = [];
 
     for (let pos = 0; pos < digitCount; pos++) {
-      // Здесь ВАЖНО: мы передаём isFirstAction только на самом первом шаге,
-      // чтобы getAvailableActions применила правило "первое действие не может быть минусом"
       const localActions = this.rule.getAvailableActions(
         currentState,
         isFirstStep,
         pos
       );
 
-      // Оставляем только те, что соответствуют нужному знаку
-      // sign = +1 -> оставляем только value > 0
-      // sign = -1 -> оставляем только value < 0
+      // Оставляем только те, что соответствуют нужному знаку:
+      // sign = +1 -> value > 0
+      // sign = -1 -> value < 0
       const filtered = localActions.filter(a => {
         const v = (typeof a === "object") ? a.value : a;
         return sign > 0 ? v > 0 : v < 0;
       });
 
-      // Если в каком-то разряде нет допустимого хода с этим знаком,
-      // то мы не можем построить общий шаг с этим знаком вообще.
+      // Если в каком-то разряде нет хода с этим знаком — значит общий шаг с этим знаком невозможен
       if (filtered.length === 0) {
         return [];
       }
 
-      // Убедимся, что элементы оформлены как {position,value}
+      // Нормализуем к формату { position, value }
       const normalized = filtered.map(a => {
         if (typeof a === "object") {
           return a;
@@ -233,20 +214,14 @@ export class ExampleGenerator {
       perDigitOptions.push(normalized);
     }
 
-    // Шаг 2. Декартово перемножаем массивы,
-    // чтобы получить все возможные комбинации "по одному действию на каждый разряд"
+    // 2. Декартово произведение: берём по одному действию на каждый разряд
     const allCombos = this._cartesian(perDigitOptions);
 
-    // Шаг 3. Фильтруем по физике:
-    // - после применения вектора состояние всех разрядов остаётся в диапазоне [0..9]
-    // - никаких переносов
+    // 3. Фильтруем комбинации, которые приводят хоть один разряд за 0..9
     const validCombos = allCombos.filter(vector => {
       const newState = this._applyVectorToAllDigits(currentState, vector);
-
-      // состояние по каждому разряду должно быть валидным: 0..9
       if (newState.some(d => d < 0)) return false;
       if (newState.some(d => d > 9)) return false;
-
       return true;
     });
 
@@ -289,142 +264,67 @@ export class ExampleGenerator {
   }
 
   /**
-   * ГЕНЕРАЦИЯ ДЛЯ ОДНОГО РАЗРЯДА (digitCount === 1).
-   * Здесь каждый шаг — одна дельта (+N или -N) из getAvailableActions().
-   * После твоей правки UnifiedSimpleRule.getAvailableActions()
-   * эти шаги уже учитывают физику абакуса и выбранные цифры (включая 6,7,8,9).
+   * ГЕНЕРАЦИЯ ДЛЯ ОДНОГО РАЗРЯДА (digitCount === 1) в режиме "Просто".
+   *
+   * Логика:
+   * - стартуем из 0;
+   * - первый шаг всегда положительный;
+   * - дальше можно и плюс, и минус;
+   * - каждый шаг — это ±d, где d ∈ selectedDigits правила;
+   * - шаг допустим только если состояние остаётся в 0..9;
+   * - без обязательных "блоков через 5", без приоритетов пятёрки,
+   *   без искусственного ремонта хвоста.
    */
   _generateAttempt() {
-    const start = this.rule.generateStartState();
-    let stepsCount = this.rule.generateStepsCount();
+    // 1. стартовое состояние (для "Просто" это 0)
+    const start = this.rule.generateStartState
+      ? this.rule.generateStartState()
+      : 0;
 
-    const startStr = Array.isArray(start) ? `[${start.join(", ")}]` : start;
-    console.log(`🎲 Генерация примера: старт=${startStr}, шагов=${stepsCount}`);
+    // 2. количество шагов
+    let stepsCount = this.rule.generateStepsCount
+      ? this.rule.generateStepsCount()
+      : (this.rule.config?.maxSteps ?? 4);
+
+    const minSteps = this.rule.config?.minSteps ?? 2;
+    if (stepsCount < minSteps) stepsCount = minSteps;
 
     const steps = [];
     let currentState = start;
-    let has5Action = false;
-    let blockInserted = false;
 
-    const requireBlock = this.rule.config?.requireBlock;
-    const blockPlacement = this.rule.config?.blockPlacement || "auto";
-
-    // Блок в начало (если режим требует обязательный паттерн)
-    if (requireBlock && blockPlacement === "start" && this.rule.generateBlock) {
-      const block = this.rule.generateBlock(currentState, true);
-      if (block) {
-        for (const action of block) {
-          const newState = this.rule.applyAction(currentState, action);
-          steps.push({ action, fromState: currentState, toState: newState });
-          currentState = newState;
-          if (Math.abs(action) === 5) has5Action = true;
-        }
-        blockInserted = true;
-        stepsCount -= block.length;
-      }
-    }
-
-    // Основные шаги одноразрядного примера
     for (let i = 0; i < stepsCount; i++) {
       const isFirstAction = (i === 0 && steps.length === 0);
-      const isLastAction = (i === stepsCount - 1);
 
+      // спрашиваем правило о возможных ходах сейчас
       let availableActions = this.rule.getAvailableActions(
         currentState,
         isFirstAction
       );
 
+      // тупик — останавливаем пример чуть короче
       if (!availableActions || availableActions.length === 0) {
-        throw new Error(
-          `Нет доступных действий из состояния ${currentState}`
-        );
+        break;
       }
 
-      // приоритет пятёрки примерно в середине примера
-      const hasFive = this.rule.config?.hasFive;
-      if (hasFive && !has5Action && i >= Math.floor(stepsCount / 3)) {
-        const actions5 = availableActions.filter(a => Math.abs(a) === 5);
-        if (actions5.length > 0 && Math.random() < 0.4) {
-          availableActions = actions5;
-        }
-      }
-
-      // Не даём последним шагом вернуться точь-в-точь в 0,
-      // если текущее состояние ещё маленькое (методика удержать ребёнка в работе)
-      if (isLastAction && typeof currentState === "number" && currentState <= 4) {
-        const nonZeroActions = availableActions.filter(action => {
-          const result = currentState + action;
-          return result !== 0;
-        });
-        if (nonZeroActions.length > 0) {
-          availableActions = nonZeroActions;
-        }
-      }
-
-      // Выбираем действие случайно
+      // случайный выбор действия
       const action =
         availableActions[Math.floor(Math.random() * availableActions.length)];
 
+      // применяем
       const newState = this.rule.applyAction(currentState, action);
 
-      if (Math.abs(action) === 5) {
-        has5Action = true;
-      }
-
+      // добавляем шаг
       steps.push({
         action,
         fromState: currentState,
         toState: newState
       });
 
+      // двигаемся дальше
       currentState = newState;
     }
 
-    // Блок в конец (если требуется обязательная формула / корректировка)
-    if (
-      requireBlock &&
-      !blockInserted &&
-      this.rule.generateBlock &&
-      this.rule.canInsertBlock
-    ) {
-      const canInsertPositive = this.rule.canInsertBlock(currentState, true);
-      const canInsertNegative = this.rule.canInsertBlock(currentState, false);
-
-      if (!canInsertPositive && !canInsertNegative) {
-        throw new Error(`Не удалось вставить обязательный блок ±k`);
-      }
-
-      const isPositive = canInsertPositive ? true : false;
-      const block = this.rule.generateBlock(currentState, isPositive);
-
-      if (!block) {
-        throw new Error(`Не удалось сгенерировать блок ±k`);
-      }
-
-      for (const action of block) {
-        const newState = this.rule.applyAction(currentState, action);
-        steps.push({
-          action,
-          fromState: currentState,
-          toState: newState
-        });
-        currentState = newState;
-        if (Math.abs(action) === 5) has5Action = true;
-      }
-
-      blockInserted = true;
-    }
-
-    // Если финал ушёл выше maxFinalState (например 7 при "Просто 5"),
-    // пытаемся аккуратно опустить бусины в допустимый коридор
-    if (
-      this.rule.config?.maxFinalState !== undefined &&
-      typeof currentState === "number" &&
-      currentState > this.rule.config.maxFinalState
-    ) {
-      currentState = this._repairToRange(steps, currentState);
-    }
-
+    // готовим пример
     return {
       start: start,
       steps: steps,
@@ -463,54 +363,6 @@ export class ExampleGenerator {
     }
 
     return true;
-  }
-
-  /**
-   * Возврат к допустимому диапазону для одноразрядных (Просто 4 / Просто 5).
-   * Если финал > допустимого методического коридора, пытаемся осадить бусины назад.
-   */
-  _repairToRange(steps, currentState) {
-    const maxFinal = this.rule.config.maxFinalState;
-    console.log(`🔧 Repair to range: ${currentState} → 0..${maxFinal}`);
-
-    let attempts = 0;
-    const maxAttempts = 10;
-
-    if (typeof currentState === "number") {
-      while (currentState > maxFinal && attempts < maxAttempts) {
-        const isUpperActive = currentState >= 5;
-        const activeLower = isUpperActive ? currentState - 5 : currentState;
-
-        let action;
-
-        if (isUpperActive && currentState - 5 <= maxFinal && currentState - 5 >= 0) {
-          action = -5;
-        } else if (activeLower > 0) {
-          const needed = Math.min(activeLower, currentState - maxFinal);
-          action = -needed;
-        } else {
-          console.warn(
-            `⚠️ Не удалось скорректировать состояние ${currentState} до ${maxFinal}`
-          );
-          break;
-        }
-
-        const newState = this.rule.applyAction(currentState, action);
-        steps.push({
-          action,
-          fromState: currentState,
-          toState: newState
-        });
-        currentState = newState;
-        attempts++;
-
-        console.log(
-          `  🔧 Шаг ${attempts}: ${this.rule.formatAction(action)} → ${currentState}`
-        );
-      }
-    }
-
-    return currentState;
   }
 
   /**
@@ -564,7 +416,7 @@ export class ExampleGenerator {
           byPos[part.position] = part.value;
         }
 
-        // Определяем знак шага (мы гарантируем, что весь шаг одного знака)
+        // Определяем знак шага
         const signValue = byPos.find(v => v !== 0) || 0;
         const signStr = signValue >= 0 ? "+" : "-";
 
@@ -579,7 +431,6 @@ export class ExampleGenerator {
         formattedSteps.push(`${signStr}${magnitudeStr}`);
       }
 
-      // ответ (число) — преобразуем текущее состояние массива разрядов
       const finalAnswer = this.rule.stateToNumber(example.answer);
 
       return {
