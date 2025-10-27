@@ -1,16 +1,16 @@
-// ext/trainer_logic.js — Improved trainer logic with security fixes
+// ext/trainer_logic.js — Trainer logic (retry отключён)
 import { ExampleView } from "./components/ExampleView.js";
 import { Abacus } from "./components/AbacusNew.js";
-import { generateExample } from "./core/generator.js"; // <— как у тебя (не трогаю)
+import { generateExample } from "./core/generator.js";
 import { startAnswerTimer, stopAnswerTimer } from "../js/utils/timer.js";
 import { BigStepOverlay } from "../ui/components/BigStepOverlay.js";
 import { playSound } from "../js/utils/sound.js";
 import { logger } from "../core/utils/logger.js";
 import { UI, FONT_SIZE, DEFAULTS } from "../core/utils/constants.js";
-import { eventBus, EVENTS } from "../core/utils/events.js"; // путь оставляю как у тебя
+import { eventBus, EVENTS } from "../core/utils/events.js";
 import toast from "../ui/components/Toast.js";
 
-const CONTEXT = 'Trainer';
+const CONTEXT = "Trainer";
 
 /**
  * Create layout structure using createElement (secure)
@@ -229,8 +229,8 @@ function createAbacusWrapper() {
  */
 export function mountTrainerUI(container, { t, state }) {
   try {
-    logger.info(CONTEXT, 'Mounting trainer UI...');
-    logger.debug(CONTEXT, 'Settings:', state?.settings);
+    logger.info(CONTEXT, "Mounting trainer UI...");
+    logger.debug(CONTEXT, "Settings:", state?.settings);
 
     const st = state?.settings ?? {};
     const actionsCfg = st.actions ?? {};
@@ -240,17 +240,11 @@ export function mountTrainerUI(container, { t, state }) {
       : [];
 
     const digits = parseInt(st.digits, 10) || 1; // выбранная разрядность для примеров
-    const abacusColumns = digits + 1;            // 🧮 методически: на одну стойку больше
+    const abacusColumns = digits + 1;            // методически: на одну стойку больше
     const displayMode = st.inline ? "inline" : "column";
 
-    // === Режим пересчета ошибок (расширен) ===
-    // Если в state.retryMode уже пришёл список — играем его.
-    // Иначе после первой серии — автоматически запустим retry со всеми неправильными.
-    const retryModeInit = state?.retryMode?.enabled || false;
-    const retryExamplesInit = retryModeInit ? (state?.retryMode?.examples || []) : [];
-    const exampleCount = retryModeInit ? retryExamplesInit.length : getExampleCount(examplesCfg);
-
-    logger.info(CONTEXT, `Retry mode (initial): ${retryModeInit}, examples to retry: ${retryExamplesInit.length}`);
+    // --- Количество примеров в серии (без retry)
+    const exampleCount = getExampleCount(examplesCfg);
 
     // === Create Layout (secure) ===
     const layout = createTrainerLayout(displayMode, exampleCount, t);
@@ -265,16 +259,21 @@ export function mountTrainerUI(container, { t, state }) {
 
     const exampleView = new ExampleView(document.getElementById("area-example"));
 
-    // 🔧 Кол-во стоек = digits + 1
+    // Кол-во стоек = digits + 1
     const abacus = new Abacus(
       document.getElementById("floating-abacus-container"),
       abacusColumns
     );
 
     const overlayColor =
-      getComputedStyle(document.documentElement).getPropertyValue("--color-primary")?.trim() || "#EC8D00";
-    const overlay = new BigStepOverlay(st.bigDigitScale ?? UI.BIG_DIGIT_SCALE, overlayColor);
+      getComputedStyle(document.documentElement).getPropertyValue("--color-primary")?.trim() ||
+      "#EC8D00";
+    const overlay = new BigStepOverlay(
+      st.bigDigitScale ?? UI.BIG_DIGIT_SCALE,
+      overlayColor
+    );
 
+    // Если режим "абакус", то сразу показать абакус
     const shouldShowAbacus = st.mode === "abacus";
     if (shouldShowAbacus) {
       abacusWrapper.classList.add("visible");
@@ -282,170 +281,175 @@ export function mountTrainerUI(container, { t, state }) {
       if (btn) btn.textContent = t?.("trainer.hideAbacus") || "🧮 Скрыть абакус";
     }
 
-    // === State ===
+    // === Состояние сессии тренировки (без retry) ===
     const session = {
       currentExample: null,
       stats: { correct: 0, incorrect: 0, total: exampleCount },
-      completed: 0,
-      wrongExamples: [],
-      retryPhase: retryModeInit ? "retry" : "main",      // "main" → "retry" → "done"
-      retryQueue: retryModeInit ? [...retryExamplesInit] : []
+      completed: 0
     };
 
     let isShowing = false;
     let showAbort = false;
 
-    // === Font size calculation ===
-    function calculateFontSize(actions, maxDigits) {
-      let fontSize = FONT_SIZE.BASE_SIZE -
-                     (actions * FONT_SIZE.ACTION_PENALTY) -
-                     (maxDigits * FONT_SIZE.DIGIT_PENALTY);
-      return Math.max(FONT_SIZE.MIN_SIZE, Math.min(FONT_SIZE.BASE_SIZE, fontSize));
-    }
-
-    // === Adaptive font size for example display ===
+    // === Adaptive font-size logic ===
     function adaptExampleFontSize(actionsCount, maxDigits) {
-      const exampleLines = document.querySelectorAll('#area-example .example__line');
+      const exampleLines = document.querySelectorAll(
+        "#area-example .example__line"
+      );
 
-      logger.debug(CONTEXT, `adaptExampleFontSize called: ${exampleLines.length} lines found, actions: ${actionsCount}, digits: ${maxDigits}`);
+      logger.debug(
+        CONTEXT,
+        `adaptExampleFontSize called: ${exampleLines.length} lines found, actions: ${actionsCount}, digits: ${maxDigits}`
+      );
 
       if (!exampleLines.length) return;
 
-      // Base calculation considering both actions and digits
+      // Комбинированный фактор сложности
       const actionsFactor = Math.min(actionsCount, 12) / 12; // 0..1
-      const digitsFactor = Math.min(maxDigits, 9) / 9;       // 0..1
+      const digitsFactor = Math.min(maxDigits, 9) / 9; // 0..1
       const complexityFactor = (actionsFactor + digitsFactor) / 2;
 
-      // Font size range: 24px → 96px
+      // Диапазон размера шрифта: 24px → 96px
       const minFontSize = 24;
       const maxFontSize = 96;
-      const fontSize = maxFontSize - (complexityFactor * (maxFontSize - minFontSize));
+      const fontSize =
+        maxFontSize -
+        complexityFactor * (maxFontSize - minFontSize);
 
-      exampleLines.forEach(line => {
-        line.style.setProperty('font-size', `${Math.round(fontSize)}px`, 'important');
-        line.style.setProperty('line-height', '1.2', 'important');
+      exampleLines.forEach((line) => {
+        line.style.setProperty(
+          "font-size",
+          `${Math.round(fontSize)}px`,
+          "important"
+        );
+        line.style.setProperty("line-height", "1.2", "important");
       });
 
-      logger.debug(CONTEXT, `Font size: ${Math.round(fontSize)}px (actions: ${actionsCount}, digits: ${maxDigits})`);
+      logger.debug(
+        CONTEXT,
+        `Font size: ${Math.round(fontSize)}px (actions: ${actionsCount}, digits: ${maxDigits})`
+      );
     }
 
-    // === Show next example ===
+    // === Показ следующего примера ===
     async function showNextExample() {
       try {
         overlay.clear();
         showAbort = true;
         isShowing = false;
 
-        // Вычисляем текущий лимит серии для активной фазы
-        const currentTotal = session.stats.total;
-
-        if (session.completed >= currentTotal) {
-          // Перешли в конец текущей фазы (main или retry)
-          return finishPhase();
+        // Всё, серия закончена?
+        if (session.completed >= session.stats.total) {
+          return finishTraining();
         }
 
-        // === 1) Если мы в retry-фазе: берём из очереди уже сохранённые примеры
-        if (session.retryPhase === "retry") {
-          const ex = session.retryQueue[session.completed]; // индекс по ходу фазы
-          if (!ex) {
-            // Нет примеров — завершаем фазу
-            return finishPhase();
-          }
-          session.currentExample = ex.example; // структура как сохраняли в wrongExamples
-          logger.info(CONTEXT, `Retry example ${session.completed + 1}/${session.retryQueue.length}`);
-        } else {
-          // === 2) Обычная фаза: генерируем новый пример ===
-          const selectedDigits =
-            blockSimpleDigits.length > 0
-              ? blockSimpleDigits.map(d => parseInt(d, 10))
-              : [1, 2, 3, 4];
+        // Формируем настройки для генератора
+        const selectedDigits =
+          blockSimpleDigits.length > 0
+            ? blockSimpleDigits.map((d) => parseInt(d, 10))
+            : [1, 2, 3, 4];
 
-          const generatorSettings = {
-            blocks: {
-              simple: {
-                digits: selectedDigits,
-                includeFive:
-                  (st.blocks?.simple?.includeFive ?? selectedDigits.includes(5)),
-                onlyAddition:
-                  (st.blocks?.simple?.onlyAddition ?? false),
-                onlySubtraction:
-                  (st.blocks?.simple?.onlySubtraction ?? false)
-              },
-              brothers: {
-                active: st.blocks?.brothers?.active ?? false
-              },
-              friends: {
-                active: st.blocks?.friends?.active ?? false
-              },
-              mix: {
-                active: st.blocks?.mix?.active ?? false
-              }
+        const generatorSettings = {
+          blocks: {
+            simple: {
+              digits: selectedDigits,
+              includeFive:
+                (st.blocks?.simple?.includeFive ?? selectedDigits.includes(5)),
+              onlyAddition:
+                (st.blocks?.simple?.onlyAddition ?? false),
+              onlySubtraction:
+                (st.blocks?.simple?.onlySubtraction ?? false)
             },
-
-            actions: {
-              min: actionsCfg.infinite
-                ? DEFAULTS.ACTIONS_MIN
-                : (actionsCfg.count ?? DEFAULTS.ACTIONS_MIN),
-              max: actionsCfg.infinite
-                ? DEFAULTS.ACTIONS_MAX
-                : (actionsCfg.count ?? DEFAULTS.ACTIONS_MAX)
+            brothers: {
+              active: st.blocks?.brothers?.active ?? false
             },
+            friends: {
+              active: st.blocks?.friends?.active ?? false
+            },
+            mix: {
+              active: st.blocks?.mix?.active ?? false
+            }
+          },
 
-            // сколько разрядов (1..9)
-            digits: st.digits,
+          actions: {
+            min: actionsCfg.infinite
+              ? DEFAULTS.ACTIONS_MIN
+              : (actionsCfg.count ?? DEFAULTS.ACTIONS_MIN),
+            max: actionsCfg.infinite
+              ? DEFAULTS.ACTIONS_MAX
+              : (actionsCfg.count ?? DEFAULTS.ACTIONS_MAX),
+            infinite: actionsCfg.infinite === true
+          },
 
-            // использовать ли несколько разрядов одновременно при построении шага
-            combineLevels: st.combineLevels || false
-          };
+          // количество разрядов
+          digits: st.digits,
 
-          logger.info(
-            CONTEXT,
-            `Generating example (phase=${session.retryPhase}) digits=${st.digits}, combineLevels=${st.combineLevels}, blocks=`,
-            generatorSettings.blocks
-          );
+          // "комбинировать уровни" = один шаг затрагивает все разряды сразу
+          combineLevels: st.combineLevels || false
+        };
 
-          // Оставляю твой рабочий генератор:
-          session.currentExample = generateExample(generatorSettings);
-        }
+        logger.info(
+          CONTEXT,
+          `Generating example digits=${st.digits}, combineLevels=${st.combineLevels}, blocks=`,
+          generatorSettings.blocks
+        );
 
-        if (!session.currentExample || !Array.isArray(session.currentExample.steps))
+        session.currentExample = generateExample(generatorSettings);
+
+        if (
+          !session.currentExample ||
+          !Array.isArray(session.currentExample.steps)
+        )
           throw new Error("Empty example generated");
 
+        // Аналитика по шагам → подгон шрифта
         const actionsLen = session.currentExample.steps.length;
-        let maxDigits = 1;
+        let maxDigitsInStep = 1;
         for (const step of session.currentExample.steps) {
           const num = parseInt(String(step).replace(/[^\d-]/g, ""), 10);
-          if (!isNaN(num)) maxDigits = Math.max(maxDigits, Math.abs(num).toString().length);
+          if (!isNaN(num)) {
+            maxDigitsInStep = Math.max(
+              maxDigitsInStep,
+              Math.abs(num).toString().length
+            );
+          }
         }
 
+        // Очистить поле ввода
         const input = document.getElementById("answer-input");
         if (input) input.value = "";
 
-        // === Auto-dictation for >12 actions ===
+        // Режим показа по одному шагу (скорость или диктовка)
         const shouldUseDictation = actionsLen > 12;
-        const effectiveShowSpeed = shouldUseDictation ? 2000 : (st.showSpeedMs || 0);
-        const showSpeedActive = st.showSpeedEnabled && effectiveShowSpeed > 0;
+        const effectiveShowSpeed = shouldUseDictation
+          ? 2000
+          : (st.showSpeedMs || 0);
+        const showSpeedActive =
+          st.showSpeedEnabled && effectiveShowSpeed > 0;
 
-        // === Hide example view when speed is enabled or dictation mode ===
+        // Если показываем по шагам (анимация), не рендерим весь пример сразу
         if (showSpeedActive || shouldUseDictation) {
           exampleView.clear();
         } else {
           exampleView.render(session.currentExample.steps, displayMode);
           requestAnimationFrame(() => {
-            adaptExampleFontSize(actionsLen, maxDigits);
+            adaptExampleFontSize(actionsLen, maxDigitsInStep);
           });
         }
 
-        // === Sequential display ===
+        // Блокируем ввод на время показа, если надо
         const lockDuringShow = st.lockInputDuringShow !== false;
         if (input) input.disabled = lockDuringShow;
 
+        // Анимированный показ по шагам
         if (showSpeedActive || shouldUseDictation) {
           isShowing = true;
           showAbort = false;
-          await playSequential(session.currentExample.steps, effectiveShowSpeed, {
-            beepOnStep: !!st.beepOnStep
-          });
+          await playSequential(
+            session.currentExample.steps,
+            effectiveShowSpeed,
+            { beepOnStep: !!st.beepOnStep }
+          );
           if (showAbort) return;
           await delay(st.showSpeedPauseAfterChainMs ?? UI.PAUSE_AFTER_CHAIN_MS);
           isShowing = false;
@@ -462,30 +466,30 @@ export function mountTrainerUI(container, { t, state }) {
 
         logger.debug(
           CONTEXT,
-          'New example:',
+          "New example:",
           session.currentExample.steps,
-          'Answer:',
-          session.currentExample.answer,
-          'Phase:',
-          session.retryPhase
+          "Answer:",
+          session.currentExample.answer
         );
       } catch (e) {
         showFatalError(e);
       }
     }
 
-    // === Check answer ===
+    // === Проверка ответа ===
     function checkAnswer() {
+      const input = document.getElementById("answer-input");
+
+      // Если сейчас идёт показ по шагам и ввод заблокирован
       if (isShowing && (st.lockInputDuringShow !== false)) return;
 
-      const input = document.getElementById("answer-input");
       const userAnswer = parseInt(input?.value ?? "", 10);
-
       if (isNaN(userAnswer)) {
         toast.warning("Пожалуйста, введите число");
         return;
       }
 
+      // Если мы кликаем "Ответить" во время анимации показа, обрываем показ
       if (isShowing && (st.lockInputDuringShow === false)) {
         showAbort = true;
         isShowing = false;
@@ -497,103 +501,87 @@ export function mountTrainerUI(container, { t, state }) {
         session.stats.correct++;
       } else {
         session.stats.incorrect++;
-        // сохраняем для последующего retry (ровно этот же пример)
-        session.wrongExamples.push({
-          example: session.currentExample,
-          userAnswer: userAnswer
-        });
       }
       session.completed++;
+
       updateStats();
       playSound(isCorrect ? "correct" : "wrong");
 
+      // Следующий пример
       setTimeout(() => showNextExample(), UI.TRANSITION_DELAY_MS);
     }
 
-    // === Handle timeout (оставляю как есть) ===
+    // === Таймер на один пример (если включён) ===
     function handleTimeExpired() {
       const correct = session.currentExample?.answer;
-      logger.warn(CONTEXT, 'Time expired! Correct answer:', correct);
+      logger.warn(CONTEXT, "Time expired! Correct answer:", correct);
+
       if (st.beepOnTimeout) playSound("wrong");
+
       session.stats.incorrect++;
-      if (session.currentExample) {
-        session.wrongExamples.push({
-          example: session.currentExample,
-          userAnswer: null
-        });
-      }
       session.completed++;
+
       updateStats();
       setTimeout(() => showNextExample(), UI.TIMEOUT_DELAY_MS);
     }
 
-    // === Update stats ===
+    // === Обновление статистики ===
     function updateStats() {
       const { correct, incorrect, total } = session.stats;
       const completed = session.completed;
       const el = (id) => document.getElementById(id);
 
-      el("stats-completed") && (el("stats-completed").textContent = String(completed));
-      el("stats-correct") && (el("stats-correct").textContent = String(correct));
-      el("stats-incorrect") && (el("stats-incorrect").textContent = String(incorrect));
+      el("stats-completed") &&
+        (el("stats-completed").textContent = String(completed));
+      el("stats-correct") &&
+        (el("stats-correct").textContent = String(correct));
+      el("stats-incorrect") &&
+        (el("stats-incorrect").textContent = String(incorrect));
 
-      const percentCorrect = completed > 0 ? Math.round((correct / completed) * 100) : 0;
-      const percentIncorrect = completed > 0 ? Math.round((incorrect / completed) * 100) : 0;
+      const percentCorrect =
+        completed > 0 ? Math.round((correct / completed) * 100) : 0;
+      const percentIncorrect =
+        completed > 0 ? Math.round((incorrect / completed) * 100) : 0;
 
-      el("progress-correct") && (el("progress-correct").style.width = percentCorrect + "%");
-      el("progress-incorrect") && (el("progress-incorrect").style.width = percentIncorrect + "%");
-      el("percent-correct") && (el("percent-correct").textContent = percentCorrect + "%");
-      el("percent-incorrect") && (el("percent-incorrect").textContent = percentIncorrect + "%");
+      el("progress-correct") &&
+        (el("progress-correct").style.width = percentCorrect + "%");
+      el("progress-incorrect") &&
+        (el("progress-incorrect").style.width = percentIncorrect + "%");
+      el("percent-correct") &&
+        (el("percent-correct").textContent = percentCorrect + "%");
+      el("percent-incorrect") &&
+        (el("percent-incorrect").textContent = percentIncorrect + "%");
     }
 
-    // === Завершение фазы (main → retry → done) ===
-    function finishPhase() {
+    // === Завершение всей тренировки ===
+    function finishTraining() {
       stopAnswerTimer();
       showAbort = true;
       isShowing = false;
       overlay.clear();
       abacusWrapper.classList.remove("visible");
 
-      // Если мы только что завершили "main" — и есть ошибки — запускаем retry автоматически
-      if (session.retryPhase === "main" && session.wrongExamples.length > 0) {
-        logger.info(CONTEXT, `Main phase finished. Starting retry with ${session.wrongExamples.length} examples.`);
-        // Подготовка retry
-        session.retryPhase = "retry";
-        session.retryQueue = [...session.wrongExamples]; // ровно те же примеры
-        session.wrongExamples = [];
-        session.completed = 0;
-        session.stats = { correct: 0, incorrect: 0, total: session.retryQueue.length };
+      logger.info(CONTEXT, "Training finished:", session.stats);
 
-        // Обновим “всего” в UI
-        const totalEl = document.getElementById("stats-total");
-        if (totalEl) totalEl.textContent = String(session.stats.total);
-        updateStats();
-
-        // Запускаем заново показ
-        showNextExample();
-        return;
-      }
-
-      // Если мы завершили retry (или не было ошибок) — отправляем финальное событие
-      logger.info(CONTEXT, `Phase "${session.retryPhase}" finished.`);
+      // Репортим наружу
       eventBus.emit?.(EVENTS.TRAINING_FINISH, {
         correct: session.stats.correct,
         total: session.stats.total,
-        wrongExamples: session.wrongExamples,
-        phase: session.retryPhase
-      }) || eventBus.publish?.(EVENTS.TRAINING_FINISH, {
-        correct: session.stats.correct,
-        total: session.stats.total,
-        wrongExamples: session.wrongExamples,
-        phase: session.retryPhase
-      });
-
-      logger.info(CONTEXT, 'Training finished:', session.stats);
-      logger.info(CONTEXT, 'Wrong examples (final):', session.wrongExamples.length);
+        phase: "done"
+      }) ||
+        eventBus.publish?.(EVENTS.TRAINING_FINISH, {
+          correct: session.stats.correct,
+          total: session.stats.total,
+          phase: "done"
+        });
     }
 
-    // === Sequential playback with color alternation ===
-    async function playSequential(steps, intervalMs, { beepOnStep = false } = {}) {
+    // === Последовательный показ шагов на оверлее ===
+    async function playSequential(
+      steps,
+      intervalMs,
+      { beepOnStep = false } = {}
+    ) {
       try {
         for (let i = 0; i < steps.length; i++) {
           if (showAbort) break;
@@ -620,10 +608,10 @@ export function mountTrainerUI(container, { t, state }) {
     }
 
     function delay(ms) {
-      return new Promise(r => setTimeout(r, ms));
+      return new Promise((r) => setTimeout(r, ms));
     }
 
-    // === Event listeners ===
+    // === Слушатели ===
     const listeners = [];
 
     function addListener(element, event, handler) {
@@ -654,26 +642,26 @@ export function mountTrainerUI(container, { t, state }) {
       if (e.key === "Enter") checkAnswer();
     });
 
-    // === Global timer for entire series (оставляю как у тебя) ===
+    // === Общий таймер на серию (если включён)
     if (st.timeLimitEnabled && st.timePerExampleMs > 0) {
       startAnswerTimer(st.timePerExampleMs, {
         onExpire: () => {
-          logger.warn(CONTEXT, 'Series time expired!');
-          finishPhase(); // завершаем текущую фазу
+          logger.warn(CONTEXT, "Series time expired!");
+          finishTraining();
         },
         textElementId: "answerTimerText",
         barSelector: "#answer-timer .bar"
       });
     }
 
-    // === Start ===
+    // === Start
     showNextExample();
     logger.info(
       CONTEXT,
-      `Trainer started (phase=${session.retryPhase}, ${abacusColumns} columns for ${digits}-digit numbers)`
+      `Trainer started (${abacusColumns} columns for ${digits}-digit numbers)`
     );
 
-    // === Cleanup function ===
+    // === Cleanup
     return () => {
       const wrapper = document.getElementById("abacus-wrapper");
       if (wrapper) wrapper.remove();
@@ -682,14 +670,12 @@ export function mountTrainerUI(container, { t, state }) {
       overlay.clear();
       stopAnswerTimer();
 
-      // Remove all event listeners
       listeners.forEach(({ element, event, handler }) => {
         element.removeEventListener(event, handler);
       });
 
-      logger.debug(CONTEXT, 'Trainer unmounted, listeners cleaned up');
+      logger.debug(CONTEXT, "Trainer unmounted, listeners cleaned up");
     };
-
   } catch (err) {
     showFatalError(err);
   }
@@ -698,12 +684,13 @@ export function mountTrainerUI(container, { t, state }) {
 /** Show fatal error using createElement (secure) */
 function showFatalError(err) {
   const msg = err?.stack || err?.message || String(err);
-  logger.error(CONTEXT, 'Fatal error:', err);
+  logger.error(CONTEXT, "Fatal error:", err);
 
   const host = document.querySelector(".screen__body") || document.body;
 
   const errorDiv = document.createElement("div");
-  errorDiv.style.cssText = "color:#d93025;padding:16px;white-space:pre-wrap";
+  errorDiv.style.cssText =
+    "color:#d93025;padding:16px;white-space:pre-wrap";
 
   const title = document.createElement("b");
   title.textContent = "Не удалось загрузить тренажёр.";
