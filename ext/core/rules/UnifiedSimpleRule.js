@@ -13,7 +13,8 @@ export class UnifiedSimpleRule extends BaseRule {
     super(config);
 
     // --- 1. Какие цифры выбраны
-    // это разрешённые "шаги", с учётом расширения снаружи (generator.js)
+    // это разрешённые "шаги", которые пользователь отметил в блоке «Просто»
+    // (напр. [1,2,3,4,6,7,8,9])
     const selectedDigits = config.selectedDigits || [1, 2, 3, 4];
 
     // --- 2. includeFive управляет режимом "Просто 4" vs "Просто 5"
@@ -50,7 +51,7 @@ export class UnifiedSimpleRule extends BaseRule {
       minSteps: config.minSteps ?? 2,
       maxSteps: config.maxSteps ?? 4,
 
-      // какие шаги считаются допустимыми (1,2,3,4,5 и т.д.)
+      // какие шаги считаются допустимыми (1,2,3,4,5...9)
       selectedDigits,
       hasFive,                // есть ли верхняя косточка
       includeFive: hasFive,   // дублируем явно, чтобы не вычислять каждый раз
@@ -89,19 +90,30 @@ export class UnifiedSimpleRule extends BaseRule {
   }
 
   /**
-   * Получаем доступные действия для текущего состояния.
-   * Для одного разряда возвращает массив чисел [+1, -2, +5 ...].
-   * Для нескольких разрядов возвращает массив объектов вида { position, value },
-   * где position — индекс разряда (0 = единицы), value — шаг на этом разряде.
+   * Возвращает список допустимых действий для текущего состояния выбранного разряда.
    *
-   * ВАЖНО:
-   * - Используем ТОЛЬКО цифры из selectedDigits (1..9), которые задал пользователь через блок «Просто».
-   * - Если пятёрка запрещена (includeFive=false), не генерируем ±5.
-   * - В многозначном режиме на выходе должны остаться только шаги, состоящие из допустимых цифр.
+   * КЛЮЧЕВОЕ: теперь мы считаем не "микро-шага +1 или +5 отдельно",
+   * а "что можно сделать одним жестом руки СЕЙЧАС".
    *
-   * @param {number|number[]} currentState - текущее состояние (число или массив разрядов)
-   * @param {boolean} isFirstAction - это первый шаг в примере?
-   * @param {number} position - с каким разрядом работаем (0 — младший)
+   * Алгоритм:
+   *  1. Берём текущее значение разряда v (0..9).
+   *  2. Перебираем все возможные целевые значения v' от 0 до 9.
+   *     v' — это "как может выглядеть столбик ПОСЛЕ одного жеста".
+   *     (то есть можно одним жестом поднять/опустить сразу несколько бусин,
+   *      в том числе верхнюю + нижние вместе → это даёт дельты типа +6,+7,+8,+9).
+   *  3. Дельта = v' - v. Это то, что мы показываем ребёнку (+7, -3, и т.д.).
+   *  4. Фильтруем дельты:
+   *     - нельзя выходить за [0..9],
+   *     - первый шаг не может быть минусом,
+   *     - если onlyAddition / onlySubtraction активны, уважаем их,
+   *     - модуль дельты должен быть среди выбранных цифр в блоке «Просто»,
+   *     - если дельта по модулю 5, но пятёрка запрещена → выкидываем.
+   *
+   * Для многозначных (digitCount > 1) те же дельты упаковываются как { position, value }.
+   *
+   * @param {number|number[]} currentState текущее состояние (число или массив разрядов)
+   * @param {boolean} isFirstAction это первый шаг в примере?
+   * @param {number} position индекс столбика (0 = младший разряд)
    * @returns {Array<number|{position:number,value:number}>}
    */
   getAvailableActions(currentState, isFirstAction = false, position = 0) {
@@ -110,153 +122,72 @@ export class UnifiedSimpleRule extends BaseRule {
       selectedDigits,
       digitCount,
       onlyAddition,
-      onlySubtraction
+      onlySubtraction,
     } = this.config;
 
-    // текущее значение конкретного разряда
-    const digitValue = this.getDigitValue(currentState, position);
+    // текущее значение конкретного разряда (0..9)
+    const v = this.getDigitValue(currentState, position);
 
-    // физика стойки:
-    // верхняя косточка считается "поднятой", если значение >=5 и пятёрка вообще разрешена методически
-    const isUpperActive = includeFive && digitValue >= 5;
-    const activeLower = isUpperActive ? digitValue - 5 : digitValue; // сколько нижних бусин уже поднято
-    const inactiveLower = 4 - activeLower; // сколько нижних бусин ещё свободно
+    let possibleDeltas = [];
 
-    let validActions = [];
+    // Перебираем ВСЕ потенциальные целевые состояния 0..9
+    // и смотрим, можно ли считать переход v -> target допустимым как один жест.
+    for (let target = 0; target <= 9; target++) {
+      if (target === v) continue; // нет смысла добавлять "0"
 
-    // Перебор разрешённых цифр (только то, что пользователь выбрал)
-    for (const digit of selectedDigits) {
-      if (Number.isNaN(digit)) continue;
-      if (digit <= 0) continue;
+      const delta = target - v;    // что ребёнок увидит (+7, -3 и т.д.)
+      const absDelta = Math.abs(delta);
 
-      // ПОЛОЖИТЕЛЬНЫЕ ШАГИ (сложение)
-      if (digit === 5 && includeFive) {
-        // +5 можно сделать, только если верхняя косточка не активна
-        // и не превысим 9 в этом разряде
-        if (!isUpperActive && digitValue + 5 <= 9) {
-          validActions.push(+5);
-        }
-      } else if (digit < 5) {
-        // +1..+4
-        // можно только если есть достаточно "свободных" нижних бусин
-        // и не переполним стойку (>9 запрещено)
-        if (inactiveLower >= digit && digitValue + digit <= 9) {
-          validActions.push(+digit);
-        }
-      }
+      // 1. не выходим за физический диапазон (в теории это уже гарантировано,
+      //    но пусть будет явно)
+      if (v + delta < 0 || v + delta > 9) continue;
 
-      // ОТРИЦАТЕЛЬНЫЕ ШАГИ (вычитание)
-      // Первое действие не может быть отрицательным по методике
-      if (!isFirstAction) {
-        if (digit === 5 && includeFive) {
-          // -5 возможно только если верхняя косточка активна
-          if (isUpperActive && digitValue - 5 >= 0) {
-            validActions.push(-5);
-          }
-        } else if (digit < 5) {
-          // -1..-4 допустимы, только если есть поднятые нижние бусины
-          // и не уйдём ниже 0
-          if (activeLower >= digit && digitValue - digit >= 0) {
-            validActions.push(-digit);
-          }
-        }
-      }
+      // 2. первый шаг не может быть отрицательным
+      if (isFirstAction && delta < 0) continue;
+
+      // 3. уважаем режимы только плюс / только минус
+      if (onlyAddition && delta < 0) continue;
+      if (onlySubtraction && delta > 0) continue;
+
+      // 4. фильтр по выбранным цифрам в блоке «Просто»
+      // если пользователь не выбрал, например, 7 — мы не даём шаг ±7
+      if (!selectedDigits.includes(absDelta)) continue;
+
+      // 5. если шаг ±5, но пятёрка методически "запрещена"
+      if (absDelta === 5 && !includeFive) continue;
+
+      // 6. логика "нельзя сразу в минус больше, чем у нас активно":
+      //    если мы хотим дельту -N, у нас должно быть достаточно "активных бусин",
+      //    чтобы это реально можно было снять за один жест.
+      //    Мы получаем это условие автоматически из диапазона 0..9,
+      //    потому что если бы нельзя было снять -8 (слишком много),
+      //    то target < 0, и мы бы уже отфильтровали через диапазон.
+      //    То есть спецпроверку не надо писать отдельно.
+
+      possibleDeltas.push(delta);
     }
 
-    // правило: первое действие должно быть положительным
-    if (isFirstAction) {
-      validActions = validActions.filter(a => {
-        const v = typeof a === "object" ? a.value : a;
-        return v > 0;
-      });
-    }
+    // Удаляем дубли и защиту от нуля
+    possibleDeltas = [...new Set(possibleDeltas.filter(d => d !== 0))];
 
-    // правило: если текущее значение разряда = 0, не начинаем с чистого минуса
-    if (digitValue === 0 && !isFirstAction) {
-      validActions = validActions.filter(a => {
-        const v = typeof a === "object" ? a.value : a;
-        return v > 0;
-      });
-    }
-
-    // правило "только пятёрка"
-    if (this.config.onlyFiveSelected && includeFive) {
-      const only5 = validActions.filter(a => {
-        const v = typeof a === "object" ? a.value : a;
-        return Math.abs(v) === 5;
-      });
-      if (only5.length > 0) {
-        validActions = only5;
-      }
-    }
-
-    // Ограничение направления (только плюс / только минус)
-    if (onlyAddition) {
-      validActions = validActions.filter(a => {
-        const v = typeof a === "object" ? a.value : a;
-        return v > 0;
-      });
-    }
-    if (onlySubtraction) {
-      validActions = validActions.filter(a => {
-        const v = typeof a === "object" ? a.value : a;
-        return v < 0;
-      });
-    }
-
-    // === МНОГОРАЗРЯДНЫЙ РЕЖИМ ===
-    // Преобразуем чистые числа в структуру { position, value }
-    // и сделаем дополнительную фильтрацию безопасности.
-    if (digitCount && digitCount > 1) {
-      validActions = validActions.map(value => ({
+    // Если это многозначный режим → упаковываем как {position, value}
+    let result;
+    if (digitCount > 1) {
+      result = possibleDeltas.map(value => ({
         position,
         value
       }));
-
-      const combineLevels = this.config.combineLevels ?? false;
-
-      // Если combineLevels=false,
-      // то мы не разрешаем шаги, которые "обрушат" всё число ниже минимально допустимого
-      // (например, сделать из 20 -> 03 в режиме, который не разрешает падать ниже 10).
-      if (!combineLevels) {
-        const minFinal = this.getMinFinalNumber();
-        validActions = validActions.filter(action => {
-          const newState = this.applyAction(currentState, action);
-          const newNumber = this.stateToNumber(newState);
-          return newNumber >= minFinal;
-        });
-      }
-
-      // ДОПОЛНИТЕЛЬНАЯ ГАРАНТИЯ ПУНКТА 4:
-      // убедиться, что абсолютное значение шага в этом разряде входит в selectedDigits
-      // (и что пятёрка допустима только если includeFive)
-      validActions = validActions.filter(action => {
-        const absVal = Math.abs(action.value);
-
-        // если шаг 5, но includeFive=false → нельзя
-        if (absVal === 5 && !includeFive) return false;
-
-        // если шага нет в разрешённых цифрах → нельзя
-        return selectedDigits.includes(absVal);
-      });
     } else {
-      // ОДНОРАЗРЯДНЫЙ РЕЖИМ:
-      // тоже гарантируем, что |шаг| допустим с точки зрения выбранных цифр
-      validActions = validActions.filter(a => {
-        const absVal = Math.abs(typeof a === "object" ? a.value : a);
-
-        if (absVal === 5 && !includeFive) return false;
-
-        return selectedDigits.includes(absVal);
-      });
+      result = possibleDeltas.slice(); // просто числа, типа [+7, -3, +2]
     }
 
+    // итоговая отладка
     const stateStr = Array.isArray(currentState)
       ? `[${currentState.join(", ")}]`
       : currentState;
 
     console.log(
-      `✅ Доступные действия из ${stateStr} (разряд ${position}, ${this.name}): [${validActions
+      `⚙️ getAvailableActions: state=${stateStr}, pos=${position}, v=${v} → [${result
         .map(a =>
           typeof a === "object"
             ? `{${a.position}:${a.value}}`
@@ -265,7 +196,7 @@ export class UnifiedSimpleRule extends BaseRule {
         .join(", ")}]`
     );
 
-    return validActions;
+    return result;
   }
 
   /**
@@ -332,7 +263,7 @@ export class UnifiedSimpleRule extends BaseRule {
       }
     }
 
-    // 5. контроль арифметики
+    // 5. контроль арифметики (применяя шаги последовательно должны получить answer)
     let calc = start;
     for (const step of steps) {
       calc = this.applyAction(calc, step.action);
