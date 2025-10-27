@@ -1,119 +1,123 @@
 // ext/core/simpleGenerator.js
-// Генератор примеров для блока "Просто"
-// Логика: стартуем с 0, первый шаг всегда +, далее +/- разрешённых чисел, но не выходим за 0..9
+// Генерация одного или нескольких примеров для режима "Просто",
+// используя UnifiedSimpleRule
+
+import { UnifiedSimpleRule } from "./rules/UnifiedSimpleRule.js";
 
 /**
- * Взять случайный элемент массива
- */
-function pickRandom(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-/**
- * Проверяем, можно ли сделать шаг stepAmount из currentValue,
- * так чтобы не уйти за диапазон 0..9
- */
-function isStepAllowed(currentValue, stepAmount) {
-  const next = currentValue + stepAmount;
-  return next >= 0 && next <= 9;
-}
-
-/**
- * Получить список всех возможных шагов (и плюсы, и минусы)
- * из текущего состояния currentValue,
- * учитывая разрешённые цифры allowedDigits (например [1,2,3,4,5,6,7,8,9])
+ * Генерирует ОДИН пример.
  *
- * ВАЖНО:
- *  - Первый шаг мы обрабатываем отдельно (он всегда плюс).
- *  - Начиная со второго шага можно как +d так и -d.
- */
-function getAllPossibleSteps(currentValue, allowedDigits) {
-  const moves = [];
-
-  for (const d of allowedDigits) {
-    const plus = +d;
-    const minus = -d;
-
-    // попробуем +d
-    if (isStepAllowed(currentValue, plus)) {
-      moves.push(plus);
-    }
-    // попробуем -d
-    if (isStepAllowed(currentValue, minus)) {
-      // минус допустим, только если реально есть что снимать (currentValue >= d)
-      // но isStepAllowed это уже гарантирует, т.к. currentValue - d >=0
-      moves.push(minus);
-    }
-  }
-
-  // Убираем дубликаты (на случай странных повторов)
-  return Array.from(new Set(moves));
-}
-
-/**
- * Сгенерировать ОДИН пример для режима "Просто"
+ * @param {Object} cfg
+ * @param {number[]} cfg.selectedDigits - какие цифры разрешены (модуль шага). Пример: [1,2,3,4,5,6,7,8,9] или [3] или [2,5,7]
+ * @param {number} cfg.stepsCount        - длина цепочки (сколько операций показать ребёнку)
+ * @param {boolean} [cfg.onlyAddition]   - если тренируем только сложение
+ * @param {boolean} [cfg.onlySubtraction]- если тренируем только вычитание
+ * @param {number} [cfg.digitCount=1]    - пока предполагаем 1 разряд
  *
- * @param {number[]} allowedDigits - список разрешённых чисел (например [1,2,3,4,5,6,7,8,9]
- *                                   или [2] или [3,7])
- * @param {number} stepsCount - желаемое количество шагов в примере.
- *                              Это сколько операций (+3, -7, +6, ...) ребёнок увидит.
- *                              Пример: 4, 5, 6.
- *
- * Возвращает объект формата:
+ * Возвращает:
  * {
  *   start: 0,
- *   steps: [ +3, +1, +5, -7, +6, -8 ],
+ *   steps: [
+ *     { action: +3, toState: 3 },
+ *     { action: +1, toState: 4 },
+ *     { action: +5, toState: 9 },
+ *     { action: -7, toState: 2 },
+ *     { action: +6, toState: 8 },
+ *     { action: -8, toState: 0 }
+ *   ],
  *   answer: 0
  * }
  */
-export function generateSimpleExample(allowedDigits, stepsCount = 4) {
-  // 1. стартовое состояние абакуса — 0
-  let currentValue = 0;
+export function generateOneSimpleExample(cfg) {
+  // 1. создаём правило с настройками
+  const rule = new UnifiedSimpleRule({
+    selectedDigits: cfg.selectedDigits,
+    minSteps: cfg.stepsCount,   // минимально хотим stepsCount
+    maxSteps: cfg.stepsCount,   // и максимально тоже stepsCount (фиксированная длина)
+    onlyAddition: cfg.onlyAddition ?? false,
+    onlySubtraction: cfg.onlySubtraction ?? false,
+    digitCount: cfg.digitCount ?? 1
+  });
+
+  // 2. стартовое состояние всей стойки (пока 1 разряд => просто число 0)
+  let currentState = 0;
+
   const steps = [];
 
-  // sanity: отфильтровать мусор
-  const uniqueDigits = Array.from(
-    new Set(
-      allowedDigits
-        .map(d => parseInt(d, 10))
-        .filter(d => Number.isFinite(d) && d >= 1 && d <= 9)
-    )
-  );
-  if (uniqueDigits.length === 0) {
-    throw new Error("[generateSimpleExample] allowedDigits пустой или некорректный");
+  for (let i = 0; i < cfg.stepsCount; i++) {
+    // спросить у правила, какие шаги доступны сейчас
+    const isFirstAction = i === 0;
+
+    const possible = rule.getAvailableActions(
+      currentState,
+      isFirstAction,
+      /* position */ 0
+    );
+
+    // если вообще нет допустимых шагов — тупик, выходим досрочно
+    if (!possible || possible.length === 0) {
+      break;
+    }
+
+    // выбираем случайный шаг
+    const action = possible[Math.floor(Math.random() * possible.length)];
+    // action в однознаковом режиме — это просто число, типа +3 или -7
+
+    // применяем действие, получаем новое состояние
+    const nextState = rule.applyAction(currentState, action);
+
+    // записываем шаг в протокол
+    steps.push({
+      action,
+      toState: nextState
+    });
+
+    // идём дальше с новым состоянием
+    currentState = nextState;
   }
 
-  // 2. первый шаг: всегда положительный
-  //    выбираем любую разрешённую цифру d, если 0 + d <= 9 (всегда true для d<=9)
-  //    => но технически, если кто-то в настройках дал >9 (не должно быть),
-  //       мы уже отфильтровали.
-  const firstCandidates = uniqueDigits.filter(d => isStepAllowed(currentValue, +d));
-  if (firstCandidates.length === 0) {
-    throw new Error("[generateSimpleExample] нет допустимых первых шагов");
-  }
-
-  const firstDigit = pickRandom(firstCandidates);
-  steps.push(+firstDigit);
-  currentValue += firstDigit;
-
-  // 3. остальные шаги
-  //    каждый шаг мы берём из всех возможных +/-d,
-  //    но следим, что мы не улетаем за 0..9
-  while (steps.length < stepsCount) {
-    const possibleMoves = getAllPossibleSteps(currentValue, uniqueDigits);
-
-    // защита от тупика: если дальше некуда ходить, просто стопаемся
-    if (!possibleMoves.length) break;
-
-    const move = pickRandom(possibleMoves);
-
-    steps.push(move);
-    currentValue += move;
-  }
-
-  return {
+  // собираем итог
+  const example = {
     start: 0,
-    steps,          // массив чисел со знаками, например [+3, +1, +5, -7, +6, -8]
-    answer: currentValue // конечное значение после всех шагов
+    steps,
+    answer: currentState
   };
+
+  // проверка методики
+  if (!rule.validateExample(example)) {
+    console.warn("⚠️ пример сгенерирован, но не прошёл validateExample, пробуем другой");
+    return null;
+  }
+
+  return example;
+}
+
+/**
+ * Сгенерировать ПАКЕТ примеров.
+ *
+ * @param {Object} cfg
+ * @param {number[]} cfg.selectedDigits
+ * @param {number} cfg.examplesCount
+ * @param {number} cfg.stepsCount
+ * @param {boolean} [cfg.onlyAddition]
+ * @param {boolean} [cfg.onlySubtraction]
+ * @param {number} [cfg.digitCount=1]
+ *
+ * @returns {Array} массив корректных примеров
+ */
+export function generateSimpleBatch(cfg) {
+  const out = [];
+
+  for (let i = 0; i < cfg.examplesCount; i++) {
+    const ex = generateOneSimpleExample(cfg);
+    if (ex) {
+      out.push(ex);
+    } else {
+      // если вдруг невалидный — просто пробуем ещё раз немедленно
+      // в этой же позиции i (перегенерация в рамках этого i)
+      i--;
+    }
+  }
+
+  return out;
 }
