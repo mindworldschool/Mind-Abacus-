@@ -240,7 +240,7 @@ export function mountTrainerUI(container, { t, state }) {
       : [];
 
     const digits = parseInt(st.digits, 10) || 1; // выбранная разрядность для примеров
-    const abacusColumns = digits + 1;            // методически: на одну стойку больше
+    const abacusColumns = digits + 1; // методически: на одну стойку больше
     const displayMode = st.inline ? "inline" : "column";
 
     // --- Количество примеров в серии (без retry)
@@ -257,7 +257,9 @@ export function mountTrainerUI(container, { t, state }) {
     const abacusWrapper = createAbacusWrapper();
     document.body.appendChild(abacusWrapper);
 
-    const exampleView = new ExampleView(document.getElementById("area-example"));
+    const exampleView = new ExampleView(
+      document.getElementById("area-example")
+    );
 
     // Кол-во стоек = digits + 1
     const abacus = new Abacus(
@@ -266,8 +268,9 @@ export function mountTrainerUI(container, { t, state }) {
     );
 
     const overlayColor =
-      getComputedStyle(document.documentElement).getPropertyValue("--color-primary")?.trim() ||
-      "#EC8D00";
+      getComputedStyle(document.documentElement).getPropertyValue(
+        "--color-primary"
+      )?.trim() || "#EC8D00";
     const overlay = new BigStepOverlay(
       st.bigDigitScale ?? UI.BIG_DIGIT_SCALE,
       overlayColor
@@ -278,7 +281,9 @@ export function mountTrainerUI(container, { t, state }) {
     if (shouldShowAbacus) {
       abacusWrapper.classList.add("visible");
       const btn = document.getElementById("btn-show-abacus");
-      if (btn) btn.textContent = t?.("trainer.hideAbacus") || "🧮 Скрыть абакус";
+      if (btn)
+        btn.textContent =
+          t?.("trainer.hideAbacus") || "🧮 Скрыть абакус";
     }
 
     // === Состояние сессии тренировки (без retry) ===
@@ -327,7 +332,9 @@ export function mountTrainerUI(container, { t, state }) {
 
       logger.debug(
         CONTEXT,
-        `Font size: ${Math.round(fontSize)}px (actions: ${actionsCount}, digits: ${maxDigits})`
+        `Font size: ${Math.round(
+          fontSize
+        )}px (actions: ${actionsCount}, digits: ${maxDigits})`
       );
     }
 
@@ -349,12 +356,28 @@ export function mountTrainerUI(container, { t, state }) {
             ? blockSimpleDigits.map((d) => parseInt(d, 10))
             : [1, 2, 3, 4];
 
+        // actions для генератора: учитываем infinite и min/max/count
+        const genMin =
+          actionsCfg.infinite === true
+            ? DEFAULTS.ACTIONS_MIN
+            : (actionsCfg.min ??
+               actionsCfg.count ??
+               DEFAULTS.ACTIONS_MIN);
+
+        const genMax =
+          actionsCfg.infinite === true
+            ? DEFAULTS.ACTIONS_MAX
+            : (actionsCfg.max ??
+               actionsCfg.count ??
+               DEFAULTS.ACTIONS_MAX);
+
         const generatorSettings = {
           blocks: {
             simple: {
               digits: selectedDigits,
               includeFive:
-                (st.blocks?.simple?.includeFive ?? selectedDigits.includes(5)),
+                (st.blocks?.simple?.includeFive ??
+                  selectedDigits.includes(5)),
               onlyAddition:
                 (st.blocks?.simple?.onlyAddition ?? false),
               onlySubtraction:
@@ -372,12 +395,9 @@ export function mountTrainerUI(container, { t, state }) {
           },
 
           actions: {
-            min: actionsCfg.infinite
-              ? DEFAULTS.ACTIONS_MIN
-              : (actionsCfg.count ?? DEFAULTS.ACTIONS_MIN),
-            max: actionsCfg.infinite
-              ? DEFAULTS.ACTIONS_MAX
-              : (actionsCfg.count ?? DEFAULTS.ACTIONS_MAX),
+            min: genMin,
+            max: genMax,
+            count: actionsCfg.count,
             infinite: actionsCfg.infinite === true
           },
 
@@ -399,19 +419,22 @@ export function mountTrainerUI(container, { t, state }) {
         if (
           !session.currentExample ||
           !Array.isArray(session.currentExample.steps)
-        )
+        ) {
           throw new Error("Empty example generated");
+        }
 
         // Аналитика по шагам → подгон шрифта
         const actionsLen = session.currentExample.steps.length;
         let maxDigitsInStep = 1;
         for (const step of session.currentExample.steps) {
-          const num = parseInt(String(step).replace(/[^\d-]/g, ""), 10);
+          // step выглядит как "+7" или "-12"
+          const numericPart = String(step).replace(/[^\d-]/g, "");
+          const num = parseInt(numericPart, 10);
           if (!isNaN(num)) {
-            maxDigitsInStep = Math.max(
-              maxDigitsInStep,
-              Math.abs(num).toString().length
-            );
+            const lenAbs = Math.abs(num).toString().length;
+            if (lenAbs > maxDigitsInStep) {
+              maxDigitsInStep = lenAbs;
+            }
           }
         }
 
@@ -431,7 +454,12 @@ export function mountTrainerUI(container, { t, state }) {
         if (showSpeedActive || shouldUseDictation) {
           exampleView.clear();
         } else {
-          exampleView.render(session.currentExample.steps, displayMode);
+          // Рендерим сразу всю цепочку:
+          // steps уже в формате ["+3","+1","-7",...]
+          exampleView.render(
+            session.currentExample.steps,
+            displayMode
+          );
           requestAnimationFrame(() => {
             adaptExampleFontSize(actionsLen, maxDigitsInStep);
           });
@@ -445,14 +473,20 @@ export function mountTrainerUI(container, { t, state }) {
         if (showSpeedActive || shouldUseDictation) {
           isShowing = true;
           showAbort = false;
+
           await playSequential(
             session.currentExample.steps,
             effectiveShowSpeed,
             { beepOnStep: !!st.beepOnStep }
           );
+
           if (showAbort) return;
-          await delay(st.showSpeedPauseAfterChainMs ?? UI.PAUSE_AFTER_CHAIN_MS);
+          await delay(
+            st.showSpeedPauseAfterChainMs ??
+              UI.PAUSE_AFTER_CHAIN_MS
+          );
           isShowing = false;
+
           if (lockDuringShow && input) {
             input.disabled = false;
             input.focus();
@@ -489,14 +523,16 @@ export function mountTrainerUI(container, { t, state }) {
         return;
       }
 
-      // Если мы кликаем "Ответить" во время анимации показа, обрываем показ
+      // Если мы кликаем "Ответить" во время анимации показа — обрываем показ
       if (isShowing && (st.lockInputDuringShow === false)) {
         showAbort = true;
         isShowing = false;
         overlay.clear();
       }
 
-      const isCorrect = userAnswer === session.currentExample.answer;
+      const isCorrect =
+        userAnswer === session.currentExample.answer;
+
       if (isCorrect) {
         session.stats.correct++;
       } else {
@@ -508,13 +544,20 @@ export function mountTrainerUI(container, { t, state }) {
       playSound(isCorrect ? "correct" : "wrong");
 
       // Следующий пример
-      setTimeout(() => showNextExample(), UI.TRANSITION_DELAY_MS);
+      setTimeout(
+        () => showNextExample(),
+        UI.TRANSITION_DELAY_MS
+      );
     }
 
     // === Таймер на один пример (если включён) ===
     function handleTimeExpired() {
       const correct = session.currentExample?.answer;
-      logger.warn(CONTEXT, "Time expired! Correct answer:", correct);
+      logger.warn(
+        CONTEXT,
+        "Time expired! Correct answer:",
+        correct
+      );
 
       if (st.beepOnTimeout) playSound("wrong");
 
@@ -522,7 +565,10 @@ export function mountTrainerUI(container, { t, state }) {
       session.completed++;
 
       updateStats();
-      setTimeout(() => showNextExample(), UI.TIMEOUT_DELAY_MS);
+      setTimeout(
+        () => showNextExample(),
+        UI.TIMEOUT_DELAY_MS
+      );
     }
 
     // === Обновление статистики ===
@@ -532,25 +578,36 @@ export function mountTrainerUI(container, { t, state }) {
       const el = (id) => document.getElementById(id);
 
       el("stats-completed") &&
-        (el("stats-completed").textContent = String(completed));
+        (el("stats-completed").textContent =
+          String(completed));
       el("stats-correct") &&
-        (el("stats-correct").textContent = String(correct));
+        (el("stats-correct").textContent =
+          String(correct));
       el("stats-incorrect") &&
-        (el("stats-incorrect").textContent = String(incorrect));
+        (el("stats-incorrect").textContent =
+          String(incorrect));
 
       const percentCorrect =
-        completed > 0 ? Math.round((correct / completed) * 100) : 0;
+        completed > 0
+          ? Math.round((correct / completed) * 100)
+          : 0;
       const percentIncorrect =
-        completed > 0 ? Math.round((incorrect / completed) * 100) : 0;
+        completed > 0
+          ? Math.round((incorrect / completed) * 100)
+          : 0;
 
       el("progress-correct") &&
-        (el("progress-correct").style.width = percentCorrect + "%");
+        (el("progress-correct").style.width =
+          percentCorrect + "%");
       el("progress-incorrect") &&
-        (el("progress-incorrect").style.width = percentIncorrect + "%");
+        (el("progress-incorrect").style.width =
+          percentIncorrect + "%");
       el("percent-correct") &&
-        (el("percent-correct").textContent = percentCorrect + "%");
+        (el("percent-correct").textContent =
+          percentCorrect + "%");
       el("percent-incorrect") &&
-        (el("percent-incorrect").textContent = percentIncorrect + "%");
+        (el("percent-incorrect").textContent =
+          percentIncorrect + "%");
     }
 
     // === Завершение всей тренировки ===
@@ -561,7 +618,11 @@ export function mountTrainerUI(container, { t, state }) {
       overlay.clear();
       abacusWrapper.classList.remove("visible");
 
-      logger.info(CONTEXT, "Training finished:", session.stats);
+      logger.info(
+        CONTEXT,
+        "Training finished:",
+        session.stats
+      );
 
       // Репортим наружу
       eventBus.emit?.(EVENTS.TRAINING_FINISH, {
@@ -586,11 +647,11 @@ export function mountTrainerUI(container, { t, state }) {
         for (let i = 0; i < steps.length; i++) {
           if (showAbort) break;
 
-          const s = steps[i];
-          const isOdd = (i % 2) === 0;
+          const stepStr = formatStep(steps[i]);
+          const isOdd = i % 2 === 0;
           const color = isOdd ? "#EC8D00" : "#6db45c";
 
-          overlay.show(formatStep(s), color);
+          overlay.show(stepStr, color);
           if (beepOnStep) playSound("tick");
           await delay(intervalMs);
           overlay.hide();
@@ -601,10 +662,10 @@ export function mountTrainerUI(container, { t, state }) {
       }
     }
 
+    // шаги у нас теперь уже приходят со знаком,
+    // например "+3", "-7", "+5". Нам НЕ нужно заново приделывать плюс.
     function formatStep(step) {
-      const n = Number(step);
-      if (Number.isNaN(n)) return String(step);
-      return n >= 0 ? `+${n}` : `${n}`;
+      return String(step);
     }
 
     function delay(ms) {
@@ -620,35 +681,66 @@ export function mountTrainerUI(container, { t, state }) {
       listeners.push({ element, event, handler });
     }
 
-    addListener(document.getElementById("btn-show-abacus"), "click", () => {
-      abacusWrapper.classList.toggle("visible");
-      const btn = document.getElementById("btn-show-abacus");
-      if (btn) {
-        btn.textContent = abacusWrapper.classList.contains("visible")
-          ? "🧮 Скрыть абакус"
-          : "🧮 Показать абакус";
+    addListener(
+      document.getElementById("btn-show-abacus"),
+      "click",
+      () => {
+        abacusWrapper.classList.toggle("visible");
+        const btn = document.getElementById("btn-show-abacus");
+        if (btn) {
+          btn.textContent = abacusWrapper.classList.contains(
+            "visible"
+          )
+            ? "🧮 Скрыть абакус"
+            : "🧮 Показать абакус";
+        }
       }
-    });
+    );
 
-    addListener(document.getElementById("btn-close-abacus"), "click", () => {
-      abacusWrapper.classList.remove("visible");
-      const btn = document.getElementById("btn-show-abacus");
-      if (btn) btn.textContent = "🧮 Показать абакус";
-    });
+    addListener(
+      document.getElementById("btn-close-abacus"),
+      "click",
+      () => {
+        abacusWrapper.classList.remove("visible");
+        const btn = document.getElementById("btn-show-abacus");
+        if (btn) btn.textContent = "🧮 Показать абакус";
+      }
+    );
 
-    addListener(document.getElementById("btn-submit"), "click", checkAnswer);
+    addListener(
+      document.getElementById("btn-submit"),
+      "click",
+      checkAnswer
+    );
 
-    addListener(document.getElementById("answer-input"), "keypress", (e) => {
-      if (e.key === "Enter") checkAnswer();
-    });
+    addListener(
+      document.getElementById("answer-input"),
+      "keypress",
+      (e) => {
+        if (e.key === "Enter") checkAnswer();
+      }
+    );
 
-    // === Общий таймер на серию (если включён)
+    // === Общий таймер на серию (если включён в настройках тренировки)
     if (st.timeLimitEnabled && st.timePerExampleMs > 0) {
       startAnswerTimer(st.timePerExampleMs, {
         onExpire: () => {
-          logger.warn(CONTEXT, "Series time expired!");
+          logger.warn(
+            CONTEXT,
+            "Series time expired!"
+          );
           finishTraining();
         },
+        textElementId: "answerTimerText",
+        barSelector: "#answer-timer .bar"
+      });
+    }
+
+    // === Таймер на один пример (если включён)
+    // (этот таймер дышит внутри одного вопроса, а не всей сессии)
+    if (st.perExampleTimerEnabled && st.perExampleTimeMs > 0) {
+      startAnswerTimer(st.perExampleTimeMs, {
+        onExpire: () => handleTimeExpired(),
         textElementId: "answerTimerText",
         barSelector: "#answer-timer .bar"
       });
@@ -674,7 +766,10 @@ export function mountTrainerUI(container, { t, state }) {
         element.removeEventListener(event, handler);
       });
 
-      logger.debug(CONTEXT, "Trainer unmounted, listeners cleaned up");
+      logger.debug(
+        CONTEXT,
+        "Trainer unmounted, listeners cleaned up"
+      );
     };
   } catch (err) {
     showFatalError(err);
@@ -686,7 +781,8 @@ function showFatalError(err) {
   const msg = err?.stack || err?.message || String(err);
   logger.error(CONTEXT, "Fatal error:", err);
 
-  const host = document.querySelector(".screen__body") || document.body;
+  const host =
+    document.querySelector(".screen__body") || document.body;
 
   const errorDiv = document.createElement("div");
   errorDiv.style.cssText =
