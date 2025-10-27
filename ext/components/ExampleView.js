@@ -3,11 +3,12 @@
 /**
  * ExampleView - компонент для рендеринга математического примера
  * Поддерживает два режима: столбик (по умолчанию) и строка
+ * Совместим с новым форматом steps = ["+3", "-1", "+5", ...]
  */
 export class ExampleView {
   constructor(container) {
     this.container = container;
-    this.displayMode = 'column'; // 'column' | 'inline'
+    this.displayMode = "column"; // "column" | "inline"
   }
 
   /**
@@ -15,15 +16,15 @@ export class ExampleView {
    * @param {string} mode - 'column' или 'inline'
    */
   setDisplayMode(mode) {
-    if (mode === 'column' || mode === 'inline') {
+    if (mode === "column" || mode === "inline") {
       this.displayMode = mode;
     }
   }
 
   /**
    * Рендер примера (массив строк типа "+2", "-5")
-   * @param {Array<string>} steps - Массив шагов примера
-   * @param {string} mode - Режим отображения (опционально)
+   * @param {Array<string>|string} steps - массив шагов или строка
+   * @param {string} mode - режим отображения (опционально)
    */
   render(steps, mode = null) {
     if (mode) {
@@ -31,17 +32,25 @@ export class ExampleView {
     }
 
     // Очищаем контейнер
-    this.container.innerHTML = '';
+    this.container.innerHTML = "";
     this.container.className = `example-view example--${this.displayMode}`;
 
-    if (this.displayMode === 'column') {
-      this.renderColumn(steps);
+    // Универсальность: поддерживаем и старый формат (expr = "+3 +1 -2")
+    let stepsArray = [];
+    if (Array.isArray(steps)) {
+      stepsArray = steps;
+    } else if (typeof steps === "string") {
+      stepsArray = steps.trim().split(/\s+/);
     } else {
-      this.renderInline(steps);
+      console.warn("⚠️ ExampleView: неверный формат steps:", steps);
+      return;
     }
 
-    // Автомасштабирование шрифта отключено - контролируется из trainer_logic.js
-    // this.adjustFontSize(steps.length);
+    if (this.displayMode === "column") {
+      this.renderColumn(stepsArray);
+    } else {
+      this.renderInline(stepsArray);
+    }
   }
 
   /**
@@ -49,103 +58,97 @@ export class ExampleView {
    * @param {Array<string>} steps
    */
   renderColumn(steps) {
-    steps.forEach(step => {
-      const line = document.createElement('div');
-      line.className = 'example__line';
+    for (const step of steps) {
+      const line = document.createElement("div");
+      line.className = "example__line";
       line.textContent = step;
       this.container.appendChild(line);
-    });
+    }
   }
 
   /**
-   * Рендер в строку (все шаги в одной строке с переносом)
+   * Рендер в строку (все шаги одной линией)
    * @param {Array<string>} steps
    */
   renderInline(steps) {
-    const line = document.createElement('div');
-    line.className = 'example__line example__line--inline';
-    line.textContent = steps.join(' ');
+    const line = document.createElement("div");
+    line.className = "example__line example__line--inline";
+    line.textContent = steps.join(" ");
     this.container.appendChild(line);
   }
 
   /**
    * Автоматическое масштабирование шрифта
-   * Формула из плана: fontSize = clamp(24px, (vh * 0.75) / (lines + 2), 72px)
-   * @param {number} lineCount - Количество строк
+   * (используется trainer_logic.js, здесь только запасной вариант)
+   * @param {number} lineCount
    */
   adjustFontSize(lineCount) {
-    const lines = this.container.querySelectorAll('.example__line');
+    const lines = this.container.querySelectorAll(".example__line");
     if (!lines.length) return;
 
     const vh = window.innerHeight;
-    const clampedLines = Math.min(lineCount, 15); // максимум 15 строк видимых
-
-    // Формула из плана
+    const clampedLines = Math.min(lineCount, 15);
     const calculatedSize = (vh * 0.75) / (clampedLines + 2);
     const fontSize = Math.max(24, Math.min(72, calculatedSize));
 
-    lines.forEach(line => {
+    for (const line of lines) {
       line.style.fontSize = `${fontSize}px`;
-    });
+    }
 
-    console.log(`📏 Размер шрифта: ${fontSize.toFixed(0)}px (для ${clampedLines} строк)`);
+    console.log(`📏 Font: ${fontSize.toFixed(0)}px (${clampedLines} строк)`);
   }
 
   /**
-   * Пошаговый показ (для длинных цепочек N > 15 или ∞)
-   * @param {Array<string>} steps - Все шаги примера
-   * @param {number} speed - Скорость показа в миллисекундах
-   * @param {Function} onComplete - Колбэк после завершения показа
+   * Пошаговый показ (для диктовки или длинных цепочек)
+   * @param {Array<string>} steps
+   * @param {number} speed - интервал в мс
+   * @param {Function} onComplete - callback после показа
    */
   renderStepByStep(steps, speed = 1000, onComplete = null) {
-    this.container.innerHTML = '';
+    this.container.innerHTML = "";
     this.container.className = `example-view example--${this.displayMode}`;
 
-    let currentStep = 0;
+    let index = 0;
+    const stepsArray = Array.isArray(steps)
+      ? steps
+      : String(steps).trim().split(/\s+/);
 
-    const showNextStep = () => {
-      if (currentStep >= steps.length) {
-        if (onComplete) {
-          onComplete();
-        }
+    const showNext = () => {
+      if (index >= stepsArray.length) {
+        if (onComplete) onComplete();
         return;
       }
 
-      // Добавляем новую строку
-      if (this.displayMode === 'column') {
-        const line = document.createElement('div');
-        line.className = 'example__line';
-        line.textContent = steps[currentStep];
+      if (this.displayMode === "column") {
+        const line = document.createElement("div");
+        line.className = "example__line";
+        line.textContent = stepsArray[index];
         this.container.appendChild(line);
       } else {
-        // В режиме "строка" обновляем единственную строку
-        let line = this.container.querySelector('.example__line');
-        if (!line) {
-          line = document.createElement('div');
-          line.className = 'example__line example__line--inline';
-          this.container.appendChild(line);
-        }
-        const currentText = line.textContent;
-        line.textContent = currentText ? `${currentText} ${steps[currentStep]}` : steps[currentStep];
+        let line =
+          this.container.querySelector(".example__line") ||
+          (() => {
+            const el = document.createElement("div");
+            el.className = "example__line example__line--inline";
+            this.container.appendChild(el);
+            return el;
+          })();
+        line.textContent = line.textContent
+          ? `${line.textContent} ${stepsArray[index]}`
+          : stepsArray[index];
       }
 
-      // Пересчитываем размер шрифта
-      this.adjustFontSize(currentStep + 1);
-
-      currentStep++;
-
-      // Запускаем таймер для следующего шага
-      setTimeout(showNextStep, speed);
+      index++;
+      setTimeout(showNext, speed);
     };
 
-    // Запускаем показ
-    showNextStep();
+    showNext();
   }
 
   /**
    * Очистка контейнера
    */
   clear() {
-    this.container.innerHTML = '';
+    this.container.innerHTML = "";
   }
 }
