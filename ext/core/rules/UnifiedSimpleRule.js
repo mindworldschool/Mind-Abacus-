@@ -8,12 +8,11 @@
 // 2. Первый шаг ВСЕГДА положительный (+N), потому что невозможно начать с минуса из нуля.
 // 3. Каждый шаг в примере — это целое число со знаком, например +3 или -7.
 //    Мы НЕ раскладываем его внутри правила "Просто" на микродвижения типа
-//    "подними верхнюю, опусти нижние и т.д.".
-//    Для ученика это один шаг.
+//    "подними верхнюю, опусти нижние и т.д." Для ученика это один шаг.
 //    Значит шаг может быть 1..9 по модулю, в том числе 6,7,8,9.
 // 4. Ограничение физики: после каждого шага текущее значение разряда
 //    обязано оставаться в диапазоне 0..9 (одна спица = максимум 9).
-//    То есть мы запрещаем ходы, которые уводят ниже 0 или выше 9.
+//    То есть запрещаем ходы, которые уводят ниже 0 или выше 9.
 // 5. Список разрешённых абсолютных значений шага задаётся настройками (selectedDigits).
 //    Если выбраны только [3], пример будет типа +3 -3 +3 -3.
 //    Если выбраны [2,5,7], возможны +2, -2, +5, -5, +7, -7.
@@ -21,16 +20,6 @@
 //    - onlyAddition: разрешаем только плюсы;
 //    - onlySubtraction: только минусы (НО всё равно первый шаг должен быть плюсом — см. ниже).
 // 7. Мы НЕ навязываем "через 5", "друзья 10", "братья" — это другие режимы.
-//
-//
-// Что делает класс:
-//
-// - хранит конфиг правила (selectedDigits, ограничения шагов и т.д.).
-// - даёт getAvailableActions(currentState, isFirstAction) → массив шагов [+3, -2, ...]
-//   которые можно применить к текущему состоянию не нарушая физики (0..9),
-//   и соблюдая методические ограничения (первый шаг не может быть минусом).
-// - даёт validateExample(example) чтобы финальная цепочка считалась валидной
-//   по нашей методике.
 
 import { BaseRule } from "./BaseRule.js";
 
@@ -38,30 +27,27 @@ export class UnifiedSimpleRule extends BaseRule {
   constructor(config = {}) {
     super(config);
 
-    // 1. Какие цифры выбраны в блоке «Просто»
-    // Это разрешённые абсолютные дельты шага: [1,2,3,4,5,6,7,8,9] или подмножество.
-    // Каждый шаг в примере будет +d или -d, где d ∈ selectedDigits.
+    // 1. Разрешённые абсолютные шаги из блока «Просто»
+    // Каждый шаг потом будет +d или -d, где d ∈ selectedDigits.
     const selectedDigits = config.selectedDigits || [1, 2, 3, 4];
 
-    // 2. Наличие "пятёрки" (верхней бусины) нам теперь НЕ нужно
-    //    для ограничения шагов. Любые цифры 1..9 могут быть шагом,
-    //    если они есть в selectedDigits и не ломают диапазон.
-    //
-    //    Но мы оставим includeFive в конфиге, чтобы не рвать контракт
-    //    с остальным кодом (UI может продолжать передавать этот флаг).
+    // 2. includeFive — методический флаг "можно ли трогать верхнюю бусину (5)".
+    // Он не запрещает всю механику, но если false,
+    // мы не должны давать шаги с модулем 5.
     const includeFive =
       (config.includeFive ??
         config.blocks?.simple?.includeFive ??
         selectedDigits.includes(5)) === true;
 
     this.name = "Просто";
-    this.description = "Тренируем прямые плюсы и минусы на одном разряде без переноса";
+    this.description =
+      "Тренируем прямые плюсы и минусы на одном разряде без переноса";
 
     // 3. Финальная конфигурация правила
     this.config = {
       // физические пределы для ОДНОГО разряда
       minState: 0,
-      maxState: 9, // всегда 0..9, мы больше не делим "только нижние" vs "с верхней"
+      maxState: 9, // всегда работаем в диапазоне 0..9
 
       // ограничения длины примера (кол-во шагов в цепочке)
       minSteps: config.minSteps ?? 2,
@@ -70,20 +56,19 @@ export class UnifiedSimpleRule extends BaseRule {
       // разрешённые абсолютные значения шага
       selectedDigits,
 
-      // статус "пятёрки" оставляем чисто для совместимости с UI/логами
+      // статус "пятёрки" (для вырезания +/-5 при необходимости)
       includeFive,
       hasFive: includeFive,
 
-      // требование методики
+      // требования методики:
       // 1) старт всегда из 0
       // 2) первый шаг не может быть минусом
       firstActionMustBePositive: true,
 
-      // многоразрядность: сейчас мы считаем основной кейс = один разряд
+      // многоразрядность (в будущем):
       digitCount: config.digitCount ?? 1,
 
-      // combineLevels / brothers / friends / mix и т.д.
-      // оставляем, чтобы не падал внешний код, но здесь НЕ используем
+      // прочие флаги совместимости/ограничений
       combineLevels: config.combineLevels ?? false,
       onlyAddition: config.onlyAddition ?? false,
       onlySubtraction: config.onlySubtraction ?? false,
@@ -91,7 +76,11 @@ export class UnifiedSimpleRule extends BaseRule {
       friendsActive: config.friendsActive ?? false,
       mixActive: config.mixActive ?? false,
 
-      // остальное прокидываем как есть
+      // (на будущее / совместимость)
+      requireBlock: config.requireBlock ?? false,
+      blockPlacement: config.blockPlacement ?? "auto",
+
+      // сохраним все остальные поля, чтобы не потерять поведение старого кода
       ...config
     };
 
@@ -101,10 +90,45 @@ export class UnifiedSimpleRule extends BaseRule {
   digitCount=${this.config.digitCount}
   minSteps=${this.config.minSteps}
   maxSteps=${this.config.maxSteps}
+  includeFive=${this.config.includeFive}
   onlyAddition=${this.config.onlyAddition}
   onlySubtraction=${this.config.onlySubtraction}
   firstActionMustBePositive=${this.config.firstActionMustBePositive}`
     );
+  }
+
+  /**
+   * Сколько шагов нужно в примере.
+   * Возвращаем случайное значение между minSteps и maxSteps включительно.
+   */
+  generateStepsCount() {
+    const min = this.config.minSteps ?? 2;
+    const max = this.config.maxSteps ?? min;
+    if (min === max) return min;
+    return min + Math.floor(Math.random() * (max - min + 1));
+  }
+
+  /**
+   * Стартовое состояние абакуса.
+   * Для одного разряда → просто 0.
+   * Для нескольких разрядов → массив нулей длиной digitCount.
+   */
+  generateStartState() {
+    const dc = this.config.digitCount ?? 1;
+    if (dc === 1) return 0;
+    return Array(dc).fill(0);
+  }
+
+  /**
+   * Красивое форматирование шага для UI (например "+3", "-7").
+   * В многозначном случае action может прийти как {position,value}.
+   */
+  formatAction(action) {
+    if (typeof action === "object" && action !== null) {
+      const v = action.value;
+      return v >= 0 ? `+${v}` : `${v}`;
+    }
+    return action >= 0 ? `+${action}` : `${action}`;
   }
 
   /**
@@ -120,8 +144,7 @@ export class UnifiedSimpleRule extends BaseRule {
 
   /**
    * Применить действие (одно число со знаком или объект {position,value})
-   * к состоянию currentState. Ожидается, что наружный код этим пользуется
-   * при построении шагов и валидации.
+   * к состоянию currentState.
    */
   applyAction(currentState, action) {
     if (typeof action === "object" && action !== null) {
@@ -140,50 +163,48 @@ export class UnifiedSimpleRule extends BaseRule {
   }
 
   /**
-   * Преобразовать состояние (число или массив) в одно число для проверки финала.
-   * Для многоразрядного варианта здесь можно сделать слияние в целое число,
-   * но в базовом "Просто" digitCount=1 и это просто значение [0..9].
+   * Преобразовать состояние (число или массив) в одно число (для показа/валидации).
+   * Для многоразрядного варианта склеиваем как десятичное число: [A,B,C] => A*100+B*10+C.
    */
   stateToNumber(state) {
     if (Array.isArray(state)) {
-      // простой способ: трактуем массив разрядов как десятичное число
-      // [A,B,C] => A*100 + B*10 + C
-      // но по умолчанию у нас digitCount=1, так что это редко используется
       return state.reduce((acc, digit) => acc * 10 + digit, 0);
     }
     return state ?? 0;
   }
 
   /**
-   * Проверка "состояние валидно?"
-   * В новой логике валидность = каждый разряд в пределах 0..9.
+   * Проверка валидности состояния:
+   * каждое значение в пределах [minState..maxState].
    */
   isValidState(state) {
+    const { minState, maxState } = this.config;
+
     if (Array.isArray(state)) {
-      return state.every(v => v >= this.config.minState && v <= this.config.maxState);
+      return state.every(
+        v => v >= minState && v <= maxState
+      );
     }
-    return state >= this.config.minState && state <= this.config.maxState;
+    return state >= minState && state <= maxState;
   }
 
   /**
-   * Основная функция: какие ходы (+N / -N) мы МОЖЕМ сделать сейчас.
+   * Какие ходы (+N / -N) мы МОЖЕМ сделать сейчас (для указанного разряда).
    *
-   * Важные правила:
+   * Правила:
    *  - шаг = целое число со знаком, например +3 или -7;
    *  - |шаг| (модуль шага) должен быть в this.config.selectedDigits;
+   *  - если includeFive === false → нельзя ±5;
    *  - после применения шага состояние не должно выйти за пределы [0..9];
-   *  - если это ПЕРВЫЙ шаг в примере (isFirstAction === true),
+   *  - если это ПЕРВЫЙ шаг (isFirstAction === true),
    *    то шаг не может быть отрицательным;
-   *  - если onlyAddition === true → разрешаем только плюсы;
+   *  - если onlyAddition === true → даём только плюсы;
    *    если onlySubtraction === true → только минусы
-   *    (но если это первый шаг и onlySubtraction, всё равно шаг должен быть плюсом,
-   *     иначе ты не сможешь сдвинуться с нуля).
+   *    (но на первом шаге всё равно запрещаем минус, чтобы можно было уйти с нуля).
    *
-   * Возвращаем массив чисел, например [+3, -2, +7].
-   *
-   * @param {number|number[]} currentState текущее состояние (0..9 или массив разрядов)
-   * @param {boolean} isFirstAction это первый шаг в примере?
-   * @param {number} position индекс столбца (обычно 0, работаем с единицами)
+   * Возвращает массив:
+   *   - для одного разряда: [ +3, -2, +7, ... ]
+   *   - для нескольких разрядов: [ {position:0,value:+3}, {position:0,value:-2}, ... ]
    */
   getAvailableActions(currentState, isFirstAction = false, position = 0) {
     const {
@@ -192,40 +213,36 @@ export class UnifiedSimpleRule extends BaseRule {
       maxState,
       onlyAddition,
       onlySubtraction,
-      digitCount
+      digitCount,
+      includeFive
     } = this.config;
 
-    // Берём значение конкретного разряда
     const v = this.getDigitValue(currentState, position);
-
-    // Набор возможных шагов
     const deltas = new Set();
 
     for (const d of selectedDigits) {
+      // если нельзя трогать 5 методически — вычёркиваем +/-5
+      if (d === 5 && !includeFive) {
+        continue;
+      }
+
       const plus = +d;
       const minus = -d;
 
-      // Кандидат: +d
+      // кандидат: +d
       if (!onlySubtraction) {
-        // первый шаг может быть плюсом ✅
         const afterPlus = v + plus;
-        if (
-          afterPlus >= minState &&
-          afterPlus <= maxState
-        ) {
+        if (afterPlus >= minState && afterPlus <= maxState) {
           deltas.add(plus);
         }
       }
 
-      // Кандидат: -d
+      // кандидат: -d
       if (!onlyAddition) {
-        // минус НЕЛЬЗЯ, если это первый шаг
+        // минус нельзя, если это первый шаг
         if (!isFirstAction) {
           const afterMinus = v + minus;
-          if (
-            afterMinus >= minState &&
-            afterMinus <= maxState
-          ) {
+          if (afterMinus >= minState && afterMinus <= maxState) {
             deltas.add(minus);
           }
         }
@@ -234,68 +251,65 @@ export class UnifiedSimpleRule extends BaseRule {
 
     const resultDeltas = Array.from(deltas);
 
-    // Если у нас многоразрядный режим (digitCount > 1),
-    // мы должны вернуть массив объектов { position, value },
-    // чтобы генератор мог применить шаг к конкретной колонке.
+    // Многозначный случай: вернуть шаги как объекты {position,value}
     if (digitCount > 1) {
       return resultDeltas.map(value => ({ position, value }));
     }
 
-    // Иначе (один разряд) возвращаем просто числа
+    // Одноразрядный случай: вернуть список чисел
     const stateStr = Array.isArray(currentState)
       ? `[${currentState.join(", ")}]`
       : currentState;
 
     console.log(
-      `⚙️ getAvailableActions(simple v3): state=${stateStr}, pos=${position}, v=${v} → [${resultDeltas.join(", ")}]`
+      `⚙️ getAvailableActions(simple v3): state=${stateStr}, pos=${position}, v=${v} → [${resultDeltas.join(
+        ", "
+      )}]`
     );
 
     return resultDeltas;
   }
 
   /**
-   * Проверка валидности готового примера.
+   * Валидация готового примера.
    *
-   * Пример должен выглядеть примерно так:
+   * Пример выглядит так:
    * {
    *   start: 0,
    *   steps: [
-   *     { action: +3, toState: 3 },
-   *     { action: +1, toState: 4 },
-   *     { action: +5, toState: 9 },
-   *     { action: -7, toState: 2 },
-   *     { action: +6, toState: 8 },
-   *     { action: -8, toState: 0 }
+   *     { action: +3, fromState:0, toState: 3 },
+   *     { action: +1, fromState:3, toState: 4 },
+   *     { action: +5, fromState:4, toState: 9 },
+   *     { action: -7, fromState:9, toState: 2 },
+   *     { action: +6, fromState:2, toState: 8 },
+   *     { action: -8, fromState:8, toState: 0 }
    *   ],
    *   answer: 0
    * }
    *
    * Условия валидности:
    *
-   * 1. start должен быть 0 (или [0,...]) → мы всегда стартуем с пустого абакуса.
+   * 1. start должен быть 0 (или [0,...]).
    *
    * 2. Первый шаг (steps[0].action) должен быть >0.
-   *    То есть первый ход не может быть минусом.
    *
    * 3. Каждый промежуточный toState должен быть валидным состоянием
-   *    (0..9 для каждого разряда), не вылетать за пределы.
+   *    (все цифры в пределах 0..9).
    *
-   * 4. Последовательно применяя action по шагам к start,
-   *    мы должны прийти к answer.
+   * 4. Если мы последовательно применим все action к start,
+   *    мы должны получить answer.
    *
    * 5. Для одного разряда (digitCount === 1):
-   *    Конечный ответ должен быть либо 0,
+   *    answer должен быть либо 0,
    *    либо одной из выбранных цифр selectedDigits.
    *    Примеры:
    *      selectedDigits = [1..9] → финал может быть 0..9
-   *      selectedDigits = [3]     → финал может быть 0 или 3
-   *      selectedDigits = [2,5]   → финал может быть 0,2,5
-   *
-   *    Это наш новый методический критерий вместо "ответ ≤5".
+   *      selectedDigits = [3]    → финал может быть 0 или 3
+   *      selectedDigits = [2,5]  → финал может быть 0,2,5
    *
    * 6. Для многоразрядного режима (digitCount > 1):
-   *    запрещаем отрицательные значения в любом разряде,
-   *    но строгих ограничений на финал по selectedDigits не накладываем сейчас.
+   *    запрещаем отрицательные значения, и значения >9,
+   *    но не навязываем правило "ответ ∈ выбранных цифр".
    */
   validateExample(example) {
     const { start, steps, answer } = example;
@@ -308,9 +322,8 @@ export class UnifiedSimpleRule extends BaseRule {
       return false;
     }
 
-    // 2. первый шаг должен быть плюсом (>0)
+    // 2. первый шаг должен быть положительным
     if (steps.length > 0) {
-      // steps[i].action может быть числом или объектом {position,value}
       const firstActionRaw = steps[0].action;
       const firstValue =
         typeof firstActionRaw === "object"
@@ -323,25 +336,27 @@ export class UnifiedSimpleRule extends BaseRule {
       }
     }
 
-    // 3. проверяем все промежуточные состояния
+    // 3. все промежуточные состояния должны быть валидны
     for (const step of steps) {
       if (!this.isValidState(step.toState)) {
         const stateStr = Array.isArray(step.toState)
           ? `[${step.toState.join(", ")}]`
           : step.toState;
-        console.error(`❌ Состояние ${stateStr} вне диапазона ${minState}..${maxState}`);
+        console.error(
+          `❌ Состояние ${stateStr} вне диапазона ${minState}..${maxState}`
+        );
         return false;
       }
     }
 
-    // 4. пересчёт арифметики
+    // 4. арифметика: start + все action == answer
     let calc = start;
     for (const step of steps) {
       calc = this.applyAction(calc, step.action);
     }
     const calcNum = this.stateToNumber(calc);
-
     const answerNum = this.stateToNumber(answer);
+
     if (calcNum !== answerNum) {
       console.error(`❌ Пересчёт ${calcNum} ≠ заявленному answer ${answerNum}`);
       return false;
@@ -352,12 +367,14 @@ export class UnifiedSimpleRule extends BaseRule {
       const allowedFinals = new Set([0, ...selectedDigits]);
       if (!allowedFinals.has(answerNum)) {
         console.error(
-          `❌ Финальный ответ ${answerNum} не входит в {0, ${selectedDigits.join(", ")}}`
+          `❌ Финальный ответ ${answerNum} не входит в {0, ${selectedDigits.join(
+            ", "
+          )}}`
         );
         return false;
       }
     } else {
-      // многоразрядный случай: проверяем, что каждый разряд в допустимых границах
+      // многоразрядный случай: просто проверяем, что ответ сам по себе валиден
       if (!this.isValidState(answer)) {
         console.error(
           `❌ Финальное состояние ${JSON.stringify(
@@ -369,7 +386,9 @@ export class UnifiedSimpleRule extends BaseRule {
     }
 
     console.log(
-      `✅ Пример валиден (${this.name}): финал=${answerNum}, разрешённые финалы {0, ${selectedDigits.join(", ")}}`
+      `✅ Пример валиден (${this.name}): финал=${answerNum}, разрешённые финалы {0, ${selectedDigits.join(
+        ", "
+      )}}`
     );
     return true;
   }
