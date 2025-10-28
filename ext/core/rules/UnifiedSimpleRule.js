@@ -1,21 +1,60 @@
-// ext/core/rules/UnifiedSimpleRule.js
+// core/rules/UnifiedSimpleRule.js
 //
-// Унифицированное правило для тренировки "Просто".
+// Правило "Просто".
+// Главная идея: каждый шаг примера (+N или -N) = один допустимый ЖЕСТ на одной спице абакуса,
+// без переносов между разрядами и без "братьев/друзей".
+// Мы тренируем только то, что ребёнок реально может сделать рукой за один приём.
 //
-// Главная идея:
-//  - мы работаем в рамках ОДНОГО столбца абакуса без переноса,
-//    физика реальная, никакой магии "через 5"/"через 10";
-//  - стартуем всегда с 0;
-//  - первый шаг всегда плюс;
-//  - каждый шаг — это одно физическое движение руки, т.е. сразу +N или -N;
-//  - |N| должен быть из выбранных цифр в блоке «Просто»;
-//  - состояние спицы после каждого шага не может выходить за 0..9;
-//  - доступность шага определяется текущим положением бусин,
-//    а не просто арифметикой.
+// Новая физика шага (уточнено методически):
 //
-// Очень важно: доступность +N и -N зависит от того,
-// активна ли верхняя косточка (=5) сейчас в этом столбце,
-// и можем ли мы сделать это одним жестом без формул.
+// 1. Состояние спицы описываем так:
+//    - верхняя бусина (5): активна или нет
+//    - нижние бусины (1..1..1..1): каждая может быть активна
+//    Значение столбца v = (верхняя ? 5 : 0) + count(активных нижних)
+//
+// 2. ПЛЮС-ЖЕСТ (сложение):
+//    Это жест, в котором мы ТОЛЬКО добавляем активные бусины,
+//    не выключая ни одной уже активной.
+//    Разрешено сразу поднять ЛЮБОЙ поднабор неактивных бусин за один жест,
+//    включая вариант поднять верхнюю и сразу несколько нижних.
+//    Пример: из 0 → 7 (верхняя+две нижние сразу) = допустимый один шаг (+7).
+//    Пример: из 2 → 9 (была 2 нижние, за жест мы также поднимаем верхнюю и ещё 2 нижние) = +7.
+//    НЕЛЬЗЯ делать шаг, где что-то опускаем и что-то поднимаем одновременно.
+//    Поэтому, например, 4 → 8 (нужно опустить 1 нижнюю и поднять верхнюю) запрещено.
+//
+// 3. МИНУС-ЖЕСТ (вычитание):
+//    Это жест, в котором мы ТОЛЬКО выключаем уже активные бусины,
+//    не активируя никаких новых.
+//    Можно опустить любую комбинацию из тех, что сейчас подняты:
+//    - только нижние,
+//    - только верхнюю,
+//    - верхнюю + нижние сразу,
+//    - все сразу в 0.
+//    Пример: из 7 → 0 = -7 (смахнули всё за один жест).
+//
+// 4. Нельзя смешивать направления в одном шаге:
+//    то есть нельзя одновременно выключить часть и включить другую часть.
+//    Это именно то, что отличает режим "Просто" от правил "братья", "через 5".
+//
+// 5. selectedDigits из настроек говорит,
+//    какие абсолютные Δ (1..9) мы вообще разрешаем ребёнку видеть в шагах.
+//    Мы фильтруем по ним сгенерированные дельты жестов.
+//    Если выбрана одна цифра, напр. [7], мы должны уметь сгенерировать цепочку
+//    вида +7 -7 +7 -7 ... . Теперь это поддерживается.
+//
+// 6. includeFive = можно ли вообще использовать жесты с верхней бусиной.
+//    Если includeFive=false, то мы не генерируем жесты, которые поднимают / опускают верхнюю,
+//    и также фильтруем дельту ±5 по модулю.
+//
+// 7. Первый шаг всегда положительный (>0).
+//
+// 8. Гарантируем, что никакой промежуточный state не выходит за [0..9].
+//
+// 9. Для одного разряда: финальный ответ должен быть либо 0,
+//    либо одна из выбранных цифр из selectedDigits.
+//
+// Всё это реализовано в getAvailableActions() + validateExample().
+//
 
 import { BaseRule } from "./BaseRule.js";
 
@@ -23,12 +62,8 @@ export class UnifiedSimpleRule extends BaseRule {
   constructor(config = {}) {
     super(config);
 
-    // Какие цифры разрешены в блоке "Просто"
-    // (шаги могут быть только ±эти_цифры)
     const selectedDigits = config.selectedDigits || [1, 2, 3, 4];
 
-    // Можно ли использовать верхнюю бусину (5)
-    // Если false — любые шаги с модулем 5 запрещаются.
     const includeFive =
       (config.includeFive ??
         config.blocks?.simple?.includeFive ??
@@ -36,43 +71,45 @@ export class UnifiedSimpleRule extends BaseRule {
 
     this.name = "Просто";
     this.description =
-      "Последовательность шагов на одной спице абакуса без переноса и без формул";
+      "Один столбец абакуса. Чистые жесты сложения и вычитания без переходов через 5/10.";
 
     this.config = {
-      // физические пределы для одного разряда
+      // физические пределы одной спицы
       minState: 0,
-      maxState: 9, // максимум 9 на одной спице (верхняя + все нижние)
+      maxState: 9,
 
-      // длина примера
+      // длина примера (кол-во шагов)
       minSteps: config.minSteps ?? 2,
       maxSteps: config.maxSteps ?? 6,
 
-      // разрешённые абсолютные шаги
+      // какие абсолютные величины шага доступны ребёнку методически
       selectedDigits,
 
-      // разрешена ли работа с верхней косточкой (жесты ±5)
+      // можно ли использовать верхнюю бусину
       includeFive,
       hasFive: includeFive,
 
-      // методические требования
+      // важно в "Просто":
       firstActionMustBePositive: true,
 
-      // многоразрядность (сейчас чаще digitCount=1)
+      // многоразрядка (генератор уже поддерживает, хотя "Просто" в основном 1 столбец)
       digitCount: config.digitCount ?? 1,
       combineLevels: config.combineLevels ?? false,
 
-      // ограничение направлений
+      // ограничения направления
       onlyAddition: config.onlyAddition ?? false,
       onlySubtraction: config.onlySubtraction ?? false,
 
-      // "братья", "друзья", "микс" — просто пробрасываем пока
+      // будущее (братья / друзья / микс)
       brothersActive: config.brothersActive ?? false,
       friendsActive: config.friendsActive ?? false,
       mixActive: config.mixActive ?? false,
 
-      // совместимость
+      // совместимость с остальным кодом
       requireBlock: config.requireBlock ?? false,
       blockPlacement: config.blockPlacement ?? "auto",
+
+      blocks: config.blocks ?? {},
 
       ...config
     };
@@ -90,10 +127,10 @@ export class UnifiedSimpleRule extends BaseRule {
     );
   }
 
-  /**
-   * Сколько шагов будет в примере:
-   * случайно между minSteps и maxSteps (включительно).
-   */
+  // ------------------------
+  // БАЗОВЫЕ ХЕЛПЕРЫ
+  // ------------------------
+
   generateStepsCount() {
     const min = this.config.minSteps ?? 2;
     const max = this.config.maxSteps ?? min;
@@ -101,20 +138,54 @@ export class UnifiedSimpleRule extends BaseRule {
     return min + Math.floor(Math.random() * (max - min + 1));
   }
 
-  /**
-   * Стартовое состояние.
-   * Для одного столбца: 0.
-   * Для нескольких столбцов: массив нулей.
-   */
   generateStartState() {
     const dc = this.config.digitCount ?? 1;
     if (dc === 1) return 0;
     return Array(dc).fill(0);
   }
 
-  /**
-   * Форматирование действия для вывода (+3, -7)
-   */
+  stateToNumber(state) {
+    if (Array.isArray(state)) {
+      // [units, tens, hundreds...] -> нормальное десятичное число
+      return state.reduce(
+        (sum, digit, idx) => sum + digit * Math.pow(10, idx),
+        0
+      );
+    }
+    return state ?? 0;
+  }
+
+  getDigitValue(currentState, position = 0) {
+    if (Array.isArray(currentState)) {
+      return currentState[position] ?? 0;
+    }
+    return currentState ?? 0;
+  }
+
+  isValidState(state) {
+    const { minState, maxState } = this.config;
+    if (Array.isArray(state)) {
+      return state.every(v => v >= minState && v <= maxState);
+    }
+    return state >= minState && state <= maxState;
+  }
+
+  applyAction(currentState, action) {
+    if (typeof action === "object" && action !== null) {
+        // многозначный случай
+        const arr = Array.isArray(currentState)
+          ? [...currentState]
+          : [currentState];
+        const { position, value } = action;
+        arr[position] = (arr[position] ?? 0) + value;
+        return arr;
+    } else {
+        // одноразрядный случай
+        const v = this.getDigitValue(currentState, 0);
+        return v + action;
+    }
+  }
+
   formatAction(action) {
     if (typeof action === "object" && action !== null) {
       const v = action.value;
@@ -123,299 +194,276 @@ export class UnifiedSimpleRule extends BaseRule {
     return action >= 0 ? `+${action}` : `${action}`;
   }
 
-  /**
-   * Значение одного разряда (0..9) из числа или массива разрядов.
-   */
-  getDigitValue(currentState, position = 0) {
-    if (Array.isArray(currentState)) {
-      return currentState[position] ?? 0;
-    }
-    return currentState ?? 0;
-  }
+  // ------------------------
+  // ПРЕДСТАВЛЕНИЕ СОСТОЯНИЯ БУСИН
+  // ------------------------
 
   /**
-   * Применение шага к состоянию.
-   * action может быть числом (один разряд)
-   * или объектом { position, value } (для многозначного).
+   * Для значения v (0..9) возвращаем структуру:
+   * { upperOn: 0|1, lowers: number }  // lowers = сколько нижних поднято (0..4)
    */
-  applyAction(currentState, action) {
-    if (typeof action === "object" && action !== null) {
-      // многоразрядный случай
-      const arr = Array.isArray(currentState)
-        ? [...currentState]
-        : [currentState];
-      const { position, value } = action;
-      arr[position] = (arr[position] ?? 0) + value;
-      return arr;
+  _splitState(v) {
+    if (v >= 5) {
+      return {
+        upperOn: 1,
+        lowers: v - 5
+      };
     } else {
-      // один разряд
-      const v = this.getDigitValue(currentState, 0);
-      return v + action;
+      return {
+        upperOn: 0,
+        lowers: v
+      };
     }
   }
 
   /**
-   * Преобразовать состояние в число для вывода/валидации.
-   * Если массив разрядов — склеиваем в десятичное число.
+   * Собираем обратно в число.
    */
-  stateToNumber(state) {
-    if (Array.isArray(state)) {
-      // [единицы, десятки, сотни] -> число
-      // пример: [3,1] => 13
-      return state.reduce(
-        (sum, digit, index) => sum + digit * Math.pow(10, index),
-        0
-      );
-    }
-    return state ?? 0;
+  _joinState({ upperOn, lowers }) {
+    return upperOn * 5 + lowers;
   }
 
+  // ------------------------
+  // ГЕНЕРАЦИЯ ДОПУСТИМЫХ СОСТОЯНИЙ ЗА 1 ЖЕСТ
+  // ------------------------
+
   /**
-   * Проверка валидности состояния.
-   * Просто проверяем, что каждая цифра в пределах [0..9].
+   * Все состояния, куда можно ПРИБАВИТЬ за один жест:
+   * - можно активировать ЛЮБОЙ поднабор неактивных бусин
+   *   (верхняя и/или несколько нижних),
+   * - нельзя выключать уже активные,
+   * - если includeFive=false, запрещаем жесты, которые включают верхнюю.
    */
-  isValidState(state) {
-    const { minState, maxState } = this.config;
+  _enumeratePureAdditionTargets(v, includeFiveFlag) {
+    const { upperOn, lowers } = this._splitState(v);
+    const results = new Set();
 
-    if (Array.isArray(state)) {
-      return state.every(v => v >= minState && v <= maxState);
+    // перечисляем все варианты "что будет включено после жеста"
+    // правило: после жеста:
+    //   newUpperOn >= upperOn   (не выключаем верхнюю)
+    //   newLowers  >= lowers    (не выключаем нижние)
+    //
+    // и эти сравнения означают "мы только добавляем".
+    //
+    // верхняя может стать 1, только если допускается includeFiveFlag
+    // если includeFiveFlag=false и верхняя сейчас 0,
+    // запрещаем варианты, где newUpperOn=1
+    //
+    for (let newUpperOn of [0, 1]) {
+      // не выключаем верхнюю:
+      if (newUpperOn < upperOn) continue;
+
+      // если мы хотим поднять верхнюю, но методически нельзя трогать 5:
+      if (newUpperOn === 1 && upperOn === 0 && !includeFiveFlag) {
+        continue;
+      }
+
+      for (let newLowers = lowers; newLowers <= 4; newLowers++) {
+        // не выключаем нижние: newLowers < lowers запрещено
+        // уже отфильтровано выше через старт цикла
+
+        const candidate = { upperOn: newUpperOn, lowers: newLowers };
+        const candidateVal = this._joinState(candidate);
+
+        if (candidateVal !== v) {
+          results.add(candidateVal);
+        }
+      }
     }
-    return state >= minState && state <= maxState;
+
+    return Array.from(results);
   }
 
   /**
-   * КЛЮЧЕВАЯ ФУНКЦИЯ:
-   * Возвращает список допустимых действий (+N / -N) ИМЕННО СЕЙЧАС
-   * из текущего состояния разряда с учётом физики абакуса.
+   * Все состояния, куда можно УБАВИТЬ за один жест:
+   * - можно выключить ЛЮБОЙ поднабор тех бусин, что сейчас активны,
+   * - нельзя активировать новые.
    *
-   * Логика физики:
+   * То есть после жеста:
+   *   newUpperOn <= upperOn
+   *   newLowers  <= lowers
    *
-   * Пусть v = текущее значение спицы (0..9).
+   * Если includeFive=false и верхняя была активна (upperOn=1),
+   * мы всё равно МОЖЕМ её опустить (это минус, это не запрещено),
+   * т.к. includeFive управляет использованием верхней как инструмента сложения.
+   * Снять верхнюю при вычитании — это допустимо, потому что ребёнок её "убирает".
+   */
+  _enumeratePureRemovalTargets(v) {
+    const { upperOn, lowers } = this._splitState(v);
+    const results = new Set();
+
+    for (let newUpperOn = 0; newUpperOn <= upperOn; newUpperOn++) {
+      for (let newLowers = 0; newLowers <= lowers; newLowers++) {
+        const candidate = { upperOn: newUpperOn, lowers: newLowers };
+        const candidateVal = this._joinState(candidate);
+
+        if (candidateVal !== v) {
+          results.add(candidateVal);
+        }
+      }
+    }
+
+    return Array.from(results);
+  }
+
+  /**
+   * Итог: все допустимые next-состояния за один жест "Просто" из текущего v.
+   * Мы считаем отдельно "+"-жесты (только добавление) и "-" жесты (только снятие),
+   * а потом объединяем.
+   */
+  _enumeratePhysicalNextStates(v, includeFiveFlag) {
+    const plusTargets = this._enumeratePureAdditionTargets(
+      v,
+      includeFiveFlag
+    );
+    const minusTargets = this._enumeratePureRemovalTargets(v);
+
+    // Объединяем
+    const merged = new Set();
+    for (const nxt of plusTargets) merged.add(nxt);
+    for (const nxt of minusTargets) merged.add(nxt);
+
+    // Текущее состояние само по себе не нужно
+    merged.delete(v);
+
+    return Array.from(merged);
+  }
+
+  // ------------------------
+  // ДОСТУПНЫЕ ДЕЙСТВИЯ (Δ) ДЛЯ ГЕНЕРАТОРА
+  // ------------------------
+
+  /**
+   * Возвращает список допустимых действий из текущего состояния по данной позиции.
    *
-   * Случай v < 5 (верхняя бусина не активна):
-   *  - ПЛЮС:
-   *      можно только поднимать недостающие нижние бусины,
-   *      то есть v -> v+1 .. 4 (если это разрешённый шаг)
-   *      + отдельный жест "поднять верхнюю целиком":
-   *        v -> v+5 (0→5, 2→7, 4→9), если includeFive=true и шаг=5 разрешён
-   *        ВАЖНО: это именно "добавить верхнюю поверх уже поднятых нижних",
-   *        мы НЕ делаем реформацию через 5 (не опускаем нижние).
-   *
-   *  - МИНУС:
-   *      можно опускать часть/все нижние:
-   *      v -> v-1 .. 0
-   *
-   * Случай v >= 5 (верхняя бусина активна):
-   *  - ПЛЮС:
-   *      можно только добирать ещё нижние бусины, пока не 9:
-   *      v -> v+1 .. 9
-   *
-   *  - МИНУС:
-   *      (1) можно снимать нижние частично, не трогая верхнюю:
-   *          v -> v-1 .. 5
-   *      (2) можно снять верхнюю целиком, оставив только нижние:
-   *          v=5+k -> k  (это -5)
-   *      (3) можно снять всё:
-   *          v -> 0 (это -v)
-   *
-   * Дальше мы фильтруем:
-   *  - шаг по модулю должен быть в selectedDigits,
-   *  - на первом шаге не можем давать минус,
-   *  - уважаем onlyAddition / onlySubtraction,
-   *  - если |шаг| = 5, а includeFive=false → нельзя,
-   *  - новое состояние не должно выйти за 0..9.
-   *
-   * Возвращаем:
-   *   - для одного разряда: массив чисел [+3, -2, ...]
-   *   - для нескольких разрядов: массив объектов { position, value }
+   * Алгоритм:
+   * 1. Берём текущее значение v.
+   * 2. Генерируем все физически возможные next состояния за 1 жест
+   *    с учётом includeFive.
+   * 3. Для каждого считаем delta = next - v.
+   * 4. Фильтруем:
+   *    - первый шаг не может быть минусом,
+   *    - onlyAddition / onlySubtraction,
+   *    - по выбранным цифрам selectedDigits (|delta| ∈ selectedDigits),
+   *    - если includeFive=false, мы уже не создавали плюсы,
+   *      которые поднимают верхнюю, но минусы с верхней вниз оставляем.
+   * 5. Если digitCount>1 → маппим в { position, value }.
    */
   getAvailableActions(currentState, isFirstAction = false, position = 0) {
     const {
+      digitCount,
       selectedDigits,
       includeFive,
       onlyAddition,
-      onlySubtraction,
-      digitCount
+      onlySubtraction
     } = this.config;
 
     const v = this.getDigitValue(currentState, position);
 
-    // Собираем все возможные конечные состояния next (число 0..9),
-    // которые можно достичь ОДНИМ жестом из текущего положения v.
-    const reachableTargets = new Set();
+    // шаг 1-2: найти физически достижимые next стейты
+    const possibleNextStates = this._enumeratePhysicalNextStates(
+      v,
+      includeFive
+    );
 
-    if (v < 5) {
-      // ТОЛЬКО нижние бусины активны
+    // шаг 3: превращаем в дельты
+    let deltas = possibleNextStates.map(nextV => nextV - v);
 
-      // ПЛЮС: добираем нижние, но не больше 4
-      if (!onlySubtraction) {
-        for (let next = v + 1; next <= 4; next++) {
-          reachableTargets.add(next);
-        }
+    // шаг 4a: правило направления тренировки
+    deltas = deltas.filter(delta => {
+      if (onlyAddition && delta < 0) return false;
+      if (onlySubtraction && delta > 0) return false;
+      return true;
+    });
 
-        // ПЛЮС: поднять верхнюю целиком поверх текущего состояния
-        // v -> v+5 (0→5,1→6,2→7,3→8,4→9)
-        if (includeFive) {
-          const next = v + 5;
-          if (next <= 9) {
-            reachableTargets.add(next);
-          }
-        }
-      }
-
-      // МИНУС: опускать нижние частично или полностью
-      if (!onlyAddition) {
-        for (let next = v - 1; next >= 0; next--) {
-          reachableTargets.add(next);
-        }
-      }
-    } else {
-      // v >= 5 → верхняя бусина активна
-
-      // ПЛЮС: можно добирать ещё нижние, пока не 9
-      if (!onlySubtraction) {
-        for (let next = v + 1; next <= 9; next++) {
-          reachableTargets.add(next);
-        }
-      }
-
-      // МИНУС блок
-      if (!onlyAddition) {
-        // (1) опускать часть нижних, верхняя остаётся
-        for (let next = v - 1; next >= 5; next--) {
-          reachableTargets.add(next);
-        }
-
-        // (2) снять верхнюю целиком, оставить только нижние k
-        // v = 5 + k  -> next = k   (дельта = -5)
-        const lowerOnly = v - 5;
-        // Мы всегда можем физически это сделать рукой.
-        // Но потом мы всё равно отфильтруем дельту по selectedDigits.
-        reachableTargets.add(lowerOnly);
-
-        // (3) снять ВСЁ одним жестом → 0
-        reachableTargets.add(0);
-      }
+    // шаг 4b: первый шаг не может быть минусом
+    if (isFirstAction) {
+      deltas = deltas.filter(delta => delta > 0);
     }
 
-    //
-    // Теперь превращаем конечные состояния next в реальную дельту (next - v)
-    // и фильтруем по методическим правилам.
-    //
-    const deltas = new Set();
+    // шаг 4c: фильтр по выбранным цифрам
+    deltas = deltas.filter(delta => {
+      const absVal = Math.abs(delta);
+      return selectedDigits.includes(absVal);
+    });
 
-    for (const next of reachableTargets) {
-      if (next === v) continue; // нет нулевого шага
+    // убираем повторы
+    deltas = Array.from(new Set(deltas));
 
-      const delta = next - v;
-      const absDelta = Math.abs(delta);
-
-      // первый шаг не может быть минусом
-      if (isFirstAction && delta < 0) continue;
-
-      // уважаем ограничения направления
-      if (onlyAddition && delta < 0) continue;
-      if (onlySubtraction && delta > 0) continue;
-
-      // шаг по модулю должен быть разрешён
-      if (!selectedDigits.includes(absDelta)) continue;
-
-      // ±5 запрещаем, если includeFive=false
-      if (absDelta === 5 && !includeFive) continue;
-
-      // финальная страховка по диапазону
-      const after = v + delta;
-      if (after < 0 || after > 9) continue;
-
-      deltas.add(delta);
-    }
-
-    const resultDeltas = Array.from(deltas);
-
-    // Многозначный вариант: оборачиваем как { position, value }
+    // шаг 5: многоразрядный случай возвращает {position,value}
     if (digitCount > 1) {
-      return resultDeltas.map(value => ({ position, value }));
+      return deltas.map(value => ({ position, value }));
     }
 
-    // Одноразрядный вариант: просто числа
+    // лог для отладки
     const stateStr = Array.isArray(currentState)
       ? `[${currentState.join(", ")}]`
       : currentState;
     console.log(
-      `⚙️ getAvailableActions(phys): v=${v}, state=${stateStr} -> [${resultDeltas.join(
+      `⚙️ getAvailableActions(physical+combinational): state=${stateStr}, pos=${position}, v=${v} → [${deltas.join(
         ", "
       )}]`
     );
 
-    return resultDeltas;
+    return deltas;
   }
 
+  // ------------------------
+  // ВАЛИДАЦИЯ СГЕНЕРИРОВАННОГО ПРИМЕРА
+  // ------------------------
+
   /**
-   * Валидация сгенерированного примера.
+   * Проверяем пример целиком.
    *
    * Пример формата:
    * {
    *   start: 0,
    *   steps: [
-   *     { action:+3, fromState:0, toState:3 },
-   *     { action:+1, fromState:3, toState:4 },
-   *     { action:-4, fromState:4, toState:0 },
-   *     ...
+   *     { action:+7, fromState:0, toState:7 },
+   *     { action:-7, fromState:7, toState:0 },
+   *     { action:+7, fromState:0, toState:7 },
    *   ],
-   *   answer: 0
+   *   answer: 7
    * }
-   *
-   * Требования:
-   * 1. start должен быть 0 (или [0,...]).
-   * 2. первый шаг > 0 (нельзя начинать с минуса).
-   * 3. каждый промежуточный toState валиден (0..9 в каждом разряде).
-   * 4. арифметика шагов действительно приводит к answer.
-   * 5. если digitCount === 1:
-   *      итог должен быть либо 0,
-   *      либо одним из разрешённых selectedDigits.
-   *    (т.е. ребёнок видит только те ответы, с которыми он реально тренируется)
-   * 6. если digitCount > 1:
-   *      просто запрещаем отрицательные и >9 разряды.
    */
   validateExample(example) {
     const { start, steps, answer } = example;
     const { digitCount, selectedDigits, minState, maxState } = this.config;
 
-    // 1. старт всегда должен быть ноль
+    // 1. старт = 0
     const startNum = this.stateToNumber(start);
     if (startNum !== 0) {
       console.error(`❌ Стартовое состояние ${startNum} ≠ 0`);
       return false;
     }
 
-    // 2. первый шаг обязан быть плюсом
+    // 2. первый шаг должен быть плюсом
     if (steps.length > 0) {
       const firstActionRaw = steps[0].action;
       const firstValue =
         typeof firstActionRaw === "object"
           ? firstActionRaw.value
           : firstActionRaw;
-
       if (firstValue <= 0) {
         console.error(`❌ Первое действие ${firstValue} не положительное`);
         return false;
       }
     }
 
-    // 3. промежуточные состояния должны быть валидны физически
+    // 3. все промежуточные состояния должны быть в допустимом коридоре
     for (const step of steps) {
       if (!this.isValidState(step.toState)) {
-        const stateStr = Array.isArray(step.toState)
+        const st = Array.isArray(step.toState)
           ? `[${step.toState.join(", ")}]`
           : step.toState;
         console.error(
-          `❌ Состояние ${stateStr} вне диапазона ${minState}..${maxState}`
+          `❌ Состояние ${st} вне диапазона ${minState}..${maxState}`
         );
         return false;
       }
     }
 
-    // 4. арифметика цепочки
+    // 4. арифметика: start + все action = answer
     let calc = start;
     for (const step of steps) {
       calc = this.applyAction(calc, step.action);
@@ -428,7 +476,7 @@ export class UnifiedSimpleRule extends BaseRule {
       return false;
     }
 
-    // 5. финальный ответ допустим?
+    // 5. финал для одного разряда должен быть "0 или обучаемая цифра"
     if (digitCount === 1) {
       const allowedFinals = new Set([0, ...selectedDigits]);
       if (!allowedFinals.has(answerNum)) {
@@ -440,7 +488,7 @@ export class UnifiedSimpleRule extends BaseRule {
         return false;
       }
     } else {
-      // многоразрядный случай:
+      // многоразрядный случай — просто проверяем диапазон
       if (!this.isValidState(answer)) {
         console.error(
           `❌ Финальное состояние ${JSON.stringify(
@@ -452,7 +500,7 @@ export class UnifiedSimpleRule extends BaseRule {
     }
 
     console.log(
-      `✅ Пример валиден (${this.name}): финал=${answerNum}, разрешённые финалы {0, ${selectedDigits.join(
+      `✅ Пример валиден (${this.name}): финал=${answerNum}, разрешённые финалы = 0 или {${selectedDigits.join(
         ", "
       )}}`
     );
