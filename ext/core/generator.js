@@ -8,13 +8,14 @@
 //  - адаптацию результата под формат тренажёра.
 //
 // Работает сейчас в первую очередь для режима "Просто":
-//   - последовательные шаги вида +3, +1, +5, -7, +6, -8
+//   - последовательные шаги вида +3, +1, -4 ...
 //   - без "братьев", "друзей", "через 5"
-//   - без переноса между разрядами
+//   - без переноса между столбцами (каждый столбец живёт сам по себе)
 //
 // Зависимости:
-//  - UnifiedSimpleRule — описывает допустимые шаги (+N / -N) и валидацию
-//  - ExampleGenerator — собирает последовательность шагов в пример
+//  - UnifiedSimpleRule — описывает допустимые шаги (+N / -N), физику абакуса,
+//    учитывает includeFive (Просто 4 / Просто 5), запрет первого минуса и т.д.
+//  - ExampleGenerator — строит саму цепочку шагов, опираясь на правило
 
 import { UnifiedSimpleRule } from "./rules/UnifiedSimpleRule.js";
 import { ExampleGenerator } from "./ExampleGenerator.js";
@@ -37,13 +38,14 @@ export function generateExample(settings = {}) {
   // Для классического "Просто" это 1.
   //
   const digitCountRaw = parseInt(settings.digits, 10);
-  const digitCount = Number.isFinite(digitCountRaw) && digitCountRaw > 0
-    ? digitCountRaw
-    : 1;
+  const digitCount =
+    Number.isFinite(digitCountRaw) && digitCountRaw > 0
+      ? digitCountRaw
+      : 1;
 
   // combineLevels:
   // true  → один шаг двигает все разряды сразу (общий вектор),
-  // false → более строгий режим по каждому столбцу.
+  // false → более строго (каждый столбец сам по себе).
   const combineLevels = settings.combineLevels === true;
 
   //
@@ -79,7 +81,7 @@ export function generateExample(settings = {}) {
   //
   // Мы больше НЕ раскладываем большие числа "7 = 5+2".
   // Сейчас каждое действие в примере — это сразу ±d,
-  // и d должен В ПРЯМУЮ входить в разрешённый список.
+  // и d должен В ПРЯМУЮ входить в выбранный список.
   //
   // Примеры:
   //   digits=[3]          → можно +3, -3
@@ -93,7 +95,7 @@ export function generateExample(settings = {}) {
         .filter(n => Number.isFinite(n))
     : [1, 2, 3, 4]; // дефолт если UI не прислал ничего
 
-  // уникализируем и сортируем (чтобы логи выглядели предсказуемо)
+  // Уникализируем и сортируем для стабильности
   const selectedDigits = Array.from(new Set(originalDigits)).sort(
     (a, b) => a - b
   );
@@ -101,8 +103,15 @@ export function generateExample(settings = {}) {
   //
   // 4. includeFive — методический флаг.
   //
-  // Если includeFive === false, мы полностью вырезаем шаги ±5,
-  // даже если цифра 5 включена в selectedDigits.
+  // Если includeFive === false:
+  //   - нельзя использовать верхнюю бусину,
+  //   - стойка живёт в диапазоне 0..4,
+  //   - мы не генерируем дельту ±5.
+  //
+  // Если includeFive === true:
+  //   - можно использовать верхнюю бусину,
+  //   - стойка живёт в диапазоне 0..9,
+  //   - возможны ходы с верхней.
   //
   const includeFive =
     (blocks?.simple?.includeFive ??
@@ -115,13 +124,17 @@ export function generateExample(settings = {}) {
   //    onlySubtraction = "тренируем только вычитание"
   //
   const onlyAddition =
-    (blocks?.simple?.onlyAddition ?? settings.onlyAddition ?? false) === true;
+    (blocks?.simple?.onlyAddition ??
+      settings.onlyAddition ??
+      false) === true;
   const onlySubtraction =
-    (blocks?.simple?.onlySubtraction ?? settings.onlySubtraction ?? false) === true;
+    (blocks?.simple?.onlySubtraction ??
+      settings.onlySubtraction ??
+      false) === true;
 
   //
   // 6. Флаги будущих методик (они пока не переключают правило,
-  // но мы их прокидываем в конфиг, чтобы не порвать код вокруг).
+  // но мы их прокидываем в конфиг, чтобы не порвать остальной код).
   //
   const brothersActive = blocks?.brothers?.active === true;
   const friendsActive = blocks?.friends?.active === true;
@@ -131,10 +144,13 @@ export function generateExample(settings = {}) {
   // 7. Собираем конфигурацию для UnifiedSimpleRule.
   //
   // UnifiedSimpleRule:
-  //   - строит допустимые шаги (+N/-N) через getAvailableActions()
-  //   - следит за тем, чтобы не выходить за пределы 0..9
-  //   - не даёт первый шаг с минуса
-  //   - валидирует финальный ответ
+  //   - считает доступные ходы с текущего состояния (getAvailableActions),
+  //     с учётом физики стоек и includeFive;
+  //   - следит, чтобы нельзя было сделать невозможный жест
+  //     (например +4 из состояния 4 без верхней бусины);
+  //   - запрещает первый шаг с минусом;
+  //   - не даёт выйти за методический диапазон (0..4 или 0..9);
+  //   - валидирует конечный ответ.
   //
   const ruleConfig = {
     // структура числа
@@ -145,23 +161,23 @@ export function generateExample(settings = {}) {
     minSteps: minSteps,
     maxSteps: maxSteps,
 
-    // какие абсолютные шаги вообще можно давать ребёнку
+    // какие абсолютные шаги вообще можно давать ребёнку (+d / -d)
     selectedDigits: selectedDigits,
 
-    // методический доступ к "5" (верхняя бусина)
+    // доступ к верхней бусине (формирует режим "Просто 4" vs "Просто 5")
     includeFive: includeFive,
     hasFive: includeFive, // совместимость со старым кодом
 
-    // направления
+    // ограничения направления
     onlyAddition: onlyAddition,
     onlySubtraction: onlySubtraction,
 
-    // будущие режимы (пока не активируем логику альтернативных правил)
+    // будущие режимы
     brothersActive: brothersActive,
     friendsActive: friendsActive,
     mixActive: mixActive,
 
-    // важное требование методики "Просто":
+    // методическое правило блока "Просто":
     firstActionMustBePositive: true,
 
     // эти два поля сейчас не используются в "Просто",
@@ -169,7 +185,8 @@ export function generateExample(settings = {}) {
     requireBlock: false,
     blockPlacement: "auto",
 
-    // передаём исходный блок настроек целиком (UI)
+    // передаём исходный блок настроек целиком (UI),
+    // чтобы правило при желании могло подсмотреть детали
     blocks: blocks
   };
 
@@ -198,9 +215,9 @@ export function generateExample(settings = {}) {
   // 8. Создаём правило.
   //
   // UnifiedSimpleRule обязан реализовать:
-  //  - generateStartState()  → вернуть стартовое состояние (0 или [0,0,...])
-  //  - generateStepsCount()  → вернуть количество шагов
-  //  - getAvailableActions() → допустимые шаги с текущего состояния
+  //  - generateStartState()  → стартовое состояние (0 или [0,0,...])
+  //  - generateStepsCount()  → количество шагов
+  //  - getAvailableActions() → допустимые локальные шаги с текущей стойки
   //  - applyAction()         → применить шаг
   //  - validateExample()     → проверить готовый пример
   //
@@ -216,7 +233,7 @@ export function generateExample(settings = {}) {
   // 10. Преобразуем к формату, который ждёт UI/trainer_logic:
   // {
   //    start: 0,
-  //    steps: ["+3","+1","+5","-7","+6","-8"],
+  //    steps: ["+3","+1","-4", ...],
   //    answer: 0
   // }
   //
