@@ -1,36 +1,20 @@
 // ext/core/rules/UnifiedSimpleRule.js
 //
 // Правило для блока "Просто":
-// - работаем на одной стойке абакуса без переноса
-// - каждый шаг = ОДИН жест ребёнка
-// - жест может одновременно менять верхнюю бусину (5) и любое число нижних бусин (1..4)
-//   => поэтому допустимы шаги с модулем 1..9
-// - мы НИКОГДА не выходим за пределы [0..9] на стойке
-// - первый шаг всегда плюсовой
-// - мы уважаем настройки onlyAddition / onlySubtraction
+//  - работаем на одной стойке абакуса без переноса
+//  - каждый шаг = один физический жест ребёнка
+//  - жест МОЖЕТ одновременно менять верхнюю бусину (5) и любое количество нижних бусин (1..4)
+//    => допустимы шаги 1..9 за один шаг (+6, +7, +8, +9 в том числе)
+//  - но шаг разрешён только если из текущего состояния можно получить новое состояние одним жестом
+//    и не выйти за диапазон 0..9
 //
-// Физика стойки:
-//   v ∈ [0..9]
-//   upperActive = v >= 5
-//   lowerActive = v % 5  (0..4)
+// Важные методические правила:
+//  - первый шаг не может быть минусом
+//  - если пользователь выбрал только одну цифру (например 7), тренажёр должен строить цепочки типа +7 -7 +7 ...
+//  - если includeFive=false и цифры только в диапазоне 1..4, мы вообще не используем верхнюю бусину
+//  - НО если пользователь выбрал хоть одну цифру >=5, то по смыслу это значит "мы разрешаем верхнюю бусину",
+//    даже если UI флажок includeFive не поставил. Иначе генерация бы просто не работала.
 //
-// canDoInOneGesture(v, v2):
-//   Можно ли одним жестом перейти из состояния v в состояние v2?
-//   В "Просто" мы разрешаем ОДНОВРЕМЕННО:
-//     - поднять/опустить верхнюю бусину (5) И
-//     - поднять/опустить любое количество нижних бусин,
-//   то есть комбо вроде +7, -8 и т.д. допустимы,
-//   если результат физически достижим (никаких промежуточных переносов,
-//   и количество нижних после жеста 0..4).
-//
-// Единственные реальные запреты:
-//   - нельзя получить нижние <0 или >4;
-//   - нельзя выйти за диапазон 0..9;
-//   - нельзя "оставить половину верхней" — верхняя либо включена, либо выключена;
-//   - нельзя начать с минуса.
-//
-// includeFive=false трактуем строго методически как "верхняя бусина не используется".
-// То есть тогда мы выбрасываем все дельты >=5, т.е. и 5,6,7,8,9.
 
 import { BaseRule } from "./BaseRule.js";
 
@@ -38,60 +22,68 @@ export class UnifiedSimpleRule extends BaseRule {
   constructor(config = {}) {
     super(config);
 
-    // что выбрал пользователь как разрешённые абсолютные шаги
+    // 1. Что реально выбрал пользователь
     const rawDigits = Array.isArray(config.selectedDigits)
       ? config.selectedDigits
       : [1, 2, 3, 4];
 
-    // includeFive: можно ли использовать верхнюю бусину вообще?
-    // если includeFive=false => запрещаем любые шаги, которые требуют верхнюю
-    // (то есть модули >=5)
-    const includeFive =
+    // 2. Базовое понимание includeFive из настроек UI
+    let includeFiveFlag =
       (config.includeFive ??
         config.blocks?.simple?.includeFive ??
         rawDigits.includes(5)) === true;
 
-    // фильтруем разрешённые шаги
-    let selectedDigits = rawDigits
-      .filter(n => Number.isFinite(n) && n >= 1 && n <= 9)
-      .filter(n => {
-        if (!includeFive) {
-          // не трогаем верхнюю бусину вообще
-          // => разрешаем только 1..4
-          return n <= 4;
-        }
-        // includeFive=true -> можно 1..9
-        return true;
-      });
+    // 2.1. Если ребёнок выбрал хоть одну цифру >=5,
+    // это физически означает "мы работаем с верхней бусиной".
+    // Даже если флажок includeFive формально выключен —
+    // без верхней мы НЕ можем сделать, например, +7.
+    // Значит, чтобы генерация не ломалась, мы насильно разрешаем верхнюю.
+    if (rawDigits.some(n => Number.isFinite(n) && n >= 5)) {
+      includeFiveFlag = true;
+    }
 
-    // fallback: если вообще ничего не осталось (например юзер выбрал только 7,
-    // а includeFive=false, выкинули 7 и получили пусто),
-    // чтобы генератор не умер — разрешим хотя бы "1".
+    // 3. Построим finalSelectedDigits
+    //    - Разрешаем только 1..9 в принципе
+    //    - Если includeFiveFlag=false => оставляем только 1..4
+    let selectedDigits = rawDigits
+      .filter(n => Number.isFinite(n) && n >= 1 && n <= 9);
+
+    if (!includeFiveFlag) {
+      // методический режим "без верхней бусины вообще",
+      // значит никакие 5,6,7,8,9 недоступны как единый жест
+      selectedDigits = selectedDigits.filter(n => n <= 4);
+    }
+
+    // подстраховка: чтобы не было пустого списка
     if (selectedDigits.length === 0) {
-      selectedDigits = includeFive ? [1, 2, 3, 4, 5] : [1];
+      // если вдруг пользователь выбрал только 7,
+      // мы бы уже сделали includeFiveFlag=true выше, так что сюда
+      // реально попасть можно только если пользователь сломал UI.
+      // fallback: пусть будет хотя бы "1"
+      selectedDigits = [1];
     }
 
     this.name = "Просто";
     this.description =
-      "Одноразрядные жесты без переноса. Один шаг может одновременно менять верхнюю и нижние бусины.";
+      "Одноразрядные жесты. За один шаг можно одновременно трогать верхнюю и нижние бусины.";
 
     this.config = {
-      // стойка 0..9
+      // Физика стойки
       minState: 0,
       maxState: 9,
 
-      // длина примера
+      // длина цепочки
       minSteps: config.minSteps ?? 2,
       maxSteps: config.maxSteps ?? 6,
 
-      // то, что ребёнку разрешено как МОДУЛЬ шага (1..9)
+      // что разрешено как МОДУЛЬ шага (например [7] -> +7/-7)
       selectedDigits,
 
-      // методический флаг верхней бусины
-      includeFive,
-      hasFive: includeFive,
+      // фактическое разрешение работы с верхней бусиной
+      includeFive: includeFiveFlag,
+      hasFive: includeFiveFlag,
 
-      // методика:
+      // методика
       firstActionMustBePositive: true,
 
       // разрядность
@@ -124,9 +116,7 @@ export class UnifiedSimpleRule extends BaseRule {
     );
   }
 
-  /**
-   * случайная длина примера в [minSteps..maxSteps]
-   */
+  // Кол-во шагов
   generateStepsCount() {
     const min = this.config.minSteps ?? 2;
     const max = this.config.maxSteps ?? min;
@@ -134,20 +124,13 @@ export class UnifiedSimpleRule extends BaseRule {
     return min + Math.floor(Math.random() * (max - min + 1));
   }
 
-  /**
-   * начальное состояние стойки
-   * один разряд -> 0
-   * несколько разрядов -> массив нулей
-   */
+  // Начальное состояние (всегда нули)
   generateStartState() {
     const dc = this.config.digitCount ?? 1;
     if (dc === 1) return 0;
     return Array(dc).fill(0);
   }
 
-  /**
-   * строковое представление шага для UI
-   */
   formatAction(action) {
     if (typeof action === "object" && action !== null) {
       const v = action.value;
@@ -156,9 +139,6 @@ export class UnifiedSimpleRule extends BaseRule {
     return action >= 0 ? `+${action}` : `${action}`;
   }
 
-  /**
-   * получить значение конкретного разряда (0..9)
-   */
   getDigitValue(currentState, position = 0) {
     if (Array.isArray(currentState)) {
       return currentState[position] ?? 0;
@@ -166,9 +146,6 @@ export class UnifiedSimpleRule extends BaseRule {
     return currentState ?? 0;
   }
 
-  /**
-   * применить шаг к состоянию
-   */
   applyAction(currentState, action) {
     if (typeof action === "object" && action !== null) {
       const arr = Array.isArray(currentState)
@@ -183,10 +160,6 @@ export class UnifiedSimpleRule extends BaseRule {
     }
   }
 
-  /**
-   * преобразовать состояние в число (для UI, проверки ответа)
-   * массив трактуем как [единицы, десятки, ...]
-   */
   stateToNumber(state) {
     if (Array.isArray(state)) {
       return state.reduce(
@@ -197,9 +170,6 @@ export class UnifiedSimpleRule extends BaseRule {
     return state ?? 0;
   }
 
-  /**
-   * проверить что состояние валидно: каждый разряд 0..9
-   */
   isValidState(state) {
     const { minState, maxState } = this.config;
     if (Array.isArray(state)) {
@@ -209,30 +179,16 @@ export class UnifiedSimpleRule extends BaseRule {
   }
 
   /**
-   * ВСПОМОГАТЕЛЬНО:
-   * можно ли перейти из v в v2 за ОДИН жест "Просто"?
+   * Можно ли за один жест перейти от v к v2?
    *
-   * v,v2 в [0..9]
+   * Мы разрешаем одновременно:
+   *  - менять верхнюю бусину (5) вкл/выкл
+   *  - и менять количество нижних бусин (0..4)
    *
-   * Расшифровка:
-   *   u1 = v >= 5       верхняя была активна?
-   *   l1 = v % 5        сколько нижних было активно (0..4)
-   *   u2 = v2 >= 5      верхняя стала активна?
-   *   l2 = v2 % 5       сколько нижних стало активно (0..4)
-   *
-   * В "Просто" один жест может:
-   *   - одновременно менять верхнюю (вкл/выкл)
-   *   - и переустанавливать нижние в любое другое количество (0..4)
-   *
-   * Так что почти любое (u1,l1) -> (u2,l2) разрешено,
-   * при двух условиях:
-   *   1) l2 между 0 и 4 (гарантируется, так как v2<=9)
-   *   2) v2 в диапазоне [0..9] (мы и так проверяем перед вызовом)
-   *
-   * То есть canDoInOneGesture в нашей модели = (v2 в [0..9])
-   * НО! методическое ограничение includeFive=false:
-   * если includeFive=false, то мы вообще не позволяем менять верхнюю бусину.
-   * Значит если u1 != u2 (верхняя изменилась), такой жест запрещён.
+   * Ограничения:
+   *  - итоговое состояние v2 должно быть 0..9
+   *  - если includeFive=false, верхняя бусина не может меняться
+   *    (нельзя скакнуть через 5)
    */
   canDoInOneGesture(v, v2) {
     if (v2 < 0 || v2 > 9) return false;
@@ -240,28 +196,21 @@ export class UnifiedSimpleRule extends BaseRule {
     const u1 = v >= 5;
     const u2 = v2 >= 5;
 
-    const { includeFive } = this.config;
-
-    if (!includeFive) {
-      // нельзя вообще трогать верхнюю
-      // => верхняя должна оставаться такой же
-      if (u1 !== u2) return false;
-      // нижние можно менять сколько угодно за раз (в пределах 0..4), это ок
-      return true;
+    if (!this.config.includeFive) {
+      // верхняя бусина вообще "запрещена"
+      // значит мы не имеем права менять факт включена/выключена
+      if (u1 !== u2) {
+        return false;
+      }
     }
 
-    // includeFive === true:
-    // верхнюю можно и включать, и выключать в том же жесте,
-    // нижние можно на любое другое количество сразу.
+    // нижние бусины (v % 5) могут измениться на любое другое число 0..4,
+    // это мы допускаем внутри одного жеста.
     return true;
   }
 
   /**
-   * КЛЮЧЕВАЯ ФУНКЦИЯ:
-   * какие шаги (действия) допустимы из текущего состояния?
-   *
-   * Возвращаем либо массив чисел [+3, -2, ...] для одного разряда,
-   * либо массив объектов [{position, value}, ...] если разрядов несколько.
+   * Основная функция: какие шаги допустимы из текущего состояния?
    */
   getAvailableActions(currentState, isFirstAction = false, position = 0) {
     const {
@@ -275,39 +224,27 @@ export class UnifiedSimpleRule extends BaseRule {
     const deltas = new Set();
 
     for (const d of selectedDigits) {
-      // кандидат +d
+      // пробуем +d
       if (!onlySubtraction) {
-        // даже если onlySubtraction==true — но это уже отфильтровано выше
         const v2 = v + d;
-
-        // первый шаг МОЖЕТ быть только плюсом,
-        // но это не ограничивает нас здесь, потому что плюс и так плюс :)
-        // нам надо только проверить физику и диапазон
-        if (v2 >= 0 && v2 <= 9) {
-          if (this.canDoInOneGesture(v, v2)) {
-            deltas.add(+d);
-          }
+        if (v2 >= 0 && v2 <= 9 && this.canDoInOneGesture(v, v2)) {
+          deltas.add(+d);
         }
       }
 
-      // кандидат -d
-      if (!onlyAddition) {
-        // минус на первом шаге запрещён методически
-        if (!isFirstAction) {
-          const v2 = v - d;
-          if (v2 >= 0 && v2 <= 9) {
-            if (this.canDoInOneGesture(v, v2)) {
-              deltas.add(-d);
-            }
-          }
+      // пробуем -d (кроме первого шага, минус нельзя начинать)
+      if (!onlyAddition && !isFirstAction) {
+        const v2 = v - d;
+        if (v2 >= 0 && v2 <= 9 && this.canDoInOneGesture(v, v2)) {
+          deltas.add(-d);
         }
       }
     }
 
     const resultDeltas = Array.from(deltas);
 
-    // многоразрядный режим → возвращаем объекты {position,value}
     if (digitCount > 1) {
+      // многоразрядный будет обёрнут в {position,value}
       return resultDeltas.map(value => ({ position, value }));
     }
 
@@ -325,34 +262,33 @@ export class UnifiedSimpleRule extends BaseRule {
   }
 
   /**
-   * Проверка валидности финального примера (после генерации).
+   * Проверка сгенерированного примера.
    */
   validateExample(example) {
     const { start, steps, answer } = example;
     const { digitCount, selectedDigits, minState, maxState } = this.config;
 
-    // 1. старт = 0
+    // старт должен быть 0 (или [0,...])
     const startNum = this.stateToNumber(start);
     if (startNum !== 0) {
       console.error(`❌ Стартовое состояние ${startNum} ≠ 0`);
       return false;
     }
 
-    // 2. первый шаг должен быть плюсом (>0)
+    // первый шаг должен быть положительным
     if (steps.length > 0) {
       const firstActionRaw = steps[0].action;
       const firstValue =
         typeof firstActionRaw === "object"
           ? firstActionRaw.value
           : firstActionRaw;
-
       if (firstValue <= 0) {
         console.error(`❌ Первое действие ${firstValue} не положительное`);
         return false;
       }
     }
 
-    // 3. промежуточные состояния валидны
+    // все промежуточные состояния должны быть валидными
     for (const step of steps) {
       if (!this.isValidState(step.toState)) {
         const s = Array.isArray(step.toState)
@@ -365,7 +301,7 @@ export class UnifiedSimpleRule extends BaseRule {
       }
     }
 
-    // 4. арифметика: start + все action = answer
+    // пересчёт конца
     let calc = start;
     for (const step of steps) {
       calc = this.applyAction(calc, step.action);
@@ -379,9 +315,7 @@ export class UnifiedSimpleRule extends BaseRule {
       return false;
     }
 
-    // 5. финал:
-    // для одной стойки - ответ должен быть либо 0,
-    // либо в одном из разрешённых положений (selectedDigits)
+    // валидность финала
     if (digitCount === 1) {
       const allowedFinals = new Set([0, ...selectedDigits]);
       if (!allowedFinals.has(answerNum)) {
@@ -393,7 +327,6 @@ export class UnifiedSimpleRule extends BaseRule {
         return false;
       }
     } else {
-      // многоразрядный режим: просто проверяем что состояние валидно
       if (!this.isValidState(answer)) {
         console.error(
           `❌ Финальное состояние ${JSON.stringify(
