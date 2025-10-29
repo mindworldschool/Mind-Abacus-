@@ -201,7 +201,8 @@ export const dictionaries = {
       "hideAbacus": "🧮 Hide Abacus",
       "pleaseEnterNumber": "Please enter a number",
       "correctLabel": "Correct: ",
-      "incorrectLabel": "Mistakes: "
+      "incorrectLabel": "Mistakes: ",
+      "exitButton": "⏹ Exit"
     }
   },
   "es": {
@@ -405,7 +406,8 @@ export const dictionaries = {
       "hideAbacus": "🧮 Ocultar Ábaco",
       "pleaseEnterNumber": "Por favor ingrese un número",
       "correctLabel": "Correctos: ",
-      "incorrectLabel": "Errores: "
+      "incorrectLabel": "Errores: ",
+      "exitButton": "⏹ Salir"
     }
   },
   "ru": {
@@ -609,7 +611,8 @@ export const dictionaries = {
       "hideAbacus": "🧮 Скрыть абакус",
       "pleaseEnterNumber": "Пожалуйста, введите число",
       "correctLabel": "Правильно: ",
-      "incorrectLabel": "Ошибки: "
+      "incorrectLabel": "Ошибки: ",
+      "exitButton": "⏹ Выйти"
     }
   },
   "ua": {
@@ -813,7 +816,8 @@ export const dictionaries = {
       "hideAbacus": "🧮 Сховати абакус",
       "pleaseEnterNumber": "Будь ласка, введіть число",
       "correctLabel": "Правильно: ",
-      "incorrectLabel": "Помилки: "
+      "incorrectLabel": "Помилки: ",
+      "exitButton": "⏹ Вийти"
     }
   }
 };
