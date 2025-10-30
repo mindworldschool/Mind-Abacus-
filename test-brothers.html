@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>🧪 Тест блока "Братья"</title>
+  <style>
+    body {
+      font-family: 'Courier New', monospace;
+      padding: 20px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 { color: #4CAF50; }
+    .controls {
+      margin: 20px 0;
+      padding: 15px;
+      background: #2d2d2d;
+      border-radius: 4px;
+    }
+    .example {
+      background: #2d2d2d;
+      padding: 15px;
+      margin: 10px 0;
+      border-left: 4px solid #4CAF50;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .brother-step {
+      color: #4CAF50;
+      font-weight: bold;
+      background: #1a4d1a;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    .simple-step {
+      color: #9cdcfe;
+    }
+    .error {
+      background: #3d1f1f;
+      border-left-color: #f44336;
+      color: #f44336;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 16px;
+      margin: 5px;
+      cursor: pointer;
+      background: #0e639c;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    button:hover {
+      background: #1177bb;
+    }
+    button:active {
+      transform: scale(0.98);
+    }
+    .stats {
+      background: #2d2d2d;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 4px;
+      border-left: 4px solid #2196F3;
+    }
+    .stats strong {
+      color: #2196F3;
+    }
+    .success-rate {
+      font-size: 24px;
+      color: #4CAF50;
+      font-weight: bold;
+    }
+    .warning {
+      color: #ff9800;
+      background: #3d2d1f;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Тестирование блока "Братья"</h1>
+  
+  <div class="controls">
+    <button onclick="generateOne()">Сгенерировать 1 пример</button>
+    <button onclick="generateMany(10)">Сгенерировать 10</button>
+    <button onclick="generateMany(50)">Сгенерировать 50</button>
+    <button onclick="generateMany(100)">Сгенерировать 100</button>
+    <button onclick="clearResults()">Очистить</button>
+  </div>
+
+  <div class="stats" id="stats"></div>
+  <div id="results"></div>
+
+  <script type="module">
+    import { BrothersRule } from './ext/core/rules/BrothersRule.js';
+    import { ExampleGenerator } from './ext/core/ExampleGenerator.js';
+
+    // Глобальная статистика
+    window.totalGenerated = 0;
+    window.successCount = 0;
+    window.errorCount = 0;
+    window.brotherStepsCount = 0;
+    window.brothersByNumber = { 1: 0, 2: 0, 3: 0, 4: 0 };
+
+    // 🔥 Создаём правило с ВСЕМИ братьями
+    const rule = new BrothersRule({
+      brothersDigitsAllowed: [1, 2, 3, 4],
+      onlyAddition: false,
+      onlySubtraction: false,
+      minSteps: 3,
+      maxSteps: 6
+    });
+
+    const generator = new ExampleGenerator(rule);
+
+    window.generateOne = function() {
+      try {
+        const example = generator.generate();
+        const formatted = generator.toTrainerFormat(example);
+        displayExample(formatted, false);
+        countBrotherSteps(formatted);
+        window.successCount++;
+      } catch (error) {
+        displayExample({ error: error.message }, true);
+        window.errorCount++;
+      }
+      window.totalGenerated++;
+      updateStats();
+    };
+
+    window.generateMany = function(count) {
+      console.log(`🎯 Генерация ${count} примеров...`);
+      const startTime = Date.now();
+      
+      for (let i = 0; i < count; i++) {
+        try {
+          const example = generator.generate();
+          const formatted = generator.toTrainerFormat(example);
+          
+          countBrotherSteps(formatted);
+          
+          // Показываем только первые 10
+          if (i < 10) {
+            displayExample(formatted, false);
+          }
+          window.successCount++;
+        } catch (error) {
+          if (i < 10) {
+            displayExample({ error: error.message }, true);
+          }
+          window.errorCount++;
+        }
+        window.totalGenerated++;
+      }
+      
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+      console.log(`✅ Завершено за ${elapsed}с`);
+      
+      updateStats();
+      
+      if (count > 10) {
+        const resultsDiv = document.getElementById('results');
+        const notice = document.createElement('div');
+        notice.className = 'example';
+        notice.innerHTML = `📊 Показаны первые 10 из ${count} примеров. Полная статистика выше. ⏱️ Время: ${elapsed}с`;
+        resultsDiv.insertBefore(notice, resultsDiv.firstChild);
+      }
+    };
+
+    window.clearResults = function() {
+      document.getElementById('results').innerHTML = '';
+      window.totalGenerated = 0;
+      window.successCount = 0;
+      window.errorCount = 0;
+      window.brotherStepsCount = 0;
+      window.brothersByNumber = { 1: 0, 2: 0, 3: 0, 4: 0 };
+      updateStats();
+    };
+
+    function countBrotherSteps(formatted) {
+      formatted.steps.forEach(step => {
+        if (typeof step === 'object' && step.isBrother) {
+          window.brotherStepsCount++;
+          if (step.brotherN) {
+            window.brothersByNumber[step.brotherN]++;
+          }
+        }
+      });
+    }
+
+    function displayExample(formatted, isError) {
+      const resultsDiv = document.getElementById('results');
+      const exampleDiv = document.createElement('div');
+      exampleDiv.className = isError ? 'example error' : 'example';
+      
+      if (isError) {
+        exampleDiv.innerHTML = `❌ <strong>ОШИБКА:</strong> ${formatted.error}`;
+      } else {
+        const stepsHTML = formatted.steps.map(step => {
+          if (typeof step === 'object' && step.isBrother) {
+            const formula = step.formula.map(f => 
+              `${f.op}${f.val}`
+            ).join(' ');
+            return `<span class="brother-step">${step.step} [${formula}] 👬${step.brotherN}</span>`;
+          } else {
+            return `<span class="simple-step">${step}</span>`;
+          }
+        }).join(' ');
+        
+        const brotherCount = formatted.steps.filter(s => 
+          typeof s === 'object' && s.isBrother
+        ).length;
+        
+        const hasBrother = brotherCount > 0 ? '✅' : '⚠️';
+        
+        exampleDiv.innerHTML = `
+          ${hasBrother} <strong>Старт:</strong> ${formatted.start} → 
+          ${stepsHTML} → 
+          <strong>Ответ:</strong> ${formatted.answer} 
+          (👬 братских: ${brotherCount})
+        `;
+      }
+      
+      resultsDiv.insertBefore(exampleDiv, resultsDiv.firstChild);
+    }
+
+    function updateStats() {
+      const statsDiv = document.getElementById('stats');
+      const successRate = window.totalGenerated > 0 
+        ? ((window.successCount / window.totalGenerated) * 100).toFixed(1)
+        : 0;
+      const avgBrotherSteps = window.successCount > 0
+        ? (window.brotherStepsCount / window.successCount).toFixed(2)
+        : 0;
+      
+      const brotherDistribution = Object.entries(window.brothersByNumber)
+        .map(([n, count]) => `брат ${n}: ${count}`)
+        .join(' | ');
+      
+      let warningHTML = '';
+      if (window.successCount > 0 && parseFloat(avgBrotherSteps) < 1.0) {
+        warningHTML = '<div class="warning">⚠️ ВНИМАНИЕ: Среднее количество братских шагов меньше 1! Проверьте логику приоритизации.</div>';
+      }
+      
+      statsDiv.innerHTML = `
+        <strong>📊 СТАТИСТИКА ГЕНЕРАЦИИ:</strong><br><br>
+        <span class="success-rate">${successRate}%</span> успешных генераций<br><br>
+        <strong>Всего:</strong> ${window.totalGenerated}<br>
+        <strong>✅ Успешных:</strong> ${window.successCount}<br>
+        <strong>❌ Ошибок:</strong> ${window.errorCount}<br>
+        <strong>👬 Братских шагов:</strong> ${window.brotherStepsCount}<br>
+        <strong>📈 Среднее на пример:</strong> ${avgBrotherSteps}<br>
+        <strong>📊 Распределение:</strong> ${brotherDistribution}
+        ${warningHTML}
+      `;
+    }
+
+    // Начальная статистика
+    updateStats();
+
+    // Автогенерация 5 примеров при загрузке
+    console.log('🚀 Автозапуск: генерация 5 примеров...');
+    setTimeout(() => generateMany(5), 500);
+  </script>
+</body>
+</html>
