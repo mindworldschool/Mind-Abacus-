@@ -134,24 +134,28 @@ export function generateExample(settings = {}) {
       false) === true;
 
   //
-  // 6. Флаги будущих методик (они пока не переключают правило,
-  // но мы их прокидываем в конфиг, чтобы не порвать остальной код).
+  // 6. Флаги будущих методик.
+  // 🔥 ВАЖНО: Блок считается активным, если в нем выбраны цифры (digits.length > 0)
+  // Поле "active" не используется в state.js, поэтому проверяем digits.
   //
-  const brothersActive = blocks?.brothers?.active === true;
-  const friendsActive = blocks?.friends?.active === true;
-  const mixActive = blocks?.mix?.active === true;
+  const brothersDigits = Array.isArray(blocks?.brothers?.digits)
+    ? blocks.brothers.digits.filter(d => d != null && d !== "")
+    : [];
+  const friendsDigits = Array.isArray(blocks?.friends?.digits)
+    ? blocks.friends.digits.filter(d => d != null && d !== "")
+    : [];
+  const mixDigits = Array.isArray(blocks?.mix?.digits)
+    ? blocks.mix.digits.filter(d => d != null && d !== "")
+    : [];
+
+  const brothersActive = brothersDigits.length > 0;
+  const friendsActive = friendsDigits.length > 0;
+  const mixActive = mixDigits.length > 0;
 
   //
-  // 7. Собираем конфигурацию для UnifiedSimpleRule.
+  // 7. Собираем конфигурацию для правил.
   //
-  // UnifiedSimpleRule:
-  //   - считает доступные ходы с текущего состояния (getAvailableActions),
-  //     с учётом физики стоек и includeFive;
-  //   - следит, чтобы нельзя было сделать невозможный жест
-  //     (например +4 из состояния 4 без верхней бусины);
-  //   - запрещает первый шаг с минусом;
-  //   - не даёт выйти за методический диапазон (0..4 или 0..9);
-  //   - валидирует конечный ответ.
+  // Эта конфигурация используется как для UnifiedSimpleRule, так и для BrothersRule.
   //
   const ruleConfig = {
     // структура числа
@@ -172,11 +176,6 @@ export function generateExample(settings = {}) {
     // ограничения направления
     onlyAddition: onlyAddition,
     onlySubtraction: onlySubtraction,
-
-    // будущие режимы
-    brothersActive: brothersActive,
-    friendsActive: friendsActive,
-    mixActive: mixActive,
 
     // методическое правило блока "Просто":
     firstActionMustBePositive: true,
@@ -203,9 +202,10 @@ export function generateExample(settings = {}) {
         includeFive: ruleConfig.includeFive,
         onlyAddition: ruleConfig.onlyAddition,
         onlySubtraction: ruleConfig.onlySubtraction,
-        brothersActive: ruleConfig.brothersActive,
-        friendsActive: ruleConfig.friendsActive,
-        mixActive: ruleConfig.mixActive
+        brothersActive: brothersActive,
+        brothersDigits: brothersDigits,
+        friendsActive: friendsActive,
+        mixActive: mixActive
       },
       null,
       2
@@ -224,23 +224,30 @@ export function generateExample(settings = {}) {
   //
   let rule;
 
-// === НОВЫЙ КОД ===
-// если активирован блок "Братья" — используем BrothersRule
-if (ruleConfig.brothersActive === true) {
+// === ВЫБОР ПРАВИЛА ===
+// 🔥 Если активирован блок "Братья" (выбраны цифры) — используем BrothersRule
+if (brothersActive === true) {
   console.log("👬 [generator] Режим БРАТЬЯ активирован");
-  console.log("   📌 Выбранные братья:", ruleConfig.blocks?.brothers?.digits);
-  console.log("   📌 Только сложение:", ruleConfig.blocks?.brothers?.onlyAddition);
-  console.log("   📌 Только вычитание:", ruleConfig.blocks?.brothers?.onlySubtraction);
-  
+  console.log("   📌 Выбранные братья:", brothersDigits);
+  console.log("   📌 Только сложение:", blocks?.brothers?.onlyAddition);
+  console.log("   📌 Только вычитание:", blocks?.brothers?.onlySubtraction);
+
+  // Преобразуем строковые цифры в числа
+  const selectedBrothersDigits = brothersDigits
+    .map(d => parseInt(d, 10))
+    .filter(n => n >= 1 && n <= 4);
+
+  console.log("   📌 Числовые братья:", selectedBrothersDigits);
+
   rule = new BrothersRule({
-    selectedDigits: ruleConfig.blocks?.brothers?.digits || [4],
-    onlyAddition: ruleConfig.blocks?.brothers?.onlyAddition ?? false,
-    onlySubtraction: ruleConfig.blocks?.brothers?.onlySubtraction ?? false,
-    minSteps: ruleConfig.minSteps,
-    maxSteps: ruleConfig.maxSteps,
-    digitCount: ruleConfig.digitCount,
-    combineLevels: ruleConfig.combineLevels,
-    blocks: ruleConfig.blocks,
+    selectedDigits: selectedBrothersDigits.length > 0 ? selectedBrothersDigits : [4],
+    onlyAddition: blocks?.brothers?.onlyAddition ?? false,
+    onlySubtraction: blocks?.brothers?.onlySubtraction ?? false,
+    minSteps: minSteps,
+    maxSteps: maxSteps,
+    digitCount: digitCount,
+    combineLevels: combineLevels,
+    blocks: blocks,
   });
 } else {
   console.log("📘 [generator] Режим ПРОСТО");
