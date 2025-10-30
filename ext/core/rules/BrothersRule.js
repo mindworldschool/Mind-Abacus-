@@ -39,41 +39,73 @@ export class BrothersRule extends BaseRule {
     this.brotherPairs = this._buildBrotherPairs(brothersDigits);
   }
 
-  /** Создание таблицы обменных пар */
+  /**
+   * Создание таблицы обменных пар
+   * Брат n: обмен n нижних бусин на верхнюю (или наоборот)
+   * - +delta где delta=5-n: когда есть n нижних для обмена
+   * - -delta: когда есть верхняя для обмена
+   */
   _buildBrotherPairs(digits) {
     const pairs = new Set();
-    
-    for (const d of digits) {
-      switch (d) {
-        case 4: // 4↔5: переходы 4→5, 5→4, 0→5, 5→0, 1→6, 6→1, ...
-          for (let s = 0; s <= 9; s++) {
-            // +1 через (+5−4): 0→1, 1→2, 2→3, 3→4
-            if (s <= 3) pairs.add(`${s}-${s+1}-brother4`);
-            // −1 через (−5+4): 9→8, 8→7, 7→6, 6→5, 5→4
-            if (s >= 5) pairs.add(`${s}-${s-1}-brother4`);
+
+    for (const n of digits) {
+      const delta = 5 - n; // результат обмена
+
+      switch (n) {
+        case 4: // Брат 4: обмен 4↔5, дает delta=±1
+          // +1: из состояний с L=4 (можем убрать 4 нижние)
+          pairs.add(`4-5-brother4`);   // 4 нижние → верхняя
+          pairs.add(`9-10-brother4`);  // U+4L, но 10 вне диапазона, не добавится
+          // -1: из состояний с верхней (можем убрать верхнюю)
+          for (let s = 5; s <= 9; s++) {
+            pairs.add(`${s}-${s-1}-brother4`);
           }
           break;
-        case 3: // 3↔8
-          // +2 через (+5−3): 0→2, 1→3, 2→4
-          for (let s = 0; s <= 2; s++) pairs.add(`${s}-${s+2}-brother3`);
-          // −2 через (−5+3): 9→7, 8→6, 7→5
-          for (let s = 7; s <= 9; s++) pairs.add(`${s}-${s-2}-brother3`);
+
+        case 3: // Брат 3: обмен 3↔8, дает delta=±2
+          // +2: из состояний с L≥3
+          pairs.add(`3-5-brother3`);
+          pairs.add(`4-6-brother3`);
+          pairs.add(`8-10-brother3`); // вне диапазона
+          pairs.add(`9-11-brother3`); // вне диапазона
+          // -2: из состояний с верхней
+          for (let s = 5; s <= 9; s++) {
+            if (s - 2 >= 0) pairs.add(`${s}-${s-2}-brother3`);
+          }
           break;
-        case 2: // 2↔7
-          // +3 через (+5−2): 0→3, 1→4
-          for (let s = 0; s <= 1; s++) pairs.add(`${s}-${s+3}-brother2`);
-          // −3 через (−5+2): 9→6, 8→5
-          for (let s = 8; s <= 9; s++) pairs.add(`${s}-${s-3}-brother2`);
+
+        case 2: // Брат 2: обмен 2↔7, дает delta=±3
+          // +3: из состояний с L≥2
+          pairs.add(`2-5-brother2`);
+          pairs.add(`3-6-brother2`);
+          pairs.add(`4-7-brother2`);
+          pairs.add(`7-10-brother2`); // вне диапазона
+          pairs.add(`8-11-brother2`); // вне диапазона
+          pairs.add(`9-12-brother2`); // вне диапазона
+          // -3: из состояний с верхней
+          for (let s = 5; s <= 9; s++) {
+            if (s - 3 >= 0) pairs.add(`${s}-${s-3}-brother2`);
+          }
           break;
-        case 1: // 1↔6
-          // +4 через (+5−1): 0→4
-          pairs.add(`0-4-brother1`);
-          // −4 через (−5+1): 9→5
-          pairs.add(`9-5-brother1`);
+
+        case 1: // Брат 1: обмен 1↔6, дает delta=±4
+          // +4: из состояний с L≥1
+          pairs.add(`1-5-brother1`);
+          pairs.add(`2-6-brother1`);
+          pairs.add(`3-7-brother1`);
+          pairs.add(`4-8-brother1`);
+          pairs.add(`6-10-brother1`); // вне диапазона
+          pairs.add(`7-11-brother1`); // вне диапазона
+          pairs.add(`8-12-brother1`); // вне диапазона
+          pairs.add(`9-13-brother1`); // вне диапазона
+          // -4: из состояний с верхней
+          for (let s = 5; s <= 9; s++) {
+            if (s - 4 >= 0) pairs.add(`${s}-${s-4}-brother1`);
+          }
           break;
       }
     }
-    
+
     return pairs;
   }
 
@@ -153,31 +185,50 @@ export class BrothersRule extends BaseRule {
 
   /**
    * Строит формулу для братского шага
-   * Например, для +1 через брата 4: [+5, −4]
+   * Например, для +1 через брата 4: [-4, +5]
+   *
+   * Брат n: обмениваем n нижних бусин на верхнюю
+   * - +delta где delta=5-n: убираем n нижних, ставим верхнюю (-n+5)
+   * - -delta где delta=5-n: убираем верхнюю, ставим n нижних (-5+n)
+   *
+   * Упрощенная проверка: просто проверяем математику, не детальную физику бусин
    */
   _buildBrotherFormula(v, v2, n, dir) {
-    const brother = 5 - n; // комплементарное число
-    
+    // n - это количество нижних бусин в обмене (1,2,3,4)
+    // delta - результат обмена (5-n)
+    const delta = 5 - n;
+
     if (dir === "up") {
-      // +n = +5 − brother
-      // Проверяем физику
-      if (!this._canPlus5(v)) return null;
-      const vMid = v + 5;
-      if (!this._canMinusLower(vMid, brother)) return null;
-      
+      // +delta = -n +5 (убрать n нижних, поставить верхнюю)
+      // Проверка: есть ли n нижних бусин для убирания
+      const L = this._L(v);
+      if (L < n) return null; // не хватает нижних
+
+      // Проверка: можем ли поставить верхнюю после убирания n нижних
+      const vMid = v - n;
+      if (vMid < 0 || vMid > 9) return null;
+      if (vMid >= 5) return null; // уже есть верхняя
+
+      // Финальная проверка результата
+      if (v2 < 0 || v2 > 9) return null;
+
       return [
-        { op: "+", val: 5, source: "upper" },
-        { op: "-", val: brother, source: "lower" }
+        { op: "-", val: n, source: "lower" },
+        { op: "+", val: 5, source: "upper" }
       ];
     } else {
-      // −n = −5 + brother
-      if (!this._canMinus5(v)) return null;
+      // -delta = -5 +n (убрать верхнюю, поставить n нижних)
+      // Проверка: есть ли верхняя бусина
+      if (v < 5) return null; // нет верхней
+
+      // Проверка: результат после операций
       const vMid = v - 5;
-      if (!this._canPlusLower(vMid, brother)) return null;
-      
+      const vFinal = vMid + n;
+      if (vFinal < 0 || vFinal > 9) return null;
+
       return [
         { op: "-", val: 5, source: "upper" },
-        { op: "+", val: brother, source: "lower" }
+        { op: "+", val: n, source: "lower" }
       ];
     }
   }
