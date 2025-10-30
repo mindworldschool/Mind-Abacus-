@@ -27,9 +27,17 @@ export class BrothersRule extends BaseRule {
     // 🔥 ИНВЕРСИЯ: UI "брат 4" → internal n=1 → delta=4
     const brothersDigits = brothersDigitsFromUI.map(ui_n => 5 - ui_n);
 
+    // 🔥 НОВОЕ: Берем цифры из блока "Просто" для обычных шагов
+    const simpleBlockDigits = Array.isArray(config.blocks?.simple?.digits)
+      ? config.blocks.simple.digits
+          .map(n => parseInt(n, 10))
+          .filter(n => Number.isFinite(n) && n >= 1 && n <= 9)
+      : [1, 2, 3, 4, 5, 6, 7, 8, 9]; // дефолт - все цифры
+
     console.log("👬 BrothersRule: маппинг братьев UI→internal:", 
       brothersDigitsFromUI.map((ui, i) => `UI=${ui} → n=${brothersDigits[i]} → Δ=${ui}`).join(", ")
     );
+    console.log("📘 BrothersRule: цифры из блока Просто:", simpleBlockDigits);
 
     this.config = {
       ...this.config,
@@ -41,6 +49,7 @@ export class BrothersRule extends BaseRule {
       maxSteps: config.maxSteps ?? 8,
       brothersDigits,                    // internal [4,3,2,1] для UI [1,2,3,4]
       brothersDigitsUI: brothersDigitsFromUI,  // сохраняем UI версию для логов
+      simpleBlockDigits,                  // 🔥 НОВОЕ: цифры из блока "Просто"
       onlyAddition: config.onlyAddition ?? false,
       onlySubtraction: config.onlySubtraction ?? false,
       digitCount: config.digitCount ?? 1,
@@ -52,6 +61,7 @@ export class BrothersRule extends BaseRule {
     console.log(
       `👬 BrothersRule init: братья UI=[${brothersDigitsFromUI.join(", ")}],` +
       ` internal=[${brothersDigits.join(", ")}],` +
+      ` простые цифры=[${simpleBlockDigits.join(", ")}],` +
       ` minSteps=${this.config.minSteps}, maxSteps=${this.config.maxSteps},` +
       ` onlyAdd=${this.config.onlyAddition}, onlySub=${this.config.onlySubtraction}`
     );
@@ -155,7 +165,7 @@ export class BrothersRule extends BaseRule {
    * Возвращаем И братские, И простые шаги
    */
   getAvailableActions(currentState, isFirstAction = false, position = 0) {
-    const { onlyAddition, onlySubtraction, brothersDigits } = this.config;
+    const { onlyAddition, onlySubtraction, brothersDigits, simpleBlockDigits } = this.config;
     const v = currentState;
     const brotherActions = [];
     const simpleActions = [];
@@ -193,30 +203,58 @@ export class BrothersRule extends BaseRule {
     }
 
     // === ПРОСТЫЕ ШАГИ ===
+    // 🔥 ИСПРАВЛЕНИЕ: Используем цифры из блока "Просто"
     const L = this._L(v);
     const U = this._U(v);
 
     if (!onlySubtraction) {
-      for (let n = 1; n <= 4; n++) {
-        if (!isFirstAction || n > 0) {
-          if (this._canPlusLower(v, n)) {
-            simpleActions.push(n);
+      // Проверяем каждую цифру из блока "Просто"
+      for (const digit of simpleBlockDigits) {
+        if (!isFirstAction || digit > 0) {
+          // Цифры 1-4: проверяем нижние бусины
+          if (digit >= 1 && digit <= 4) {
+            if (this._canPlusLower(v, digit)) {
+              simpleActions.push(digit);
+            }
+          }
+          // Цифра 5: проверяем верхнюю бусину
+          else if (digit === 5) {
+            if (U === 0 && v <= 4) {
+              simpleActions.push(5);
+            }
+          }
+          // Цифры 6-9: проверяем комбинацию верхней + нижних
+          else if (digit >= 6 && digit <= 9) {
+            const lower = digit - 5;
+            if (U === 0 && this._canPlusLower(v, lower) && v + digit <= 9) {
+              simpleActions.push(digit);
+            }
           }
         }
-      }
-      if (U === 0 && v <= 4) {
-        simpleActions.push(5);
       }
     }
 
     if (!onlyAddition && !isFirstAction) {
-      for (let n = 1; n <= 4; n++) {
-        if (this._canMinusLower(v, n)) {
-          simpleActions.push(-n);
+      for (const digit of simpleBlockDigits) {
+        // Цифры 1-4: проверяем нижние бусины
+        if (digit >= 1 && digit <= 4) {
+          if (this._canMinusLower(v, digit)) {
+            simpleActions.push(-digit);
+          }
         }
-      }
-      if (U === 1 && v >= 5) {
-        simpleActions.push(-5);
+        // Цифра 5: проверяем верхнюю бусину
+        else if (digit === 5) {
+          if (U === 1 && v >= 5) {
+            simpleActions.push(-5);
+          }
+        }
+        // Цифры 6-9: проверяем комбинацию верхней + нижних
+        else if (digit >= 6 && digit <= 9) {
+          const lower = digit - 5;
+          if (U === 1 && this._canMinusLower(v, lower) && v - digit >= 0) {
+            simpleActions.push(-digit);
+          }
+        }
       }
     }
 
