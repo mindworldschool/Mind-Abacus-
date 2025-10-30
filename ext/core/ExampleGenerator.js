@@ -75,7 +75,17 @@ export class ExampleGenerator {
 
         // Финальная валидация методикой
         if (this.rule.validateExample && !this.rule.validateExample(example)) {
-          console.warn(`⚠️ Попытка ${attempt}: пример не прошёл валидацию`);
+          console.warn(`⚠️ Попытка ${attempt}: пример не прошёл валидацию (шагов: ${example.steps.length})`);
+
+          // Логируем детали для отладки
+          if (attempt % 20 === 0) {
+            console.log(`   Детали попытки ${attempt}:`, {
+              start: example.start,
+              answer: example.answer,
+              stepsCount: example.steps.length,
+              steps: example.steps.map(s => s.action)
+            });
+          }
           continue;
         }
 
@@ -83,6 +93,9 @@ export class ExampleGenerator {
         return example;
       } catch (error) {
         console.warn(`⚠️ Попытка ${attempt} неудачна:`, error.message);
+        if (attempt % 20 === 0) {
+          console.error(`   Ошибка на попытке ${attempt}:`, error);
+        }
       }
     }
 

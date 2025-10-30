@@ -23,8 +23,8 @@ export class BrothersRule extends BaseRule {
       name: "Братья",
       minState: 0,
       maxState: 9,
-      minSteps: config.minSteps ?? 3,
-      maxSteps: config.maxSteps ?? 7,
+      minSteps: config.minSteps ?? 2,  // Уменьшили с 3 до 2 - братские переходы ограничены
+      maxSteps: config.maxSteps ?? 4,  // Уменьшили с 7 до 4 - братские переходы ограничены
       brothersDigits,
       onlyAddition: config.onlyAddition ?? false,
       onlySubtraction: config.onlySubtraction ?? false,
@@ -127,10 +127,13 @@ export class BrothersRule extends BaseRule {
   generateStepsCount() {
     const { minSteps, maxSteps } = this.config;
 
-    // Для братских переходов ограничиваем количество шагов,
-    // так как доступных переходов может быть мало
-    const safeMin = Math.min(minSteps, 5);
-    const safeMax = Math.min(maxSteps, 7);
+    // Для братских переходов СИЛЬНО ограничиваем количество шагов,
+    // так как доступных переходов ОЧЕНЬ мало (братья образуют циклы 0↔4↔9↔4...)
+    // Разрешаем 2-4 шага максимум
+    const safeMin = Math.min(minSteps, 2);
+    const safeMax = Math.min(maxSteps, 4);
+
+    console.log(`📏 BrothersRule.generateStepsCount: ${safeMin}-${safeMax} (оригинал: ${minSteps}-${maxSteps})`);
 
     return safeMin + Math.floor(Math.random() * (safeMax - safeMin + 1));
   }
@@ -250,18 +253,36 @@ export class BrothersRule extends BaseRule {
     const { start, steps, answer } = example;
     const { minState, maxState } = this.config;
 
+    // Для братских переходов разрешаем даже 1 шаг
+    if (!steps || steps.length < 1) {
+      console.warn("validateExample: нет шагов");
+      return false;
+    }
+
     let s = start;
     let hasBrother = false;
 
     for (const step of steps) {
       const act = step.action ?? step; // на всякий случай
       s = this.applyAction(s, act);
-      if (s < minState || s > maxState) return false;
+      if (s < minState || s > maxState) {
+        console.warn(`validateExample: выход за диапазон [${minState}, ${maxState}]: ${s}`);
+        return false;
+      }
       if (typeof act === "object" && act.isBrother) hasBrother = true;
     }
 
-    if (s !== answer) return false;
-    if (!hasBrother) return false;
+    if (s !== answer) {
+      console.warn(`validateExample: ответ не совпадает: ${s} !== ${answer}`);
+      return false;
+    }
+
+    if (!hasBrother) {
+      console.warn("validateExample: нет братских шагов");
+      return false;
+    }
+
+    console.log(`✅ validateExample: пример валидный (${steps.length} шагов)`);
     return true;
   }
 }
