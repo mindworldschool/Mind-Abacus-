@@ -133,14 +133,30 @@ export class ExampleGenerator {
         break;
       }
 
+      // Логирование для отладки блока "Братья"
+      const brotherActions = availableActions.filter(a => typeof a === "object" && a.isBrother);
+      const simpleActions = availableActions.filter(a => !(typeof a === "object" && a.isBrother));
+      if (brotherActions.length > 0) {
+        console.log(`🎲 Шаг ${i+1}: доступно ${brotherActions.length} братских и ${simpleActions.length} простых действий`);
+      }
+
       // bias: хотим немного чаще выбирать большие цифры,
       // чтобы 6,7,8,9 реально встречались.
-      // сделаем из availableActions "мешок" с весами по |delta|.
+      // ДЛЯ БЛОКА "БРАТЬЯ": даём ОГРОМНЫЙ приоритет братским шагам!
       const weighted = [];
       for (const act of availableActions) {
         // Извлекаем числовое значение (для братских шагов act это объект)
         const val = typeof act === "object" ? act.value : act;
-        const w = 1 + Math.abs(val) * 0.3; // чуть больше вес у больших
+        const isBrother = typeof act === "object" && act.isBrother;
+
+        // Базовый вес по величине шага
+        let w = 1 + Math.abs(val) * 0.3;
+
+        // 🔥 КЛЮЧЕВОЕ: братские шаги получают вес x10
+        if (isBrother) {
+          w *= 10;
+        }
+
         for (let k = 0; k < w; k++) {
           weighted.push(act);
         }
@@ -148,6 +164,12 @@ export class ExampleGenerator {
 
       const action =
         weighted[Math.floor(Math.random() * weighted.length)];
+
+      // Логируем выбранное действие
+      const isChosenBrother = typeof action === "object" && action.isBrother;
+      if (isChosenBrother) {
+        console.log(`✨ Выбран братский шаг: ${action.value} (брат ${action.brotherN})`);
+      }
 
       // применяем действие
       const newState = this.rule.applyAction(currentState, action);
