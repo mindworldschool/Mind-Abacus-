@@ -1,10 +1,11 @@
-// ext/core/rules/BrothersRule.js - Правило "Братья" (ИСПРАВЛЕННОЕ)
+// ext/core/rules/BrothersRule.js - Правило "Братья" (ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ)
 // 
 // КЛЮЧЕВЫЕ ИСПРАВЛЕНИЯ:
 // 1. Возвращает И братские, И простые шаги (чтобы не застревать)
 // 2. ПРИОРИТИЗИРУЕТ братские шаги (80% вероятность выбора)
 // 3. Гарантирует хотя бы 1 братский шаг через validateExample
 // 4. Формулы без source (как в тестовом файле)
+// 5. Убран get name() - используем прямое присвоение this.name
 
 import { BaseRule } from "./BaseRule.js";
 
@@ -12,12 +13,16 @@ export class BrothersRule extends BaseRule {
   constructor(config = {}) {
     super(config);
 
+    // 🔥 ИСПРАВЛЕНИЕ: устанавливаем имя напрямую, БЕЗ getter
+    this.name = "Братья";
+
     // Какие "братья" тренируем: из {1,2,3,4}
     const brothersDigits = Array.isArray(config.selectedDigits)
       ? config.selectedDigits.map(n => parseInt(n, 10)).filter(n => n >= 1 && n <= 4)
       : [4];
 
     this.config = {
+      ...this.config,  // 🔥 наследуем config от BaseRule
       name: "Братья",
       minState: 0,
       maxState: 9,
@@ -29,8 +34,7 @@ export class BrothersRule extends BaseRule {
       digitCount: config.digitCount ?? 1,
       combineLevels: config.combineLevels ?? false,
       brotherPriority: 0.8,  // 🔥 80% шанс выбрать братский шаг
-      blocks: config.blocks ?? {},
-      ...config
+      blocks: config.blocks ?? {}
     };
 
     console.log(
@@ -54,9 +58,7 @@ export class BrothersRule extends BaseRule {
     }
   }
 
-  get name() {
-    return this.config.name;
-  }
+  // 🔥 УБРАН get name() - теперь используем прямое присвоение в конструкторе
 
   // ===== Помощники по физике одной стойки S∈[0..9] =====
   _U(S) { return S >= 5 ? 1 : 0; }         // верхняя активна?
