@@ -138,7 +138,9 @@ export class ExampleGenerator {
       // сделаем из availableActions "мешок" с весами по |delta|.
       const weighted = [];
       for (const act of availableActions) {
-        const w = 1 + Math.abs(act) * 0.3; // чуть больше вес у больших
+        // Извлекаем числовое значение (для братских шагов act это объект)
+        const val = typeof act === "object" ? act.value : act;
+        const w = 1 + Math.abs(val) * 0.3; // чуть больше вес у больших
         for (let k = 0; k < w; k++) {
           weighted.push(act);
         }
