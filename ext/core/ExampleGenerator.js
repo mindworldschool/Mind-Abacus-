@@ -462,25 +462,25 @@ export class ExampleGenerator {
 
     for (const step of example.steps) {
       const action = step.action;
-      
+
       // 🔥 ПРОВЕРКА: это братский шаг?
       if (typeof action === "object" && action !== null) {
         // Братский шаг с формулой
         if (action.isBrother && action.formula) {
           const val = action.value;
           const signStr = val >= 0 ? "+" : "";
-          
+
           formattedSteps.push({
             step: `${signStr}${val}`,        // для UI: "+1", "-2" и т.д.
             isBrother: true,
             brotherN: action.brotherN,       // какой брат (1,2,3,4)
             formula: action.formula          // [{op:"+",val:5},{op:"-",val:4}]
           });
-          
+
           console.log(`👬 Братский шаг: ${signStr}${val} (брат ${action.brotherN})`);
           continue;
         }
-        
+
         // Обычный объект {position, value} из многоразрядного режима
         if (action.value !== undefined) {
           const v = action.value;
@@ -488,7 +488,7 @@ export class ExampleGenerator {
           continue;
         }
       }
-      
+
       // Обычный числовой шаг (Просто)
       const val = typeof action === "number" ? action : parseInt(action, 10);
       if (!isNaN(val)) {
