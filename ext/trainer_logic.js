@@ -671,30 +671,38 @@ export function mountTrainerUI(container, {
       const showSpeedActive =
         st.showSpeedEnabled && effectiveShowSpeed > 0;
 
-      // как рисуем пример
-      if (showSpeedActive || shouldUseDictation) {
-        // диктовка: не показываем список целиком
-        const area = document.getElementById("area-example");
-        if (area) area.innerHTML = "";
-      } else {
-        exampleView.render(ex.steps, displayMode);
-        requestAnimationFrame(() => {
-          adaptExampleFontSize(actionsLen, maxDigitsInStep);
-        });
-      }
+    // Преобразуем шаги для отображения (братские объекты → строки)
+const displaySteps = ex.steps.map(step => {
+  if (typeof step === "string") return step;           // "+3"
+  if (step.step) return step.step;                     // братский: {step: "+1", ...}
+  return String(step);                                 // fallback
+});
+
+// как рисуем пример
+if (showSpeedActive || shouldUseDictation) {
+  // диктовка: не показываем список целиком
+  const area = document.getElementById("area-example");
+  if (area) area.innerHTML = "";
+} else {
+  exampleView.render(displaySteps, displayMode);  // 🔥 используем displaySteps
+  requestAnimationFrame(() => {
+    adaptExampleFontSize(actionsLen, maxDigitsInStep);
+  });
+}
 
       // блокировать ли инпут во время диктовки
       const lockDuringShow = st.lockInputDuringShow !== false;
       if (input) input.disabled = lockDuringShow;
 
-      if (showSpeedActive || shouldUseDictation) {
-        isShowing = true;
-        showAbort = false;
-        await playSequential(
-          ex.steps,
-          effectiveShowSpeed,
-          { beepOnStep: !!st.beepOnStep }
-        );
+    // === СТАЛО ===
+if (showSpeedActive || shouldUseDictation) {
+  isShowing = true;
+  showAbort = false;
+  await playSequential(
+    displaySteps,                      // 🔥 используем displaySteps
+    effectiveShowSpeed,
+    { beepOnStep: !!st.beepOnStep }
+  );
         if (showAbort) return;
         await delay(
           st.showSpeedPauseAfterChainMs ??
@@ -1091,3 +1099,4 @@ function getExampleCount(examplesCfg) {
     ? DEFAULTS.EXAMPLES_COUNT
     : (examplesCfg.count ?? DEFAULTS.EXAMPLES_COUNT);
 }
+
