@@ -702,7 +702,7 @@ if (showSpeedActive || shouldUseDictation) {
   isShowing = true;
   showAbort = false;
   await playSequential(
-    displaySteps,                      // 🔥 используем displaySteps
+    displaySteps,                      // используем displaySteps
     effectiveShowSpeed,
     { beepOnStep: !!st.beepOnStep }
   );
