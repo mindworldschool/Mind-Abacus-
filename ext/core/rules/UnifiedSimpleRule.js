@@ -84,6 +84,7 @@ export class UnifiedSimpleRule extends BaseRule {
       "Одноразрядные шаги без переноса. Каждый шаг = один физический жест.";
 
     this.config = {
+      ...this.config,  // 🔥 УЛУЧШЕНИЕ: наследуем config от BaseRule
       // физические пределы:
       minState: 0,
       maxState: 9,
@@ -112,10 +113,9 @@ export class UnifiedSimpleRule extends BaseRule {
       mixActive: config.mixActive ?? false,
 
       // блоки (чтобы в будущем можно было смотреть)
-      blocks: config.blocks ?? {},
-
-      // остальное оставим на всякий случай
-      ...config
+      blocks: config.blocks ?? {}
+      
+      // 🔥 УБРАЛИ: ...config в конце - теперь наследование в начале
     };
 
     console.log(
