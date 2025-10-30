@@ -162,8 +162,10 @@ function createBlockCard({
   subtractionLabel,
   t  // ✅ ИСПРАВЛЕНИЕ 1: добавлен параметр t
 }) {
-  const card = document.createElement("div");
-  card.className = "block-card";
+ // === СТАЛО ===
+const card = document.createElement("div");
+card.className = "block-card";
+card.dataset.block = key;  // 🔥 НОВОЕ: для селектора
 
   const header = document.createElement("div");
   header.className = "block-card__header";
