@@ -192,19 +192,44 @@ card.dataset.block = key;  // 🔥 НОВОЕ: для селектора
     label.append(input, text);
     label.classList.toggle("digit-chip--active", input.checked);
 
-    input.addEventListener("change", () => {
-      label.classList.toggle("digit-chip--active", input.checked);
-      const current = new Set(state.settings.blocks[key].digits);
-      if (input.checked) current.add(digit);
-      else current.delete(digit);
-      const nextDigits = Array.from(current).sort((a, b) => {
-        const orderA = orderMap.get(a) ?? 0;
-        const orderB = orderMap.get(b) ?? 0;
-        return orderA - orderB;
+   // === СТАЛО ===
+input.addEventListener("change", () => {
+  label.classList.toggle("digit-chip--active", input.checked);
+  const current = new Set(state.settings.blocks[key].digits);
+  if (input.checked) current.add(digit);
+  else current.delete(digit);
+  const nextDigits = Array.from(current).sort((a, b) => {
+    const orderA = orderMap.get(a) ?? 0;
+    const orderB = orderMap.get(b) ?? 0;
+    return orderA - orderB;
+  });
+  onUpdate({ digits: nextDigits });
+  updateAllToggle();
+  
+  // 🔥 НОВОЕ: автовыделение "Просто" при активации "Братья"
+  if (key === "brothers" && input.checked) {
+    console.log("🔄 Автовыделение всех цифр в блоке 'Просто'");
+    
+    // Обновляем состояние
+    state.settings.blocks.simple.digits = [1,2,3,4,5,6,7,8,9];
+    
+    // Визуально подсвечиваем чипы в блоке "Просто"
+    const simpleCard = document.querySelector('.block-card[data-block="simple"]');
+    if (simpleCard) {
+      simpleCard.querySelectorAll('.digit-chip input').forEach(inp => {
+        inp.checked = true;
+        inp.closest('.digit-chip').classList.add('digit-chip--active');
       });
-      onUpdate({ digits: nextDigits });
-      updateAllToggle();
-    });
+      
+      // Обновляем галочку "Все"
+      const allToggle = simpleCard.querySelector('.settings-checkbox--pill input');
+      if (allToggle) {
+        allToggle.checked = true;
+        allToggle.closest('.settings-checkbox').classList.add('is-active');
+      }
+    }
+  }
+});
 
     digitWrap.appendChild(label);
     return { input, label, digit };
