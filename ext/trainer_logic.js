@@ -550,11 +550,7 @@ export function mountTrainerUI(container, {
     }
 
     function formatStep(step) {
-      // Если это братский объект - возвращаем step.step
-      if (typeof step === 'object' && step.step) {
-        return step.step;
-      }
-      // Простой шаг - это уже строка "+3"/"-2"
+      // шаги у нас уже со знаком "+3"/"-2"
       return String(step);
     }
 
@@ -567,21 +563,12 @@ export function mountTrainerUI(container, {
         for (let i = 0; i < steps.length; i++) {
           if (showAbort) break;
 
-          const step = steps[i];
-          const stepStr = formatStep(step);
+          const stepStr = formatStep(steps[i]);
           const isOdd = i % 2 === 0;
           const color = isOdd ? "#EC8D00" : "#6db45c";
 
           overlay.show(stepStr, color);
           if (beepOnStep) playSound("tick");
-
-          // 👬 Если это братский шаг с формулой - применяем к абакусу
-          if (typeof step === 'object' && step.isBrother && step.formula) {
-            console.log(`👬 Применяю братскую формулу: ${stepStr}`, step.formula);
-            // Применяем формулу к абакусу с задержкой между операциями
-            await abacus.applyBrotherFormula(step.formula, 0, 200);
-          }
-
           await delay(intervalMs);
           overlay.hide();
           await delay(UI.DELAY_BETWEEN_STEPS_MS);
@@ -715,7 +702,7 @@ if (showSpeedActive || shouldUseDictation) {
   isShowing = true;
   showAbort = false;
   await playSequential(
-    ex.steps,                          // 🔥 ИЗМЕНЕНО: используем оригинальные шаги с формулами
+    displaySteps,                      // используем displaySteps
     effectiveShowSpeed,
     { beepOnStep: !!st.beepOnStep }
   );
