@@ -224,10 +224,13 @@ export function generateExample(settings = {}) {
   //
   let rule;
 
+// === НОВЫЙ КОД ===
 // если активирован блок "Братья" — используем BrothersRule
 if (ruleConfig.brothersActive === true) {
-  console.log("🎯 [generator] Режим БРАТЬЯ активирован");
-  console.log("   Выбранные братья:", ruleConfig.blocks?.brothers?.digits);
+  console.log("👬 [generator] Режим БРАТЬЯ активирован");
+  console.log("   📌 Выбранные братья:", ruleConfig.blocks?.brothers?.digits);
+  console.log("   📌 Только сложение:", ruleConfig.blocks?.brothers?.onlyAddition);
+  console.log("   📌 Только вычитание:", ruleConfig.blocks?.brothers?.onlySubtraction);
   
   rule = new BrothersRule({
     selectedDigits: ruleConfig.blocks?.brothers?.digits || [4],
@@ -240,10 +243,9 @@ if (ruleConfig.brothersActive === true) {
     blocks: ruleConfig.blocks,
   });
 } else {
-  console.log("🎯 [generator] Режим ПРОСТО");
+  console.log("📘 [generator] Режим ПРОСТО");
   rule = new UnifiedSimpleRule(ruleConfig);
-}
-  
+}  
   //
   // 9. Генерируем пример.
   //
