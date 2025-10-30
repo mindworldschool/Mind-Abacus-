@@ -41,6 +41,18 @@ export class BrothersRule extends BaseRule {
 
     // Построим карту допустимых братских переходов заранее
     this.brotherPairs = this._buildBrotherPairs(brothersDigits);
+
+    // Выводим таблицу братских переходов для отладки
+    console.log("📊 Таблица братских переходов:");
+    const transitions = {};
+    for (const pairKey of this.brotherPairs) {
+      const [from, to, brotherInfo] = pairKey.split('-');
+      if (!transitions[from]) transitions[from] = [];
+      transitions[from].push(`${to} (${brotherInfo})`);
+    }
+    for (const [from, toList] of Object.entries(transitions).sort((a, b) => parseInt(a[0]) - parseInt(b[0]))) {
+      console.log(`  Из ${from} → [${toList.join(', ')}]`);
+    }
   }
 
   // ===== Помощники по физике одной стойки S∈[0..9] =====
@@ -123,20 +135,21 @@ export class BrothersRule extends BaseRule {
 
   /**
    * Все возможные действия из состояния v.
+   * 🔥 ТОЛЬКО БРАТСКИЕ ШАГИ! Никаких простых переходов.
    * Для братских действий добавляем разложение formula: массив из двух атомарных операций.
    */
   getAvailableActions(currentState, isFirstAction = false, position = 0) {
     const { onlyAddition, onlySubtraction, brothersDigits } = this.config;
     const v = currentState;
-    const actions = [];
-    const brotherActions = []; 
-    const simpleActions = [];
+    const brotherActions = [];
 
+    // Проверяем все возможные переходы из текущего состояния
     for (let v2 = 0; v2 <= 9; v2++) {
       if (v2 === v) continue;
       const delta = v2 - v;
       const dir = delta > 0 ? "up" : "down";
 
+      // Применяем ограничения направления
       if (onlyAddition && delta < 0) continue;
       if (onlySubtraction && delta > 0) continue;
       if (isFirstAction && delta < 0) continue; // первый шаг не делаем минус
@@ -150,31 +163,24 @@ export class BrothersRule extends BaseRule {
         }
       }
 
+      // Добавляем ТОЛЬКО братские шаги
       if (brotherN != null) {
         const formula = this._buildBrotherFormula(v, v2, brotherN, dir);
         if (formula) {
-          brotherActions.push({ label: `через 5 (брат ${brotherN})`,
+          brotherActions.push({
+            label: `через 5 (брат ${brotherN})`,
             value: delta,
             isBrother: true,
             brotherN,
             formula
           });
         }
-      } else {
-        // НЕ братский (простой) — оставляем для генератора,
-        // чтобы можно было смешивать, но validateExample потребует ≥1 "братского"
-        if (this._isSimpleTransition(v, v2, dir)) {
-          brotherActions.push({ label: `через 5 (брат ${brotherN})`, value: delta, isBrother: false });
-        }
       }
+      // Простые шаги полностью игнорируем!
     }
 
-    // Если есть братские, и включен режим preferBrothersOnly — возвращаем только их
-    if (brotherActions.length && this.config.preferBrothersOnly) {
-      return brotherActions;
-    }
-    // Иначе — объединяем
-    return brotherActions.concat(simpleActions);
+    console.log(`🎲 Состояние ${v}: доступно ${brotherActions.length} братских шагов`);
+    return brotherActions;
   }
 
   /**

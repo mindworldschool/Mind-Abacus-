@@ -130,47 +130,30 @@ export class ExampleGenerator {
       if (!availableActions || availableActions.length === 0) {
         // мы упёрлись (например стояли на 4, а все разрешённые цифры — только плюсы)
         // просто заканчиваем пример раньше
+        console.warn(`⚠️ Шаг ${i+1}: нет доступных действий из состояния ${currentState}, заканчиваем генерацию`);
         break;
       }
 
-      // Логирование для отладки блока "Братья"
-      const brotherActions = availableActions.filter(a => typeof a === "object" && a.isBrother);
-      const simpleActions = availableActions.filter(a => !(typeof a === "object" && a.isBrother));
-      if (brotherActions.length > 0) {
-        console.log(`🎲 Шаг ${i+1}: доступно ${brotherActions.length} братских и ${simpleActions.length} простых действий`);
-      }
+      // Логирование для отладки
+      console.log(`🎲 Шаг ${i+1}: доступно ${availableActions.length} действий из состояния ${currentState}`);
 
-      // 🔥 СТРАТЕГИЯ ДЛЯ БЛОКА "БРАТЬЯ":
-      // Если есть братские шаги - ВСЕГДА выбираем их с приоритетом 95%!
-      const hasBrotherSteps = steps.some(s => typeof s.action === "object" && s.action.isBrother);
-
+      // 🔥 Для блока "Братья" правило УЖЕ возвращает только братские шаги
+      // Просто выбираем случайный шаг с весами по абсолютной величине
       let action;
 
-      if (brotherActions.length > 0) {
-        // Если братский шаг доступен:
-        // - 95% вероятность выбрать братский
-        // - 5% вероятность выбрать простой (для разнообразия)
-        const chooseBrother = Math.random() < 0.95;
+      // Применяем веса: большие значения выбираются чаще
+      const weighted = [];
+      for (const act of availableActions) {
+        const val = typeof act === "object" ? act.value : act;
+        const w = 1 + Math.abs(val) * 0.3;
+        for (let k = 0; k < w; k++) {
+          weighted.push(act);
+        }
+      }
+      action = weighted[Math.floor(Math.random() * weighted.length)];
 
-        if (chooseBrother) {
-          // Выбираем случайный братский шаг
-          action = brotherActions[Math.floor(Math.random() * brotherActions.length)];
-          console.log(`✨ Выбран братский шаг: ${action.value} (брат ${action.brotherN})`);
-        } else {
-          // Выбираем случайный простой шаг
-          action = simpleActions[Math.floor(Math.random() * simpleActions.length)];
-        }
-      } else {
-        // Нет братских шагов - используем обычную логику с весами
-        const weighted = [];
-        for (const act of availableActions) {
-          const val = typeof act === "object" ? act.value : act;
-          const w = 1 + Math.abs(val) * 0.3;
-          for (let k = 0; k < w; k++) {
-            weighted.push(act);
-          }
-        }
-        action = weighted[Math.floor(Math.random() * weighted.length)];
+      if (typeof action === "object" && action.isBrother) {
+        console.log(`✨ Выбран братский шаг: ${action.value} (брат ${action.brotherN})`);
       }
 
       // применяем действие
