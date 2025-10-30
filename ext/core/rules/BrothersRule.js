@@ -126,7 +126,13 @@ export class BrothersRule extends BaseRule {
   /** Длина примера */
   generateStepsCount() {
     const { minSteps, maxSteps } = this.config;
-    return minSteps + Math.floor(Math.random() * (maxSteps - minSteps + 1));
+
+    // Для братских переходов ограничиваем количество шагов,
+    // так как доступных переходов может быть мало
+    const safeMin = Math.min(minSteps, 5);
+    const safeMax = Math.min(maxSteps, 7);
+
+    return safeMin + Math.floor(Math.random() * (safeMax - safeMin + 1));
   }
 
   isValidState(v) {

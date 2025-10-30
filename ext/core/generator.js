@@ -30,7 +30,8 @@ import { BrothersRule } from "./rules/BrothersRule.js";
  *          Пример в готовом формате для тренажёра.
  */
 export function generateExample(settings = {}) {
-  console.log("🧠 [generator] входные настройки:", settings);
+  try {
+    console.log("🧠 [generator] входные настройки:", settings);
 
   //
   // 1. Разрядность
@@ -139,7 +140,10 @@ export function generateExample(settings = {}) {
   // Поле "active" не используется в state.js, поэтому проверяем digits.
   //
   const brothersDigits = Array.isArray(blocks?.brothers?.digits)
-    ? blocks.brothers.digits.filter(d => d != null && d !== "")
+    ? blocks.brothers.digits.filter(d => {
+        const parsed = parseInt(d, 10);
+        return !isNaN(parsed) && parsed >= 1 && parsed <= 4;
+      })
     : [];
   const friendsDigits = Array.isArray(blocks?.friends?.digits)
     ? blocks.friends.digits.filter(d => d != null && d !== "")
@@ -151,6 +155,12 @@ export function generateExample(settings = {}) {
   const brothersActive = brothersDigits.length > 0;
   const friendsActive = friendsDigits.length > 0;
   const mixActive = mixDigits.length > 0;
+
+  console.log(`🔍 [generator] Проверка активации блоков:`, {
+    brothersDigits,
+    brothersActive,
+    blocksFromSettings: blocks?.brothers
+  });
 
   //
   // 7. Собираем конфигурацию для правил.
@@ -269,10 +279,22 @@ if (brothersActive === true) {
   //
   const formatted = gen.toTrainerFormat(rawExample);
 
-  console.log(
-    "✅ [generator] пример готов:",
-    JSON.stringify(formatted, null, 2)
-  );
+    console.log(
+      "✅ [generator] пример готов:",
+      JSON.stringify(formatted, null, 2)
+    );
 
-  return formatted;
+    return formatted;
+  } catch (error) {
+    console.error("❌ [generator] Ошибка генерации примера:", error);
+    console.error(error.stack);
+
+    // Fallback: возвращаем простой пример
+    console.warn("⚠️ [generator] Возвращаем fallback пример");
+    return {
+      start: 0,
+      steps: ["+1", "+2", "-1"],
+      answer: 2
+    };
+  }
 }
