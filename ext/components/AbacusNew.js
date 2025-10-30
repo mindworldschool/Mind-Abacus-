@@ -411,6 +411,66 @@ export class Abacus {
     this.attachEventListeners(); // Перепривязка после ре-рендера
     console.log('🧮 Абакус сброшен');
   }
+
+  /**
+   * Применить братский шаг с формулой (пошагово)
+   * @param {Object} formulaStep - {op: "+"|"-", val: number, source: "upper"|"lower"}
+   * @param {number} column - номер колонки (0 = самый правый разряд)
+   */
+  applyFormulaOperation(formulaStep, column = 0) {
+    const { op, val, source } = formulaStep;
+
+    console.log(`👬 Применяю формулу к колонке ${column}: ${op}${val} (${source})`);
+
+    if (source === "upper") {
+      // Операция с верхней бусиной
+      if (op === "+") {
+        // Поставить верхнюю бусину (вниз)
+        this.beads[column].heaven = 'down';
+      } else if (op === "-") {
+        // Убрать верхнюю бусину (вверх)
+        this.beads[column].heaven = 'up';
+      }
+    } else if (source === "lower") {
+      // Операция с нижними бусинами
+      const currentLower = this.beads[column].earth.filter(b => b === 'up').length;
+      let newLower;
+
+      if (op === "+") {
+        newLower = currentLower + val;
+      } else if (op === "-") {
+        newLower = currentLower - val;
+      }
+
+      // Обновляем нижние бусины
+      this.beads[column].earth = [
+        newLower >= 1 ? 'up' : 'down',
+        newLower >= 2 ? 'up' : 'down',
+        newLower >= 3 ? 'up' : 'down',
+        newLower >= 4 ? 'up' : 'down'
+      ];
+    }
+
+    this.render();
+    this.attachEventListeners();
+  }
+
+  /**
+   * Применить полную братскую формулу (массив операций)
+   * @param {Array} formula - [{op, val, source}, ...]
+   * @param {number} column - номер колонки
+   * @param {number} delay - задержка между операциями (мс)
+   */
+  async applyBrotherFormula(formula, column = 0, delay = 300) {
+    console.log(`👬 Применяю братскую формулу к колонке ${column}:`, formula);
+
+    for (const step of formula) {
+      this.applyFormulaOperation(step, column);
+      if (delay > 0) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
   
   /**
    * Изменить количество разрядов (для будущего использования)
