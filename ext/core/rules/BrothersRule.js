@@ -129,7 +129,7 @@ export class BrothersRule extends BaseRule {
       }
 
       if (isBrotherTransition) {
-        // Это БРАТСКИЙ шаг - ТОЛЬКО такие шаги разрешены в блоке "Братья"
+        // Это БРАТСКИЙ шаг
         const formula = this._buildBrotherFormula(v, v2, brotherN, direction);
         if (formula) {
           actions.push({
@@ -139,9 +139,12 @@ export class BrothersRule extends BaseRule {
             formula
           });
         }
+      } else {
+        // Обычный "простой" шаг (без обмена через 5)
+        if (this.isSimpleTransition(v, v2, direction)) {
+          actions.push({ value: delta, isBrother: false });
+        }
       }
-      // ❌ В блоке "Братья" НЕТ обычных простых шагов!
-      // Должны быть ТОЛЬКО переходы через 5 (обмен верхней и нижних бусин)
     }
 
     console.log(`👬 getAvailableActions(v=${v}): нашли ${actions.length} действий`);
