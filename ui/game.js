@@ -105,10 +105,18 @@ export async function renderGame(container, { t, state, navigate }) {
     //   retryMode.enabled === false
     //
     // Настройки для тренировки берём так:
-    // - если уже есть globalState.lastSettings (мы сохранили их после прошлой тренировки),
-    //   то используем их, чтобы повтор/исправление шли с теми же параметрами.
-    // - иначе используем state.settings, т.е. только что выбранные пользователем настройки.
-    const effectiveSettings = globalState.lastSettings || state.settings;
+    // - если retryMode.enabled === true (режим исправления ошибок),
+    //   используем сохраненные lastSettings, чтобы условия были те же
+    // - иначе ВСЕГДА используем актуальные state.settings
+    const isRetryMode = globalState.retryMode?.enabled === true;
+    const effectiveSettings = isRetryMode 
+      ? (globalState.lastSettings || state.settings)
+      : state.settings;
+    
+    // Сохраняем текущие настройки для возможного retry
+    if (!isRetryMode) {
+      globalState.lastSettings = state.settings;
+    }
 
     const cleanupTrainer = module.mountTrainerUI(body, {
       t,

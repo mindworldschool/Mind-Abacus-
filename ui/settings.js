@@ -210,8 +210,16 @@ input.addEventListener("change", () => {
   if (key === "brothers" && input.checked) {
     console.log("🔄 Автовыделение всех цифр в блоке 'Просто'");
     
-    // Обновляем состояние
-    state.settings.blocks.simple.digits = [1,2,3,4,5,6,7,8,9];
+    // ✅ ИСПРАВЛЕНИЕ: используем updateSettings для правильного сохранения
+    updateSettings({
+      blocks: {
+        ...state.settings.blocks,
+        simple: {
+          ...state.settings.blocks.simple,
+          digits: ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+        }
+      }
+    });
     
     // Визуально подсвечиваем чипы в блоке "Просто"
     const simpleCard = document.querySelector('.block-card[data-block="simple"]');
@@ -302,13 +310,40 @@ export function renderSettings(container, { t, state, updateSettings, navigate }
   heading.textContent = t("settings.title");
   paragraph.textContent = t("settings.description");
 
+  // ✅ ИСПРАВЛЕНИЕ: Синхронизация блоков при рендере
+  // Если "Братья" выбраны, то в "Просто" должны быть все цифры 1-9
+  const settingsState = state.settings;
+  const brothersSelected = settingsState.blocks.brothers.digits.length > 0;
+  
+  if (brothersSelected) {
+    const allSimpleDigits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+    const currentSimpleDigits = settingsState.blocks.simple.digits || [];
+    
+    // Проверяем, все ли цифры выбраны в "Просто"
+    const allSelected = allSimpleDigits.every(d => currentSimpleDigits.includes(d));
+    
+    if (!allSelected) {
+      console.log("🔄 Восстановление всех цифр в блоке 'Просто' при рендере настроек");
+      updateSettings({
+        blocks: {
+          ...settingsState.blocks,
+          simple: {
+            ...settingsState.blocks.simple,
+            digits: allSimpleDigits
+          }
+        }
+      });
+      // Обновляем локальную копию для правильного рендера
+      settingsState.blocks.simple.digits = allSimpleDigits;
+    }
+  }
+
   const form = document.createElement("form");
   form.className = "form settings-form";
 
   const baseGrid = document.createElement("div");
   baseGrid.className = "settings-grid";
 
-  const settingsState = state.settings;
 // === Варианты времени (с локализацией) ===
 const lang = state?.lang || document.documentElement.lang || "ru";
 
