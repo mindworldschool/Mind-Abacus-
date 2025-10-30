@@ -75,7 +75,17 @@ export class ExampleGenerator {
 
         // Финальная валидация методикой
         if (this.rule.validateExample && !this.rule.validateExample(example)) {
-          console.warn(`⚠️ Попытка ${attempt}: пример не прошёл валидацию`);
+          console.warn(`⚠️ Попытка ${attempt}: пример не прошёл валидацию (шагов: ${example.steps.length})`);
+
+          // Логируем детали для отладки
+          if (attempt % 20 === 0) {
+            console.log(`   Детали попытки ${attempt}:`, {
+              start: example.start,
+              answer: example.answer,
+              stepsCount: example.steps.length,
+              steps: example.steps.map(s => s.action)
+            });
+          }
           continue;
         }
 
@@ -83,6 +93,9 @@ export class ExampleGenerator {
         return example;
       } catch (error) {
         console.warn(`⚠️ Попытка ${attempt} неудачна:`, error.message);
+        if (attempt % 20 === 0) {
+          console.error(`   Ошибка на попытке ${attempt}:`, error);
+        }
       }
     }
 
@@ -131,6 +144,11 @@ export class ExampleGenerator {
         // мы упёрлись (например стояли на 4, а все разрешённые цифры — только плюсы)
         // просто заканчиваем пример раньше
         console.warn(`⚠️ Шаг ${i+1}: нет доступных действий из состояния ${currentState}, заканчиваем генерацию`);
+
+        // Если это первый шаг - выбрасываем исключение, чтобы попробовать другую попытку
+        if (i === 0) {
+          throw new Error(`Невозможно сделать первый шаг из состояния ${currentState}`);
+        }
         break;
       }
 
