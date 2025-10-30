@@ -390,7 +390,41 @@ export class ExampleGenerator {
    */
   toTrainerFormat(example) {
     const digitCount = this.rule.config?.digitCount || 1;
+// === ПАТЧ для ext/core/ExampleGenerator.js ===
+// Вставить в метод toTrainerFormat(), строка ~335
 
+// Обработка братских шагов (если есть formula)
+const formattedSteps = [];
+
+for (const step of example.steps) {
+  const action = step.action;
+  
+  // Если это братский шаг с формулой
+  if (typeof action === "object" && action.isBrother && action.formula) {
+    // Для UI показываем как обычный шаг (+1, +2, -3 и т.д.)
+    const signStr = action.value >= 0 ? "+" : "";
+    const mainStep = `${signStr}${action.value}`;
+    
+    // Но сохраняем метаданные для анимации абакуса
+    formattedSteps.push({
+      step: mainStep,
+      isBrother: true,
+      brotherN: action.brotherN,
+      formula: action.formula  // [{op:"+",val:5}, {op:"-",val:4}]
+    });
+  } else {
+    // Обычный шаг (Просто)
+    const val = typeof action === "object" ? action.value : action;
+    const signStr = val >= 0 ? "+" : "";
+    formattedSteps.push(`${signStr}${val}`);
+  }
+}
+
+return {
+  start: this.rule.stateToNumber(example.start),
+  steps: formattedSteps,  // теперь может содержать объекты с formula
+  answer: this.rule.stateToNumber(example.answer)
+};
     // многозначный кейс
     if (digitCount > 1 && Array.isArray(example.start)) {
       const formattedSteps = [];
