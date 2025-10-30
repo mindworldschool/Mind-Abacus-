@@ -384,101 +384,15 @@ export class ExampleGenerator {
   /**
    * Формат для trainer_logic.js:
    *  - steps => массив строк вида "+3", "-7", "+5"
+   *            ИЛИ объектов { step: "+1", isBrother: true, formula: [...] }
    *  - answer => конечное число
    *
-   * В многозначном режиме мы склеиваем вектор действий в строку типа "+32".
+   * В многозначном режиме склеиваем вектор действий в строку типа "+32".
    */
-/**
- * Формат для trainer_logic.js:
- *  - steps => массив строк вида "+3", "-7", "+5"
- *            ИЛИ объектов { step: "+1", isBrother: true, formula: [...] }
- *  - answer => конечное число
- */
-toTrainerFormat(example) {
-  const digitCount = this.rule.config?.digitCount || 1;
+  toTrainerFormat(example) {
+    const digitCount = this.rule.config?.digitCount || 1;
 
-  // многозначный кейс
-  if (digitCount > 1 && Array.isArray(example.start)) {
-    const formattedSteps = [];
-
-    for (const step of example.steps) {
-      const vector = Array.isArray(step.action)
-        ? step.action
-        : [step.action];
-
-      const byPos = [];
-      for (const part of vector) {
-        byPos[part.position] = part.value;
-      }
-
-      const signValue = byPos.find(v => v !== 0) || 0;
-      const signStr = signValue >= 0 ? "+" : "-";
-
-      const maxPos = byPos.length - 1;
-      let magnitudeStr = "";
-      for (let p = maxPos; p >= 0; p--) {
-        const v = byPos[p] || 0;
-        magnitudeStr += Math.abs(v).toString();
-      }
-
-      formattedSteps.push(`${signStr}${magnitudeStr}`);
-    }
-
-    const finalAnswer = this.rule.stateToNumber(example.answer);
-
-    return {
-      start: this.rule.stateToNumber(example.start),
-      steps: formattedSteps,
-      answer: finalAnswer
-    };
-  }
-
-  // === ОДНОРАЗРЯДНЫЙ КЕЙС (с поддержкой братских шагов) ===
-  const formattedSteps = [];
-
-  for (const step of example.steps) {
-    const action = step.action;
-    
-    // 🔥 ПРОВЕРКА: это братский шаг?
-    if (typeof action === "object" && action !== null) {
-      // Братский шаг с формулой
-      if (action.isBrother && action.formula) {
-        const val = action.value;
-        const signStr = val >= 0 ? "+" : "";
-        
-        formattedSteps.push({
-          step: `${signStr}${val}`,        // для UI: "+1", "-2" и т.д.
-          isBrother: true,
-          brotherN: action.brotherN,       // какой брат (1,2,3,4)
-          formula: action.formula          // [{op:"+",val:5},{op:"-",val:4}]
-        });
-        
-        console.log(`👬 Братский шаг: ${signStr}${val} (брат ${action.brotherN})`);
-        continue;
-      }
-      
-      // Обычный объект {position, value} из многоразрядного режима
-      if (action.value !== undefined) {
-        const v = action.value;
-        formattedSteps.push(v >= 0 ? `+${v}` : `${v}`);
-        continue;
-      }
-    }
-    
-    // Обычный числовой шаг (Просто)
-    const val = typeof action === "number" ? action : parseInt(action, 10);
-    if (!isNaN(val)) {
-      formattedSteps.push(val >= 0 ? `+${val}` : `${val}`);
-    }
-  }
-
-  return {
-    start: this.rule.stateToNumber(example.start),
-    steps: formattedSteps,
-    answer: this.rule.stateToNumber(example.answer)
-  };
-}
-    // многозначный кейс
+    // === МНОГОЗНАЧНЫЙ КЕЙС ===
     if (digitCount > 1 && Array.isArray(example.start)) {
       const formattedSteps = [];
 
@@ -517,12 +431,48 @@ toTrainerFormat(example) {
       };
     }
 
-    // одноразрядный кейс
+    // === ОДНОРАЗРЯДНЫЙ КЕЙС (с поддержкой братских шагов) ===
+    const formattedSteps = [];
+
+    for (const step of example.steps) {
+      const action = step.action;
+      
+      // 🔥 ПРОВЕРКА: это братский шаг?
+      if (typeof action === "object" && action !== null) {
+        // Братский шаг с формулой
+        if (action.isBrother && action.formula) {
+          const val = action.value;
+          const signStr = val >= 0 ? "+" : "";
+          
+          formattedSteps.push({
+            step: `${signStr}${val}`,        // для UI: "+1", "-2" и т.д.
+            isBrother: true,
+            brotherN: action.brotherN,       // какой брат (1,2,3,4)
+            formula: action.formula          // [{op:"+",val:5},{op:"-",val:4}]
+          });
+          
+          console.log(`👬 Братский шаг: ${signStr}${val} (брат ${action.brotherN})`);
+          continue;
+        }
+        
+        // Обычный объект {position, value} из многоразрядного режима
+        if (action.value !== undefined) {
+          const v = action.value;
+          formattedSteps.push(v >= 0 ? `+${v}` : `${v}`);
+          continue;
+        }
+      }
+      
+      // Обычный числовой шаг (Просто)
+      const val = typeof action === "number" ? action : parseInt(action, 10);
+      if (!isNaN(val)) {
+        formattedSteps.push(val >= 0 ? `+${val}` : `${val}`);
+      }
+    }
+
     return {
       start: this.rule.stateToNumber(example.start),
-      steps: example.steps.map(step =>
-        this.rule.formatAction(step.action)
-      ),
+      steps: formattedSteps,
       answer: this.rule.stateToNumber(example.answer)
     };
   }
