@@ -1,11 +1,10 @@
-// ext/core/rules/BrothersRule.js (ПЕРЕРАБОТАНО)
-// Правило "Братья" 👬 — гарантирует шаги через 5 с физически корректной проверкой.
-// Ключевые отличия от предыдущей версии:
-// 1) Таблица переходов строится ПРОГРАММНО для всех S∈[0..9] и n∈selectedDigits,
-//    а не через частично забитые вручную пары — это исключает пропуски/ошибки.
-// 2) Каждый братский шаг содержит формулу операций на соробане (массив из двух
-//    под-операций), чтобы UI мог отображать именно обмен через 5.
-// 3) Пример обязан содержать ≥1 братский шаг (validateExample).
+// ext/core/rules/BrothersRule.js - Правило "Братья" (ИСПРАВЛЕННОЕ)
+// 
+// КЛЮЧЕВЫЕ ИСПРАВЛЕНИЯ:
+// 1. Возвращает И братские, И простые шаги (чтобы не застревать)
+// 2. ПРИОРИТИЗИРУЕТ братские шаги (80% вероятность выбора)
+// 3. Гарантирует хотя бы 1 братский шаг через validateExample
+// 4. Формулы без source (как в тестовом файле)
 
 import { BaseRule } from "./BaseRule.js";
 
@@ -19,17 +18,17 @@ export class BrothersRule extends BaseRule {
       : [4];
 
     this.config = {
-      preferBrothersOnly: (config.preferBrothersOnly ?? true),
       name: "Братья",
       minState: 0,
       maxState: 9,
-      minSteps: config.minSteps ?? 2,  // Уменьшили с 3 до 2 - братские переходы ограничены
-      maxSteps: config.maxSteps ?? 4,  // Уменьшили с 7 до 4 - братские переходы ограничены
+      minSteps: config.minSteps ?? 3,
+      maxSteps: config.maxSteps ?? 6,
       brothersDigits,
       onlyAddition: config.onlyAddition ?? false,
       onlySubtraction: config.onlySubtraction ?? false,
       digitCount: config.digitCount ?? 1,
       combineLevels: config.combineLevels ?? false,
+      brotherPriority: 0.8,  // 🔥 80% шанс выбрать братский шаг
       blocks: config.blocks ?? {},
       ...config
     };
@@ -39,10 +38,10 @@ export class BrothersRule extends BaseRule {
       ` onlyAdd=${this.config.onlyAddition}, onlySub=${this.config.onlySubtraction}`
     );
 
-    // Построим карту допустимых братских переходов заранее
+    // Построим карту допустимых братских переходов
     this.brotherPairs = this._buildBrotherPairs(brothersDigits);
 
-    // Выводим таблицу братских переходов для отладки
+    // Выводим таблицу братских переходов
     console.log("📊 Таблица братских переходов:");
     const transitions = {};
     for (const pairKey of this.brotherPairs) {
@@ -55,6 +54,10 @@ export class BrothersRule extends BaseRule {
     }
   }
 
+  get name() {
+    return this.config.name;
+  }
+
   // ===== Помощники по физике одной стойки S∈[0..9] =====
   _U(S) { return S >= 5 ? 1 : 0; }         // верхняя активна?
   _L(S) { return S >= 5 ? S - 5 : S; }      // количество нижних бусин
@@ -64,16 +67,22 @@ export class BrothersRule extends BaseRule {
     const L = this._L(S);
     return L >= v && (S - v) >= 0;
   }
+  
+  _canPlusLower(S, v) {
+    if (v < 1 || v > 4) return false;
+    const L = this._L(S);
+    return L + v <= 4 && (S + v) <= 9;
+  }
+  
   _canPlusUpper(S) {
-    // можно опустить верхнюю, только если сейчас верхняя не активна
     return S <= 4;
   }
+  
   _canMinusUpper(S) {
-    // можно убрать верхнюю, только если сейчас верхняя активна
     return S >= 5;
   }
+  
   _canPlusLowerAfter(S, v) {
-    // добавить v нижних без выхода за 4 нижних (когда верхняя НЕ активна)
     if (v < 1 || v > 4) return false;
     const L = this._L(S);
     return this._U(S) === 0 && (L + v) <= 4 && (S + v) <= 9;
@@ -81,11 +90,6 @@ export class BrothersRule extends BaseRule {
 
   /**
    * Программно строим все пары v->v2, которые реализуемы БРАТСКИМ обменом
-   * через выбранные n (1..4).
-   *
-   * n = число нижних бусин в обмене.
-   * "Вверх" (+delta, delta = 5-n):  [-n, +5]  возможен при L(S) ≥ n и U=0
-   * "Вниз"  (-delta):                [-5, +n]  возможен при U=1
    */
   _buildBrotherPairs(digits) {
     const set = new Set();
@@ -114,28 +118,16 @@ export class BrothersRule extends BaseRule {
         }
       }
     }
-    // console.log("brotherPairs:", [...set]);
     return set;
   }
 
-  /** Стартовое состояние стойки */
   generateStartState() {
     return 0;
   }
 
-  /** Длина примера */
   generateStepsCount() {
     const { minSteps, maxSteps } = this.config;
-
-    // Для братских переходов СИЛЬНО ограничиваем количество шагов,
-    // так как доступных переходов ОЧЕНЬ мало (братья образуют циклы 0↔4↔9↔4...)
-    // Разрешаем 2-4 шага максимум
-    const safeMin = Math.min(minSteps, 2);
-    const safeMax = Math.min(maxSteps, 4);
-
-    console.log(`📏 BrothersRule.generateStepsCount: ${safeMin}-${safeMax} (оригинал: ${minSteps}-${maxSteps})`);
-
-    return safeMin + Math.floor(Math.random() * (safeMax - safeMin + 1));
+    return minSteps + Math.floor(Math.random() * (maxSteps - minSteps + 1));
   }
 
   isValidState(v) {
@@ -143,27 +135,26 @@ export class BrothersRule extends BaseRule {
   }
 
   /**
-   * Все возможные действия из состояния v.
-   * 🔥 ТОЛЬКО БРАТСКИЕ ШАГИ! Никаких простых переходов.
-   * Для братских действий добавляем разложение formula: массив из двух атомарных операций.
+   * 🔥 КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: возвращаем И братские, И простые шаги
    */
   getAvailableActions(currentState, isFirstAction = false, position = 0) {
     const { onlyAddition, onlySubtraction, brothersDigits } = this.config;
     const v = currentState;
     const brotherActions = [];
+    const simpleActions = [];
 
-    // Проверяем все возможные переходы из текущего состояния
+    // === БРАТСКИЕ ШАГИ ===
     for (let v2 = 0; v2 <= 9; v2++) {
       if (v2 === v) continue;
       const delta = v2 - v;
       const dir = delta > 0 ? "up" : "down";
 
-      // Применяем ограничения направления
+      // Ограничения направления
       if (onlyAddition && delta < 0) continue;
       if (onlySubtraction && delta > 0) continue;
-      if (isFirstAction && delta < 0) continue; // первый шаг не делаем минус
+      if (isFirstAction && delta < 0) continue;
 
-      // Проверяем братский переход по любому n
+      // Проверяем братский переход
       let brotherN = null;
       for (const n of brothersDigits) {
         if (this.brotherPairs.has(`${v}-${v2}-brother${n}`)) {
@@ -172,7 +163,6 @@ export class BrothersRule extends BaseRule {
         }
       }
 
-      // Добавляем ТОЛЬКО братские шаги
       if (brotherN != null) {
         const formula = this._buildBrotherFormula(v, v2, brotherN, dir);
         if (formula) {
@@ -185,58 +175,68 @@ export class BrothersRule extends BaseRule {
           });
         }
       }
-      // Простые шаги полностью игнорируем!
     }
 
-    console.log(`🎲 Состояние ${v}: доступно ${brotherActions.length} братских шагов`);
-    return brotherActions;
+    // === ПРОСТЫЕ ШАГИ (для выхода из тупиков) ===
+    const L = this._L(v);
+    const U = this._U(v);
+
+    // Простые +1..+4 (только нижние)
+    if (!onlySubtraction) {
+      for (let n = 1; n <= 4; n++) {
+        if (!isFirstAction || n > 0) {  // первый шаг только положительный
+          if (this._canPlusLower(v, n)) {
+            simpleActions.push(n);
+          }
+        }
+      }
+      // +5 (верхняя)
+      if (U === 0 && v <= 4) {
+        simpleActions.push(5);
+      }
+    }
+
+    // Простые -1..-4 (только нижние)
+    if (!onlyAddition && !isFirstAction) {
+      for (let n = 1; n <= 4; n++) {
+        if (this._canMinusLower(v, n)) {
+          simpleActions.push(-n);
+        }
+      }
+      // -5 (верхняя)
+      if (U === 1 && v >= 5) {
+        simpleActions.push(-5);
+      }
+    }
+
+    // 🔥 ПРИОРИТИЗАЦИЯ: если есть братские шаги, возвращаем их с 80% вероятностью
+    if (brotherActions.length > 0 && Math.random() < this.config.brotherPriority) {
+      console.log(`👬 Приоритет братским шагам из ${v} (доступно ${brotherActions.length})`);
+      return brotherActions;
+    }
+
+    // Иначе возвращаем все доступные действия
+    const allActions = [...brotherActions, ...simpleActions];
+    console.log(`🎲 Состояние ${v}: братских=${brotherActions.length}, простых=${simpleActions.length}, всего=${allActions.length}`);
+    return allActions;
   }
 
   /**
    * Разложение братского шага в физические действия
-   * up:   [-n (lower), +5 (upper)]
-   * down: [-5 (upper), +n (lower)]
+   * 🔥 БЕЗ source (как в тестовом файле)
    */
   _buildBrotherFormula(v, v2, n, dir) {
     if (dir === "up") {
-      // Проверки уже пройдены при построении пары
       return [
-        { op: "-", val: n, source: "lower" },
-        { op: "+", val: 5, source: "upper" }
+        { op: "+", val: 5 },
+        { op: "-", val: n }
       ];
     } else {
       return [
-        { op: "-", val: 5, source: "upper" },
-        { op: "+", val: n, source: "lower" }
+        { op: "-", val: 5 },
+        { op: "+", val: n }
       ];
     }
-  }
-
-  /** "Простой" переход без обмена верхней/нижних */
-  _isSimpleTransition(v, v2, dir) {
-    if (v2 < 0 || v2 > 9) return false;
-    if (dir === "up" && v2 <= v) return false;
-    if (dir === "down" && v2 >= v) return false;
-
-    const wasTop = v >= 5;
-    const wasBot = wasTop ? v - 5 : v;
-    const isTop = v2 >= 5;
-    const isBot = isTop ? v2 - 5 : v2;
-
-    const topChange = (isTop ? 1 : 0) - (wasTop ? 1 : 0);
-    const botChange = isBot - wasBot;
-
-    if (dir === "up") {
-      if (topChange < 0 || botChange < 0) return false;
-      if (topChange === 0 && botChange === 0) return false;
-      return true;
-    }
-    if (dir === "down") {
-      if (topChange > 0 || botChange > 0) return false;
-      if (topChange === 0 && botChange === 0) return false;
-      return true;
-    }
-    return false;
   }
 
   applyAction(currentState, action) {
@@ -249,13 +249,19 @@ export class BrothersRule extends BaseRule {
     return val >= 0 ? `+${val}` : `${val}`;
   }
 
+  stateToNumber(state) {
+    return typeof state === 'number' ? state : 0;
+  }
+
+  /**
+   * 🔥 Валидация: ОБЯЗАТЕЛЬНО хотя бы 1 братский шаг
+   */
   validateExample(example) {
     const { start, steps, answer } = example;
     const { minState, maxState } = this.config;
 
-    // Для братских переходов разрешаем даже 1 шаг
     if (!steps || steps.length < 1) {
-      console.warn("validateExample: нет шагов");
+      console.warn("❌ validateExample: нет шагов");
       return false;
     }
 
@@ -263,26 +269,26 @@ export class BrothersRule extends BaseRule {
     let hasBrother = false;
 
     for (const step of steps) {
-      const act = step.action ?? step; // на всякий случай
+      const act = step.action ?? step;
       s = this.applyAction(s, act);
       if (s < minState || s > maxState) {
-        console.warn(`validateExample: выход за диапазон [${minState}, ${maxState}]: ${s}`);
+        console.warn(`❌ validateExample: выход за диапазон [${minState}, ${maxState}]: ${s}`);
         return false;
       }
       if (typeof act === "object" && act.isBrother) hasBrother = true;
     }
 
     if (s !== answer) {
-      console.warn(`validateExample: ответ не совпадает: ${s} !== ${answer}`);
+      console.warn(`❌ validateExample: ответ не совпадает: ${s} !== ${answer}`);
       return false;
     }
 
     if (!hasBrother) {
-      console.warn("validateExample: нет братских шагов");
+      console.warn("❌ validateExample: нет братских шагов");
       return false;
     }
 
-    console.log(`✅ validateExample: пример валидный (${steps.length} шагов)`);
+    console.log(`✅ validateExample: пример валидный (${steps.length} шагов, есть братские)`);
     return true;
   }
 }
