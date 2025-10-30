@@ -520,7 +520,10 @@ export function mountTrainerUI(container, {
               (st.blocks?.simple?.onlySubtraction ?? false)
           },
           brothers: {
-            active: st.blocks?.brothers?.active ?? false
+            active: st.blocks?.brothers?.active ?? false,
+            digits: st.blocks?.brothers?.digits ?? [4],
+            onlyAddition: st.blocks?.brothers?.onlyAddition ?? false,
+            onlySubtraction: st.blocks?.brothers?.onlySubtraction ?? false
           },
           friends: {
             active: st.blocks?.friends?.active ?? false
