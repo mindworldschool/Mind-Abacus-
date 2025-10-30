@@ -226,30 +226,24 @@ export function generateExample(settings = {}) {
 
 // если активирован блок "Братья" — используем BrothersRule
 if (ruleConfig.brothersActive === true) {
+  console.log("🎯 [generator] Режим БРАТЬЯ активирован");
+  console.log("   Выбранные братья:", ruleConfig.blocks?.brothers?.digits);
+  
   rule = new BrothersRule({
-    // какие "братья" тренируем: 4,3,2,1
-    // (должно прийти из UI: st.blocks.brothers.digits например [4,2])
     selectedDigits: ruleConfig.blocks?.brothers?.digits || [4],
-
-    // режимы "только сложение" / "только вычитание"
     onlyAddition: ruleConfig.blocks?.brothers?.onlyAddition ?? false,
     onlySubtraction: ruleConfig.blocks?.brothers?.onlySubtraction ?? false,
-
-    // базовые параметры длины примера и физики
     minSteps: ruleConfig.minSteps,
     maxSteps: ruleConfig.maxSteps,
     digitCount: ruleConfig.digitCount,
     combineLevels: ruleConfig.combineLevels,
-
-    // нам всё равно нужен доступ к blocks, чтобы не потерять
     blocks: ruleConfig.blocks,
   });
 } else {
-  // иначе обычная логика блока "Просто"
+  console.log("🎯 [generator] Режим ПРОСТО");
   rule = new UnifiedSimpleRule(ruleConfig);
 }
-
-
+  
   //
   // 9. Генерируем пример.
   //
