@@ -32,6 +32,9 @@ import { BrothersRule } from "./rules/BrothersRule.js";
 export function generateExample(settings = {}) {
   try {
     console.log("🧠 [generator] входные настройки:", settings);
+    console.log("🔍 [generator] settings.blocks:", settings.blocks);
+    console.log("🔍 [generator] settings.blocks?.simple?.digits:", settings.blocks?.simple?.digits);
+    console.log("🔍 [generator] settings.actions:", settings.actions);
 
   //
   // 1. Разрядность
@@ -59,6 +62,8 @@ export function generateExample(settings = {}) {
   //   - infinite: "игра бесконечно", тогда мы просто берём разумный коридор
   //
   const actionsCfg = settings.actions || {};
+  console.log("🔍 [generator] actionsCfg:", actionsCfg);
+  
   const minStepsRaw = actionsCfg.infinite
     ? 2
     : (actionsCfg.min ?? actionsCfg.count ?? 2);
@@ -68,6 +73,8 @@ export function generateExample(settings = {}) {
 
   let minSteps = minStepsRaw;
   let maxSteps = maxStepsRaw;
+
+  console.log("🔍 [generator] minSteps:", minSteps, "maxSteps:", maxSteps);
 
   // Если много разрядов и это не объединённый жест,
   // слишком длинные примеры тяжело сгенерировать без тупика → мягко режем.
@@ -101,6 +108,9 @@ export function generateExample(settings = {}) {
   const selectedDigits = Array.from(new Set(originalDigits)).sort(
     (a, b) => a - b
   );
+
+  console.log("🔍 [generator] originalDigits:", originalDigits);
+  console.log("🔍 [generator] selectedDigits (для блока Просто):", selectedDigits);
 
   //
   // 4. includeFive — методический флаг.
@@ -241,6 +251,8 @@ if (brothersActive === true) {
   console.log("   📌 Выбранные братья:", brothersDigits);
   console.log("   📌 Только сложение:", blocks?.brothers?.onlyAddition);
   console.log("   📌 Только вычитание:", blocks?.brothers?.onlySubtraction);
+  console.log("   📌 RAW blocks.simple.digits:", blocks?.simple?.digits);
+  console.log("   📌 Тип blocks.simple.digits:", typeof blocks?.simple?.digits, Array.isArray(blocks?.simple?.digits));
 
   // Преобразуем строковые цифры в числа
   const selectedBrothersDigits = brothersDigits
@@ -248,6 +260,7 @@ if (brothersActive === true) {
     .filter(n => n >= 1 && n <= 4);
 
   console.log("   📌 Числовые братья:", selectedBrothersDigits);
+  console.log("   📌 minSteps:", minSteps, "maxSteps:", maxSteps);
 
   rule = new BrothersRule({
     selectedDigits: selectedBrothersDigits.length > 0 ? selectedBrothersDigits : [4],
@@ -257,7 +270,7 @@ if (brothersActive === true) {
     maxSteps: maxSteps,
     digitCount: digitCount,
     combineLevels: combineLevels,
-    blocks: blocks,
+    blocks: blocks,  // 🔥 Передаем весь объект blocks, включая simple.digits
   });
 } else {
   console.log("📘 [generator] Режим ПРОСТО");
