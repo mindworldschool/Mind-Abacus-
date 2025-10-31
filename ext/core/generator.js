@@ -20,6 +20,7 @@
 import { UnifiedSimpleRule } from "./rules/UnifiedSimpleRule.js";
 import { ExampleGenerator } from "./ExampleGenerator.js";
 import { BrothersRule } from "./rules/BrothersRule.js";
+import { MultiDigitGenerator } from "./MultiDigitGenerator.js";
 
 /**
  * Основная внешняя функция.
@@ -235,46 +236,66 @@ export function generateExample(settings = {}) {
   //
   // 8. Создаём правило.
   //
-  // UnifiedSimpleRule обязан реализовать:
-  //  - generateStartState()  → стартовое состояние (0 или [0,0,...])
-  //  - generateStepsCount()  → количество шагов
-  //  - getAvailableActions() → допустимые локальные шаги с текущей стойки
-  //  - applyAction()         → применить шаг
-  //  - validateExample()     → проверить готовый пример
+  // Логика выбора:
+  // 1. Определяем базовый класс правила (UnifiedSimpleRule или BrothersRule)
+  // 2. Если digitCount > 1 → оборачиваем в MultiDigitGenerator
+  // 3. Если digitCount === 1 → используем правило напрямую
   //
   let rule;
 
-// === ВЫБОР ПРАВИЛА ===
-// 🔥 Если активирован блок "Братья" (выбраны цифры) — используем BrothersRule
+// === ОПРЕДЕЛЯЕМ БАЗОВЫЙ КЛАСС ПРАВИЛА ===
+let RuleClass;
+let ruleConfigForClass;
+
 if (brothersActive === true) {
-  console.log("👬 [generator] Режим БРАТЬЯ активирован");
+  console.log("👬 [generator] Базовое правило: БРАТЬЯ");
   console.log("   📌 Выбранные братья:", brothersDigits);
   console.log("   📌 Только сложение:", blocks?.brothers?.onlyAddition);
   console.log("   📌 Только вычитание:", blocks?.brothers?.onlySubtraction);
-  console.log("   📌 RAW blocks.simple.digits:", blocks?.simple?.digits);
-  console.log("   📌 Тип blocks.simple.digits:", typeof blocks?.simple?.digits, Array.isArray(blocks?.simple?.digits));
 
+  RuleClass = BrothersRule;
+  
   // Преобразуем строковые цифры в числа
   const selectedBrothersDigits = brothersDigits
     .map(d => parseInt(d, 10))
     .filter(n => n >= 1 && n <= 4);
 
-  console.log("   📌 Числовые братья:", selectedBrothersDigits);
-  console.log("   📌 minSteps:", minSteps, "maxSteps:", maxSteps);
-
-  rule = new BrothersRule({
+  ruleConfigForClass = {
     selectedDigits: selectedBrothersDigits.length > 0 ? selectedBrothersDigits : [4],
     onlyAddition: blocks?.brothers?.onlyAddition ?? false,
     onlySubtraction: blocks?.brothers?.onlySubtraction ?? false,
     minSteps: minSteps,
     maxSteps: maxSteps,
-    digitCount: digitCount,
+    digitCount: 1, // Базовое правило всегда для 1 разряда
     combineLevels: combineLevels,
-    blocks: blocks,  // 🔥 Передаем весь объект blocks, включая simple.digits
+    blocks: blocks
+  };
+} else {
+  console.log("📘 [generator] Базовое правило: ПРОСТО");
+  RuleClass = UnifiedSimpleRule;
+  ruleConfigForClass = {
+    ...ruleConfig,
+    digitCount: 1 // Базовое правило всегда для 1 разряда
+  };
+}
+
+// === ВЫБИРАЕМ ОДНОРАЗРЯДНОЕ ИЛИ МНОГОРАЗРЯДНОЕ ===
+if (digitCount > 1) {
+  console.log(`🔢 [generator] Режим МНОГОРАЗРЯДНЫЙ (${digitCount} разрядов)`);
+  console.log(`   📌 Переменная разрядность: ${combineLevels}`);
+  
+  // Многоразрядный режим - используем MultiDigitGenerator
+  rule = new MultiDigitGenerator(RuleClass, digitCount, {
+    ...ruleConfigForClass,
+    variableDigitCounts: combineLevels, // Переключатель из UI
+    minSteps: minSteps,
+    maxSteps: maxSteps
   });
 } else {
-  console.log("📘 [generator] Режим ПРОСТО");
-  rule = new UnifiedSimpleRule(ruleConfig);
+  console.log("🔤 [generator] Режим ОДНОРАЗРЯДНЫЙ");
+  
+  // Одноразрядный режим - используем правило напрямую
+  rule = new RuleClass(ruleConfigForClass);
 }  
   //
   // 9. Генерируем пример.

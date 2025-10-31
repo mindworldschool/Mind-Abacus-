@@ -9,9 +9,20 @@ export class ExampleGenerator {
   /**
    * Сгенерировать один пример.
    *  - если digitCount === 1 → одноразрядная логика (_generateSingleDigitAttempt)
-   *  - если digitCount > 1   → векторная логика (_generateMultiDigitAttemptVectorBased)
+   *  - если digitCount > 1 и правило НЕ MultiDigitGenerator → векторная логика
+   *  - если правило MultiDigitGenerator → используем его метод напрямую
    */
   generate() {
+    const ruleName = this.rule.constructor.name;
+    const isMultiDigit = ruleName === 'MultiDigitGenerator';
+    
+    // Если правило - это MultiDigitGenerator, он сам генерирует пример
+    if (isMultiDigit) {
+      console.log('🔢 ExampleGenerator: используем MultiDigitGenerator');
+      return this.rule.generateExample();
+    }
+    
+    // Иначе используем старую логику
     const digitCount = this.rule.config?.digitCount || 1;
     const combineLevels = this.rule.config?.combineLevels || false;
 
@@ -419,11 +430,38 @@ export class ExampleGenerator {
    *  - answer => конечное число
    *
    * В многозначном режиме склеиваем вектор действий в строку типа "+32".
+   * Поддерживает как старый формат (vector), так и новый (MultiDigitGenerator).
    */
   toTrainerFormat(example) {
+    const ruleName = this.rule.constructor.name;
+    const isMultiDigit = ruleName === 'MultiDigitGenerator';
+    
+    // === МНОГОЗНАЧНЫЙ РЕЖИМ (MultiDigitGenerator) ===
+    if (isMultiDigit) {
+      console.log('🔢 toTrainerFormat: обработка MultiDigitGenerator');
+      
+      const formattedSteps = [];
+      
+      for (const step of example.steps) {
+        // Формат от MultiDigitGenerator: { action: 21, states: [...], digits: [1, 2] }
+        const value = step.action;
+        const sign = value >= 0 ? '+' : '';
+        
+        formattedSteps.push(`${sign}${Math.abs(value)}`);
+      }
+      
+      const finalAnswer = this.rule.stateToNumber(example.answer);
+      
+      return {
+        start: 0, // Всегда стартуем с 0
+        steps: formattedSteps,
+        answer: finalAnswer
+      };
+    }
+    
     const digitCount = this.rule.config?.digitCount || 1;
 
-    // === МНОГОЗНАЧНЫЙ КЕЙС ===
+    // === МНОГОЗНАЧНЫЙ КЕЙС (старый векторный формат) ===
     if (digitCount > 1 && Array.isArray(example.start)) {
       const formattedSteps = [];
 
