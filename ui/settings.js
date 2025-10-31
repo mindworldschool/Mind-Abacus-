@@ -162,6 +162,10 @@ function createBlockCard({
   subtractionLabel,
   t  // ✅ ИСПРАВЛЕНИЕ 1: добавлен параметр t
 }) {
+  console.log(`🔍 [createBlockCard] Создание карточки "${key}"`);
+  console.log(`🔍 [createBlockCard] stateBlock.digits:`, stateBlock.digits);
+  console.log(`🔍 [createBlockCard] available digits:`, digits);
+  
  // === СТАЛО ===
 const card = document.createElement("div");
 card.className = "block-card";
@@ -206,35 +210,48 @@ input.addEventListener("change", () => {
   onUpdate({ digits: nextDigits });
   updateAllToggle();
   
-  // 🔥 НОВОЕ: автовыделение "Просто" при активации "Братья"
-  if (key === "brothers" && input.checked) {
-    console.log("🔄 Автовыделение всех цифр в блоке 'Просто'");
+  // 🔥 АВТОВЫДЕЛЕНИЕ "Просто" при работе с блоком "Братья"
+  if (key === "brothers") {
+    // Проверяем: есть ли хоть одна выбранная цифра в "Братья"?
+    const brothersHasDigits = nextDigits.length > 0;
     
-    // ✅ ИСПРАВЛЕНИЕ: используем updateSettings для правильного сохранения
-    updateSettings({
-      blocks: {
-        ...state.settings.blocks,
-        simple: {
-          ...state.settings.blocks.simple,
-          digits: ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+    console.log("🔄 Блок Братья изменен. Выбрано цифр:", nextDigits.length);
+    console.log("🔄 Текущие цифры в Просто:", state.settings.blocks.simple.digits);
+    
+    if (brothersHasDigits) {
+      console.log("✅ Автовыделение всех цифр 1-9 в блоке 'Просто'");
+      
+      // ✅ Сохраняем в state через updateSettings
+      updateSettings({
+        blocks: {
+          ...state.settings.blocks,
+          simple: {
+            ...state.settings.blocks.simple,
+            digits: ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+          }
         }
-      }
-    });
-    
-    // Визуально подсвечиваем чипы в блоке "Просто"
-    const simpleCard = document.querySelector('.block-card[data-block="simple"]');
-    if (simpleCard) {
-      simpleCard.querySelectorAll('.digit-chip input').forEach(inp => {
-        inp.checked = true;
-        inp.closest('.digit-chip').classList.add('digit-chip--active');
       });
       
-      // Обновляем галочку "Все"
-      const allToggle = simpleCard.querySelector('.settings-checkbox--pill input');
-      if (allToggle) {
-        allToggle.checked = true;
-        allToggle.closest('.settings-checkbox').classList.add('is-active');
-      }
+      // ✅ Обновляем UI с небольшой задержкой для гарантии
+      setTimeout(() => {
+        const simpleCard = document.querySelector('.block-card[data-block="simple"]');
+        if (simpleCard) {
+          // Активируем все чипы
+          simpleCard.querySelectorAll('.digit-chip input').forEach(inp => {
+            inp.checked = true;
+            inp.closest('.digit-chip').classList.add('digit-chip--active');
+          });
+          
+          // Активируем галочку "Все"
+          const allToggle = simpleCard.querySelector('.settings-checkbox--pill input');
+          if (allToggle) {
+            allToggle.checked = true;
+            allToggle.closest('.settings-checkbox').classList.add('is-active');
+          }
+          
+          console.log("✅ UI блока 'Просто' обновлен");
+        }
+      }, 50);
     }
   }
 });
@@ -262,6 +279,11 @@ input.addEventListener("change", () => {
     const activeCount = digitInputs.filter(({ input }) => input.checked).length;
     const input = allToggle.querySelector("input");
     const isAllSelected = activeCount === digits.length && digits.length > 0;
+    
+    if (key === "simple" || key === "brothers") {
+      console.log(`🔍 [${key}] updateAllToggle: активно ${activeCount} из ${digits.length}`);
+    }
+    
     input.checked = isAllSelected;
     allToggle.classList.toggle("is-active", isAllSelected);
   }
@@ -279,14 +301,20 @@ input.addEventListener("change", () => {
     const additionToggle = createCheckbox(
       additionLabel,
       stateBlock.onlyAddition,
-      (checked) => onUpdate({ onlyAddition: checked }),
+      (checked) => {
+        console.log(`🔍 [${key}] Только сложение:`, checked);
+        onUpdate({ onlyAddition: checked });
+      },
       "settings-checkbox settings-checkbox--outline"
     );
 
     const subtractionToggle = createCheckbox(
       subtractionLabel,
       stateBlock.onlySubtraction,
-      (checked) => onUpdate({ onlySubtraction: checked }),
+      (checked) => {
+        console.log(`🔍 [${key}] Только вычитание:`, checked);
+        onUpdate({ onlySubtraction: checked });
+      },
       "settings-checkbox settings-checkbox--outline"
     );
 
@@ -310,20 +338,29 @@ export function renderSettings(container, { t, state, updateSettings, navigate }
   heading.textContent = t("settings.title");
   paragraph.textContent = t("settings.description");
 
-  // ✅ ИСПРАВЛЕНИЕ: Синхронизация блоков при рендере
-  // Если "Братья" выбраны, то в "Просто" должны быть все цифры 1-9
+  // ✅ СИНХРОНИЗАЦИЯ: Если "Братья" активны, в "Просто" должны быть все цифры 1-9
   const settingsState = state.settings;
+  
+  console.log("🔍 [settings] Проверка синхронизации блоков при рендере");
+  console.log("🔍 [settings] Братья digits:", settingsState.blocks.brothers.digits);
+  console.log("🔍 [settings] Просто digits:", settingsState.blocks.simple.digits);
+  
   const brothersSelected = settingsState.blocks.brothers.digits.length > 0;
   
   if (brothersSelected) {
+    console.log("👬 [settings] Братья активны - проверяем блок Просто");
+    
     const allSimpleDigits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
     const currentSimpleDigits = settingsState.blocks.simple.digits || [];
     
     // Проверяем, все ли цифры выбраны в "Просто"
     const allSelected = allSimpleDigits.every(d => currentSimpleDigits.includes(d));
     
+    console.log("🔍 [settings] Все цифры выбраны в Просто?", allSelected);
+    console.log("🔍 [settings] Текущие цифры в Просто:", currentSimpleDigits);
+    
     if (!allSelected) {
-      console.log("🔄 Восстановление всех цифр в блоке 'Просто' при рендере настроек");
+      console.log("🔄 [settings] Восстановление всех цифр 1-9 в блоке 'Просто'");
       updateSettings({
         blocks: {
           ...settingsState.blocks,
@@ -335,7 +372,12 @@ export function renderSettings(container, { t, state, updateSettings, navigate }
       });
       // Обновляем локальную копию для правильного рендера
       settingsState.blocks.simple.digits = allSimpleDigits;
+      console.log("✅ [settings] Цифры обновлены:", settingsState.blocks.simple.digits);
+    } else {
+      console.log("✅ [settings] Все цифры уже выбраны в Просто");
     }
+  } else {
+    console.log("📘 [settings] Братья не активны, Просто остается без изменений");
   }
 
   const form = document.createElement("form");
