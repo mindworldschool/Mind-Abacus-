@@ -1,9 +1,11 @@
-// ext/components/AbacusNew.js - Абакус с красивой SVG графикой (ИСПРАВЛЕНО)
+// ext/components/AbacusNew.js - Абакус с красивой SVG графикой + ПЕРЕТАСКИВАНИЕ
 
 /**
  * Abacus - компонент интерактивного абакуса (соробана) с SVG графикой
  * Структура: каждая стойка имеет 1 верхнюю бусину (Heaven, 5) и 4 нижние (Earth, 1+1+1+1)
  * Формула значения: S = 5 * U + L, где U = верхняя (0 или 1), L = нижние (0-4)
+ * 
+ * 🔥 НОВОЕ: Весь абакус можно перетащить в удобное место!
  */
 export class Abacus {
   /**
@@ -18,11 +20,43 @@ export class Abacus {
     // Состояние бусин: { heaven: 'up'|'down', earth: ['up'|'down', ...] }
     this.beads = {};
     
-    // Состояние перетаскивания
-    this.dragging = null;
-    this.dragStartY = null;
+    // Состояние перетаскивания БУСИН
+    this.draggingBead = null;
+    this.beadDragStartY = null;
+    
+    // 🔥 НОВОЕ: Состояние перетаскивания АБАКУСА
+    this.draggingAbacus = false;
+    this.abacusDragStart = { x: 0, y: 0 };
+    this.abacusPosition = this.loadPosition(); // Загружаем сохраненную позицию
     
     this.init();
+  }
+  
+  /**
+   * 🔥 НОВОЕ: Загрузить сохраненную позицию из localStorage
+   */
+  loadPosition() {
+    try {
+      const saved = localStorage.getItem('abacus-position');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.warn('Не удалось загрузить позицию абакуса:', e);
+    }
+    // По умолчанию: внизу справа
+    return null; // null означает использовать CSS позицию по умолчанию
+  }
+  
+  /**
+   * 🔥 НОВОЕ: Сохранить позицию в localStorage
+   */
+  savePosition() {
+    try {
+      localStorage.setItem('abacus-position', JSON.stringify(this.abacusPosition));
+    } catch (e) {
+      console.warn('Не удалось сохранить позицию абакуса:', e);
+    }
   }
   
   /**
@@ -40,7 +74,27 @@ export class Abacus {
     this.render();
     this.attachEventListeners();
     
+    // 🔥 НОВОЕ: Применяем сохраненную позицию
+    if (this.abacusPosition) {
+      this.applyPosition();
+    }
+    
     console.log(`🧮 Новый абакус отрендерен: ${this.digitCount} стоек`);
+  }
+  
+  /**
+   * 🔥 НОВОЕ: Применить позицию к контейнеру
+   */
+  applyPosition() {
+    if (!this.abacusPosition) return;
+    
+    const wrapper = this.container.closest('.abacus-wrapper');
+    if (wrapper) {
+      wrapper.style.left = this.abacusPosition.x + 'px';
+      wrapper.style.top = this.abacusPosition.y + 'px';
+      wrapper.style.right = 'auto'; // Отключаем right, используем left
+      wrapper.style.bottom = 'auto'; // Отключаем bottom, используем top
+    }
   }
   
   /**
@@ -50,7 +104,29 @@ export class Abacus {
     const width = this.digitCount * 72 + 40;
     
     // ИСПРАВЛЕНО: убрана лишняя обёртка abacus-wrapper
+    // 🔥 НОВОЕ: Добавлен drag-handle для перетаскивания
     this.container.innerHTML = `
+      <div class="abacus-drag-handle" style="
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 45px;
+        cursor: move;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.2s;
+      " title="Перетащите чтобы переместить">
+        <svg width="30" height="20" style="opacity: 0.5;">
+          <path d="M 5 5 L 25 5 M 5 10 L 25 10 M 5 15 L 25 15" 
+                stroke="#654321" 
+                stroke-width="2" 
+                stroke-linecap="round"/>
+        </svg>
+      </div>
       <svg id="abacus-svg" width="${width}" height="300" style="user-select: none;">
         ${this.renderDefs()}
         ${this.renderFrame()}
@@ -59,6 +135,17 @@ export class Abacus {
         ${this.renderBeads()}
       </svg>
     `;
+    
+    // Показываем хендл при наведении
+    const dragHandle = this.container.querySelector('.abacus-drag-handle');
+    this.container.addEventListener('mouseenter', () => {
+      dragHandle.style.opacity = '1';
+    });
+    this.container.addEventListener('mouseleave', () => {
+      if (!this.draggingAbacus) {
+        dragHandle.style.opacity = '0';
+      }
+    });
   }
   
   /**
@@ -238,29 +325,65 @@ export class Abacus {
    */
   attachEventListeners() {
     const svg = this.container.querySelector('#abacus-svg');
+    const dragHandle = this.container.querySelector('.abacus-drag-handle');
     if (!svg) return;
     
-    // Mouse события
-    svg.addEventListener('mousedown', (e) => this.handleMouseDown(e));
-    document.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-    document.addEventListener('mouseup', () => this.handleMouseUp());
+    // 🔥 НОВОЕ: Обработчики для перетаскивания АБАКУСА (через drag-handle)
+    if (dragHandle) {
+      dragHandle.addEventListener('mousedown', (e) => this.handleAbacusDragStart(e));
+    }
     
-    // Touch события для мобильных
+    // Mouse события для перетаскивания БУСИН
+    svg.addEventListener('mousedown', (e) => this.handleBeadMouseDown(e));
+    document.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+    document.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+    
+    // Touch события для мобильных (БУСИНЫ)
     svg.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      this.handleMouseDown(e.touches[0]);
+      this.handleBeadMouseDown(e.touches[0]);
     });
     document.addEventListener('touchmove', (e) => {
-      if (this.dragging) e.preventDefault();
+      if (this.draggingBead) e.preventDefault();
       this.handleMouseMove(e.touches[0]);
     });
-    document.addEventListener('touchend', () => this.handleMouseUp());
+    document.addEventListener('touchend', (e) => this.handleMouseUp(e));
+    
+    // 🔥 НОВОЕ: Touch события для перетаскивания АБАКУСА
+    if (dragHandle) {
+      dragHandle.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        this.handleAbacusDragStart(e.touches[0]);
+      });
+    }
   }
   
   /**
-   * Начало перетаскивания
+   * 🔥 НОВОЕ: Начало перетаскивания АБАКУСА
    */
-  handleMouseDown(e) {
+  handleAbacusDragStart(e) {
+    this.draggingAbacus = true;
+    
+    const wrapper = this.container.closest('.abacus-wrapper');
+    if (!wrapper) return;
+    
+    const rect = wrapper.getBoundingClientRect();
+    this.abacusDragStart = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
+    
+    wrapper.style.cursor = 'grabbing';
+    e.stopPropagation();
+  }
+  
+  /**
+   * Начало перетаскивания БУСИНЫ
+   */
+  handleBeadMouseDown(e) {
+    // Если перетаскиваем абакус - игнорируем клики по бусинам
+    if (this.draggingAbacus) return;
+    
     const beadGroup = e.target.closest('.bead');
     if (!beadGroup) return;
     
@@ -269,42 +392,69 @@ export class Abacus {
     const index = parseInt(beadGroup.dataset.index);
     
     const rect = this.container.querySelector('#abacus-svg').getBoundingClientRect();
-    this.dragStartY = e.clientY - rect.top;
-    this.dragging = { col, type, index };
+    this.beadDragStartY = e.clientY - rect.top;
+    this.draggingBead = { col, type, index };
     
     e.preventDefault();
   }
   
   /**
-   * Процесс перетаскивания
+   * Процесс перетаскивания (АБАКУС или БУСИНЫ)
    */
   handleMouseMove(e) {
-    if (!this.dragging || this.dragStartY === null) return;
+    // 🔥 НОВОЕ: Перетаскивание АБАКУСА
+    if (this.draggingAbacus) {
+      const wrapper = this.container.closest('.abacus-wrapper');
+      if (!wrapper) return;
+      
+      const newX = e.clientX - this.abacusDragStart.x;
+      const newY = e.clientY - this.abacusDragStart.y;
+      
+      // Ограничиваем движение границами окна
+      const maxX = window.innerWidth - wrapper.offsetWidth;
+      const maxY = window.innerHeight - wrapper.offsetHeight;
+      
+      const boundedX = Math.max(0, Math.min(newX, maxX));
+      const boundedY = Math.max(0, Math.min(newY, maxY));
+      
+      wrapper.style.left = boundedX + 'px';
+      wrapper.style.top = boundedY + 'px';
+      wrapper.style.right = 'auto';
+      wrapper.style.bottom = 'auto';
+      
+      // Сохраняем позицию
+      this.abacusPosition = { x: boundedX, y: boundedY };
+      
+      return;
+    }
+    
+    // Перетаскивание БУСИН (старая логика)
+    if (!this.draggingBead || this.beadDragStartY === null) return;
     
     const rect = this.container.querySelector('#abacus-svg').getBoundingClientRect();
     const y = e.clientY - rect.top;
-    const deltaY = y - this.dragStartY;
+    const deltaY = y - this.beadDragStartY;
     const threshold = 10; // порог срабатывания
     
-    if (this.dragging.type === 'heaven') {
+    if (this.draggingBead.type === 'heaven') {
       // Верхняя бусина
-      if (deltaY > threshold && this.beads[this.dragging.col].heaven !== 'down') {
-        this.beads[this.dragging.col].heaven = 'down';
+      if (deltaY > threshold && this.beads[this.draggingBead.col].heaven !== 'down') {
+        this.beads[this.draggingBead.col].heaven = 'down';
         this.render();
         this.attachEventListeners(); // Перепривязка после ре-рендера
-      } else if (deltaY < -threshold && this.beads[this.dragging.col].heaven !== 'up') {
-        this.beads[this.dragging.col].heaven = 'up';
+      } else if (deltaY < -threshold && this.beads[this.draggingBead.col].heaven !== 'up') {
+        this.beads[this.draggingBead.col].heaven = 'up';
         this.render();
         this.attachEventListeners(); // Перепривязка после ре-рендера
       }
     } else {
       // Нижние бусины
-      const earthBeads = [...this.beads[this.dragging.col].earth];
+      const earthBeads = [...this.beads[this.draggingBead.col].earth];
       let changed = false;
       
       if (deltaY < -threshold) {
         // Тянем ВВЕРХ - активируем эту и все предыдущие
-        for (let i = 0; i <= this.dragging.index; i++) {
+        for (let i = 0; i <= this.draggingBead.index; i++) {
           if (earthBeads[i] !== 'up') {
             earthBeads[i] = 'up';
             changed = true;
@@ -312,7 +462,7 @@ export class Abacus {
         }
       } else if (deltaY > threshold) {
         // Тянем ВНИЗ - деактивируем эту и все последующие
-        for (let i = this.dragging.index; i < 4; i++) {
+        for (let i = this.draggingBead.index; i < 4; i++) {
           if (earthBeads[i] !== 'down') {
             earthBeads[i] = 'down';
             changed = true;
@@ -321,7 +471,7 @@ export class Abacus {
       }
       
       if (changed) {
-        this.beads[this.dragging.col].earth = earthBeads;
+        this.beads[this.draggingBead.col].earth = earthBeads;
         this.render();
         this.attachEventListeners(); // Перепривязка после ре-рендера
       }
@@ -333,9 +483,48 @@ export class Abacus {
   /**
    * Окончание перетаскивания
    */
-  handleMouseUp() {
-    this.dragging = null;
-    this.dragStartY = null;
+  handleMouseUp(e) {
+    // 🔥 НОВОЕ: Завершение перетаскивания АБАКУСА
+    if (this.draggingAbacus) {
+      this.draggingAbacus = false;
+      
+      const wrapper = this.container.closest('.abacus-wrapper');
+      if (wrapper) {
+        wrapper.style.cursor = '';
+      }
+      
+      const dragHandle = this.container.querySelector('.abacus-drag-handle');
+      if (dragHandle) {
+        dragHandle.style.opacity = '0';
+      }
+      
+      // Сохраняем позицию в localStorage
+      this.savePosition();
+      
+      console.log('🧮 Абакус перемещен на:', this.abacusPosition);
+    }
+    
+    // Завершение перетаскивания БУСИН
+    this.draggingBead = null;
+    this.beadDragStartY = null;
+  }
+  
+  /**
+   * 🔥 НОВОЕ: Сбросить позицию абакуса (вернуть в исходное место)
+   */
+  resetPosition() {
+    this.abacusPosition = null;
+    localStorage.removeItem('abacus-position');
+    
+    const wrapper = this.container.closest('.abacus-wrapper');
+    if (wrapper) {
+      wrapper.style.left = '';
+      wrapper.style.top = '';
+      wrapper.style.right = '';
+      wrapper.style.bottom = '';
+    }
+    
+    console.log('🧮 Позиция абакуса сброшена');
   }
   
   /**
