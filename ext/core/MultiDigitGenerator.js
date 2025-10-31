@@ -32,7 +32,14 @@ export class MultiDigitGenerator {
     // Создаём экземпляр базового правила с теми же настройками
     // selectedDigits берутся из config - пользователь выбирает их в UI
     this.baseRule = new RuleClass(config);
-    this.maxDigitCount = Math.max(1, Math.min(9, maxDigitCount));
+    
+    // ВАЖНО: Количество разрядов в ПРИМЕРЕ (что показываем пользователю)
+    this.displayDigitCount = Math.max(1, Math.min(9, maxDigitCount));
+    
+    // ВАЖНО: Абакус всегда на 1 разряд БОЛЬШЕ для переноса!
+    this.maxDigitCount = this.displayDigitCount + 1;
+    
+    console.log(`📊 Разрядность: пример=${this.displayDigitCount}, абакус=${this.maxDigitCount}`);
     
     this.config = {
       ...config,
@@ -55,14 +62,15 @@ export class MultiDigitGenerator {
     };
     
     // Имя для логов
-    this.name = `${this.baseRule.name} (Multi-Digit ${this.maxDigitCount})`;
+    this.name = `${this.baseRule.name} (Multi-Digit ${this.displayDigitCount})`;
     
     // Получаем selectedDigits из базового правила
     const selectedDigits = this.baseRule.config?.selectedDigits || [];
     
     console.log(`🔢 MultiDigitGenerator создан:
   Базовое правило: ${this.baseRule.name}
-  Макс. разрядность: ${this.maxDigitCount}
+  Разрядность примера: ${this.displayDigitCount}
+  Разрядность абакуса: ${this.maxDigitCount} (+1 для переноса)
   Выбранные цифры: [${selectedDigits.join(', ')}]
   Переменная разрядность: ${this.config.variableDigitCounts}
   Вероятность дубликатов: ${this.config.duplicateDigitProbability * 100}%
@@ -94,21 +102,29 @@ export class MultiDigitGenerator {
     const stepsCount = this.generateStepsCount();
     const steps = [];
     
-    console.log(`🎯 Генерация многозначного примера: ${stepsCount} шагов, разрядов: ${this.maxDigitCount}`);
+    console.log(`🎯 Генерация многозначного примера: ${stepsCount} шагов, разрядов: ${this.displayDigitCount} (абакус: ${this.maxDigitCount})`);
     
     // Сбрасываем счётчики редких событий
     this.config._duplicatesUsed = 0;
     this.config._zeroDigitsUsed = 0;
     
-    for (let i = 0; i < stepsCount; i++) {
-      const isFirst = i === 0;
+    // ВАЖНО: Гарантируем нужное количество шагов!
+    let attempts = 0;
+    const maxTotalAttempts = 1000; // Максимум попыток для всего примера
+    
+    while (steps.length < stepsCount && attempts < maxTotalAttempts) {
+      attempts++;
+      const isFirst = steps.length === 0;
       
       // Генерируем многозначное число
       const multiDigitAction = this._generateMultiDigitAction(states, isFirst, steps);
       
       if (!multiDigitAction) {
-        console.warn(`⚠️ Не удалось сгенерировать шаг ${i + 1}, заканчиваем пример`);
-        break;
+        // Не удалось - пробуем ещё раз
+        if (attempts % 50 === 0) {
+          console.warn(`⚠️ Попытка ${attempts}: не удалось сгенерировать шаг ${steps.length + 1}`);
+        }
+        continue;
       }
       
       // Применяем действие к каждому разряду
@@ -116,6 +132,21 @@ export class MultiDigitGenerator {
       for (let pos = 0; pos < this.maxDigitCount; pos++) {
         const digitAction = multiDigitAction.digits[pos] || 0;
         newStates[pos] += digitAction;
+      }
+      
+      // Проверяем валидность новых состояний
+      let allValid = true;
+      for (let pos = 0; pos < this.maxDigitCount; pos++) {
+        if (newStates[pos] < 0 || newStates[pos] > 9) {
+          allValid = false;
+          console.warn(`⚠️ Разряд ${pos}: состояние ${newStates[pos]} выходит за 0-9`);
+          break;
+        }
+      }
+      
+      if (!allValid) {
+        // Невалидное состояние - пробуем ещё раз
+        continue;
       }
       
       steps.push({
@@ -129,7 +160,11 @@ export class MultiDigitGenerator {
         states[pos] = newStates[pos];
       }
       
-      console.log(`  ✓ Шаг ${i + 1}: ${multiDigitAction.sign > 0 ? '+' : ''}${multiDigitAction.value}, состояния: [${states.join(', ')}]`);
+      console.log(`  ✅ Шаг ${steps.length}/${stepsCount}: ${multiDigitAction.sign > 0 ? '+' : ''}${multiDigitAction.value}, состояния: [${states.slice(0, this.displayDigitCount + 1).join(', ')}]`);
+    }
+    
+    if (steps.length < stepsCount) {
+      console.warn(`⚠️ Удалось сгенерировать только ${steps.length} из ${stepsCount} шагов за ${attempts} попыток`);
     }
     
     return {
@@ -176,23 +211,23 @@ export class MultiDigitGenerator {
   /**
    * Выбирает количество разрядов для текущего числа
    * @param {boolean} isFirst - первый шаг?
-   * @returns {number} - количество разрядов (1..maxDigitCount)
+   * @returns {number} - количество разрядов (1..displayDigitCount)
    */
   _chooseDigitCount(isFirst) {
     // Первое число всегда максимальной разрядности
     if (isFirst) {
-      return this.maxDigitCount;
+      return this.displayDigitCount;
     }
     
     // Режим фиксированной разрядности
     if (!this.config.variableDigitCounts) {
-      return this.maxDigitCount;
+      return this.displayDigitCount;
     }
     
-    // Режим переменной разрядности: случайно от 1 до maxDigitCount
+    // Режим переменной разрядности: случайно от 1 до displayDigitCount
     // С предпочтением более высоких разрядностей
     const weights = [];
-    for (let i = 1; i <= this.maxDigitCount; i++) {
+    for (let i = 1; i <= this.displayDigitCount; i++) {
       // Больше вес для больших разрядностей
       const weight = i * i; // 1, 4, 9, 16, ...
       weights.push({ count: i, weight });
@@ -208,11 +243,17 @@ export class MultiDigitGenerator {
       }
     }
     
-    return this.maxDigitCount;
+    return this.displayDigitCount;
   }
 
   /**
    * Генерирует цифры для каждого разряда
+   * ИСПРАВЛЕННАЯ ЛОГИКА:
+   * 1. Генерируем доступные действия БЕЗ фильтрации по знаку
+   * 2. Проверяем, можно ли применить с обоими знаками
+   * 3. Выбираем тот знак, который работает
+   * 4. Чередуем знаки между шагами
+   * 
    * @param {Array<number>} states - текущие состояния
    * @param {number} digitCount - сколько разрядов использовать
    * @param {boolean} isFirst - первый шаг?
@@ -220,27 +261,34 @@ export class MultiDigitGenerator {
    * @returns {Object|null}
    */
   _generateDigits(states, digitCount, isFirst, previousSteps) {
+    // Массив для цифр (включая старший разряд переноса)
     const digits = Array(this.maxDigitCount).fill(0);
     const usedDigits = new Set();
     let hasNonZero = false;
     
-    // Определяем знак (первый всегда +, остальные случайно)
-    const sign = isFirst ? 1 : (Math.random() < 0.5 ? 1 : -1);
+    // Определяем ЖЕЛАЕМЫЙ знак (чередуем с предыдущим)
+    let desiredSign = 1;
+    if (!isFirst && previousSteps.length > 0) {
+      const lastStep = previousSteps[previousSteps.length - 1];
+      if (lastStep && lastStep.action) {
+        const lastSign = Math.sign(lastStep.action);
+        desiredSign = -lastSign; // Чередуем
+      }
+    }
+    
+    console.log(`  🎲 Генерация ${digitCount}-значного числа, желаемый знак: ${desiredSign > 0 ? '+' : '-'}`);
     
     // Позволяем ли дубликаты в этом числе?
     const allowDuplicates = Math.random() < this.config.duplicateDigitProbability
-      && this.config._duplicatesUsed < 1; // Максимум 1 дубликат за весь пример
+      && this.config._duplicatesUsed < 1;
     
-    // Генерируем цифры от старшего к младшему разряду
-    for (let pos = this.maxDigitCount - 1; pos >= 0; pos--) {
-      // Пропускаем разряды, которые не используем
-      if (pos >= digitCount) {
-        continue;
-      }
-      
-      // Получаем доступные действия для этого разряда
+    // Собираем кандидатов для каждого разряда
+    const candidates = []; // [{pos, absValue, canPlus, canMinus}, ...]
+    
+    // Проходим по разрядам от старшего к младшему
+    for (let pos = this.displayDigitCount - 1; pos >= 0; pos--) {
       const currentState = states[pos];
-      const isFirstForDigit = isFirst && pos === this.maxDigitCount - 1; // Первый только для старшего
+      const isFirstForDigit = isFirst && pos === this.displayDigitCount - 1;
       
       let availableActions = this.baseRule.getAvailableActions(
         currentState,
@@ -249,80 +297,98 @@ export class MultiDigitGenerator {
       );
       
       if (!availableActions || availableActions.length === 0) {
-        // Нет доступных действий - оставляем 0
+        console.log(`  ⚠️ Разряд ${pos}: нет доступных действий из состояния ${currentState}`);
         continue;
       }
       
-      // Фильтруем действия
-      let filtered = availableActions.filter(action => {
+      // Извлекаем абсолютные значения
+      const absActions = [];
+      for (const action of availableActions) {
         const value = this._getActionValue(action);
         const absValue = Math.abs(value);
-        
-        // Пропускаем 0
-        if (absValue === 0) return false;
-        
-        // Проверяем направление (для не-первого шага)
-        if (!isFirstForDigit) {
-          if (sign > 0 && value < 0) return false;
-          if (sign < 0 && value > 0) return false;
-        }
-        
-        // Проверяем уникальность
-        if (!allowDuplicates && usedDigits.has(absValue)) {
-          return false;
-        }
-        
-        return true;
-      });
-      
-      if (filtered.length === 0) {
-        // Если нет подходящих - пробуем с дубликатами
-        if (!allowDuplicates) {
-          filtered = availableActions.filter(action => {
-            const value = this._getActionValue(action);
-            const absValue = Math.abs(value);
-            if (absValue === 0) return false;
-            if (!isFirstForDigit) {
-              if (sign > 0 && value < 0) return false;
-              if (sign < 0 && value > 0) return false;
-            }
-            return true;
-          });
-        }
-        
-        if (filtered.length === 0) {
-          continue; // Оставляем 0 для этого разряда
+        if (absValue > 0 && (!usedDigits.has(absValue) || allowDuplicates)) {
+          absActions.push(absValue);
         }
       }
       
-      // Выбираем случайное действие
-      const action = this._chooseRandom(filtered);
-      const value = this._getActionValue(action);
-      const absValue = Math.abs(value);
+      if (absActions.length === 0) continue;
       
-      digits[pos] = sign * absValue;
+      // Для каждой цифры проверяем, можно ли её применить с + и/или -
+      for (const absValue of absActions) {
+        const canPlus = (currentState + absValue) <= 9;
+        const canMinus = (currentState - absValue) >= 0;
+        
+        if (canPlus || canMinus) {
+          candidates.push({ pos, absValue, canPlus, canMinus });
+        }
+      }
+    }
+    
+    if (candidates.length === 0) {
+      console.log(`  ❌ Нет доступных кандидатов для генерации`);
+      return null;
+    }
+    
+    // Определяем финальный знак
+    // Проверяем, можем ли мы использовать желаемый знак
+    const canUseDesiredSign = candidates.some(c => 
+      (desiredSign > 0 && c.canPlus) || (desiredSign < 0 && c.canMinus)
+    );
+    
+    const finalSign = canUseDesiredSign ? desiredSign : -desiredSign;
+    
+    console.log(`  ✓ Финальный знак: ${finalSign > 0 ? '+' : '-'} (желаемый: ${desiredSign > 0 ? '+' : '-'}, возможен: ${canUseDesiredSign})`);
+    
+    // Выбираем цифры, которые работают с финальным знаком
+    const validCandidates = candidates.filter(c =>
+      (finalSign > 0 && c.canPlus) || (finalSign < 0 && c.canMinus)
+    );
+    
+    // Группируем по позициям
+    const byPosition = {};
+    for (const c of validCandidates) {
+      if (!byPosition[c.pos]) byPosition[c.pos] = [];
+      byPosition[c.pos].push(c.absValue);
+    }
+    
+    // Выбираем по одной цифре для каждой позиции
+    for (const posStr in byPosition) {
+      const pos = parseInt(posStr);
+      const values = byPosition[pos];
+      
+      // Выбираем случайную цифру
+      const absValue = this._chooseRandom(values);
+      
+      digits[pos] = finalSign * absValue;
       usedDigits.add(absValue);
       hasNonZero = true;
       
-      // Отмечаем, что использовали дубликат
-      if (allowDuplicates && usedDigits.size < pos + 1) {
+      const newState = states[pos] + digits[pos];
+      console.log(`  ✓ Разряд ${pos}: ${states[pos]} ${finalSign > 0 ? '+' : ''}${digits[pos]} → ${newState}`);
+      
+      // Отмечаем дубликат если есть
+      if (allowDuplicates && Array.from(usedDigits).filter(d => d === absValue).length > 1) {
         this.config._duplicatesUsed++;
       }
     }
     
     // Должно быть хотя бы одно ненулевое значение
     if (!hasNonZero) {
+      console.log(`  ❌ Не удалось сгенерировать ни одной цифры`);
       return null;
     }
     
     // Считаем итоговое значение числа
-    const value = digits.reduce((sum, digit, idx) => 
-      sum + Math.abs(digit) * Math.pow(10, idx), 0
-    );
+    let value = 0;
+    for (let pos = 0; pos < this.displayDigitCount; pos++) {
+      value += Math.abs(digits[pos]) * Math.pow(10, pos);
+    }
+    
+    console.log(`  ✓ Сгенерировано число: ${finalSign > 0 ? '+' : ''}${value}`);
     
     return {
       value,
-      sign,
+      sign: finalSign,
       digits,
       digitCount,
       usedDigits: Array.from(usedDigits)
@@ -425,14 +491,19 @@ export class MultiDigitGenerator {
 
   /**
    * Преобразует состояние в число
-   * @param {Array<number>} state - массив разрядов [3, 2, 1]
-   * @returns {number} - число 123
+   * @param {Array<number>} state - массив разрядов [3, 2, 1, 0] (младший первый + разряд переноса)
+   * @returns {number} - число 123 (без учёта разряда переноса)
    */
   stateToNumber(state) {
     if (!Array.isArray(state)) return 0;
-    return state.reduce((sum, digit, idx) => 
-      sum + digit * Math.pow(10, idx), 0
-    );
+    
+    // Считаем только displayDigitCount разрядов (без старшего разряда переноса)
+    let result = 0;
+    for (let i = 0; i < this.displayDigitCount && i < state.length; i++) {
+      result += state[i] * Math.pow(10, i);
+    }
+    
+    return result;
   }
 
   /**
