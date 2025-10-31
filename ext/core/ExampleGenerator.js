@@ -109,7 +109,7 @@ export class ExampleGenerator {
    *
    * Алгоритм:
    *  1. стартуем с 0;
-   *  2. на каждом шаге спрашиваем у правила getAvailableActions(currentState, isFirstStep);
+   *  2. на каждом шаге спрашиваем у правила getAvailableActions(currentState, isFirstStep, previousSteps);
    *  3. выбираем одно из допустимых действий;
    *     - лёгкий приоритет больших абсолютных значений шага,
    *       чтобы цифры 6-9 чаще попадали, если они разрешены;
@@ -135,9 +135,11 @@ export class ExampleGenerator {
       const isFirstAction = i === 0 && steps.length === 0;
 
       // доступные ходы физически возможные сейчас
+      // 🔥 НОВОЕ: передаем массив предыдущих шагов для избежания повторов
       let availableActions = this.rule.getAvailableActions(
         currentState,
-        isFirstAction
+        isFirstAction,
+        steps  // передаем историю для проверки повторов
       );
 
       if (!availableActions || availableActions.length === 0) {
@@ -227,7 +229,8 @@ export class ExampleGenerator {
         const vectors = this._buildCandidateVectorsForSign(
           currentState,
           sign,
-          isFirstStep
+          isFirstStep,
+          steps  // 🔥 НОВОЕ: передаем историю
         );
 
         if (vectors.length === 0) {
@@ -272,7 +275,7 @@ export class ExampleGenerator {
    * так, чтобы каждый разряд получил допустимый локальный шаг,
    * и чтобы после шага не было выхода за 0..9.
    */
-  _buildCandidateVectorsForSign(currentState, sign, isFirstStep) {
+  _buildCandidateVectorsForSign(currentState, sign, isFirstStep, previousSteps = []) {
     const digitCount = this.rule.config?.digitCount || 2;
 
     const perDigitOptions = [];
@@ -281,7 +284,8 @@ export class ExampleGenerator {
       const localActions = this.rule.getAvailableActions(
         currentState,
         isFirstStep,
-        pos
+        pos,
+        previousSteps  // 🔥 НОВОЕ: передаем историю для проверки повторов
       );
 
       // отфильтровать по знаку
