@@ -182,7 +182,7 @@ export class MultiDigitGenerator {
    * @returns {Object|null} { value: 21, sign: 1, digits: [1, 2] }
    */
   _generateMultiDigitAction(states, isFirst, previousSteps) {
-    const maxAttempts = 50;
+    const maxAttempts = 100; // Увеличено с 50 до 100
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
@@ -199,12 +199,13 @@ export class MultiDigitGenerator {
           return result;
         }
       } catch (error) {
-        if (attempt % 10 === 0) {
+        if (attempt % 20 === 0) {
           console.warn(`  Попытка ${attempt}: ${error.message}`);
         }
       }
     }
     
+    console.warn(`⚠️ Не удалось сгенерировать действие за ${maxAttempts} попыток, состояния: [${states.join(', ')}]`);
     return null;
   }
 
@@ -301,12 +302,13 @@ export class MultiDigitGenerator {
         continue;
       }
       
-      // Извлекаем абсолютные значения
+      // Извлекаем абсолютные значения БЕЗ фильтрации по usedDigits!
+      // Фильтрацию применим позже при выборе
       const absActions = [];
       for (const action of availableActions) {
         const value = this._getActionValue(action);
         const absValue = Math.abs(value);
-        if (absValue > 0 && (!usedDigits.has(absValue) || allowDuplicates)) {
+        if (absValue > 0) {
           absActions.push(absValue);
         }
       }
@@ -344,6 +346,11 @@ export class MultiDigitGenerator {
       (finalSign > 0 && c.canPlus) || (finalSign < 0 && c.canMinus)
     );
     
+    if (validCandidates.length === 0) {
+      console.log(`  ❌ Нет кандидатов для знака ${finalSign > 0 ? '+' : '-'}`);
+      return null;
+    }
+    
     // Группируем по позициям
     const byPosition = {};
     for (const c of validCandidates) {
@@ -356,8 +363,19 @@ export class MultiDigitGenerator {
       const pos = parseInt(posStr);
       const values = byPosition[pos];
       
+      // Фильтруем по уникальности (если нужно)
+      let availableValues = values;
+      if (!allowDuplicates) {
+        availableValues = values.filter(v => !usedDigits.has(v));
+      }
+      
+      // Если нет уникальных - используем любые
+      if (availableValues.length === 0) {
+        availableValues = values;
+      }
+      
       // Выбираем случайную цифру
-      const absValue = this._chooseRandom(values);
+      const absValue = this._chooseRandom(availableValues);
       
       digits[pos] = finalSign * absValue;
       usedDigits.add(absValue);
@@ -406,9 +424,10 @@ export class MultiDigitGenerator {
       return false;
     }
     
-    // 2. Проверяем количество нулевых разрядов
+    // 2. Проверяем количество нулевых разрядов (смягчаем - разрешаем больше)
     const zeroCount = digits.filter(d => d === 0).length;
-    if (zeroCount > 0) {
+    if (zeroCount > 0 && zeroCount >= this.displayDigitCount - 1) {
+      // Слишком много нулей (например +00 в двузначном)
       if (this.config._zeroDigitsUsed >= this.config.maxZeroDigits) {
         return false;
       }
