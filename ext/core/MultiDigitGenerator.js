@@ -160,7 +160,7 @@ export class MultiDigitGenerator {
         states[pos] = newStates[pos];
       }
       
-      console.log(`  ✅ Шаг ${steps.length}/${stepsCount}: ${multiDigitAction.sign > 0 ? '+' : '-'}${multiDigitAction.value}, состояния: [${states.slice(0, this.displayDigitCount).join(', ')}]`);
+      console.log(`  ✅ Шаг ${steps.length}/${stepsCount}: ${multiDigitAction.sign > 0 ? '+' : ''}${multiDigitAction.value}, состояния: [${states.slice(0, this.displayDigitCount).join(', ')}]`);
     }
     
     if (steps.length < stepsCount) {
@@ -272,16 +272,34 @@ export class MultiDigitGenerator {
     
     for (let pos = 0; pos < this.displayDigitCount; pos++) {
       const currentState = states[pos];
-      const isFirstForDigit = isFirst && pos === this.displayDigitCount - 1;
       
-      const availableActions = this.baseRule.getAvailableActions(
-        currentState,
-        isFirstForDigit,
-        previousSteps
-      );
+      // 🔥 ИСПРАВЛЕНИЕ: isFirstAction зависит от СОСТОЯНИЯ разряда, а не от позиции!
+      // Если разряд в состоянии 0, то из него можно только добавлять (+N)
+      // Это физическое ограничение абакуса, а не позиция в числе!
+      const isFirstForDigit = (currentState === 0);
+      
+      // 🔥 ИСПРАВЛЕНИЕ: Вызываем с правильными параметрами в зависимости от правила
+      // UnifiedSimpleRule: (state, isFirstAction, position)
+      // BrothersRule: (state, isFirstAction, previousSteps)
+      let availableActions;
+      if (this.baseRule.name === "Братья") {
+        // Для BrothersRule передаём previousSteps
+        availableActions = this.baseRule.getAvailableActions(
+          currentState,
+          isFirstForDigit,
+          previousSteps
+        );
+      } else {
+        // Для UnifiedSimpleRule передаём position
+        availableActions = this.baseRule.getAvailableActions(
+          currentState,
+          isFirstForDigit,
+          pos
+        );
+      }
       
       if (!availableActions || availableActions.length === 0) {
-        console.log(`  ⚠️ Разряд ${pos}: нет действий из состояния ${currentState}`);
+        console.log(`  ⚠️ Разряд ${pos} (состояние ${currentState}): нет доступных действий`);
         actionsPerPosition[pos] = [];
         continue;
       }
@@ -296,7 +314,7 @@ export class MultiDigitGenerator {
       }
       
       actionsPerPosition[pos] = actions;
-      console.log(`  📍 Разряд ${pos} (состояние ${currentState}): [${actions.join(', ')}]`);
+      console.log(`  📍 Разряд ${pos} (состояние ${currentState}, isFirst=${isFirstForDigit}): [${actions.join(', ')}]`);
     }
     
     // Проверяем что есть хоть какие-то действия
@@ -405,13 +423,7 @@ export class MultiDigitGenerator {
         }
       }
       
-      // Проверка что finalSign определён
-      if (finalSign === 0) {
-        console.log(`  ❌ finalSign = 0 (все разряды нулевые?)`);
-        continue;
-      }
-      
-      console.log(`  ✅ Сгенерировано: ${finalSign > 0 ? '+' : '-'}${value}, разряды: [${digits.slice(0, this.displayDigitCount).join(', ')}]`);
+      console.log(`  ✅ Сгенерировано: ${finalSign >= 0 ? '+' : '-'}${value}, разряды: [${digits.slice(0, this.displayDigitCount).join(', ')}]`);
       
       return {
         value,
@@ -438,11 +450,12 @@ export class MultiDigitGenerator {
       return false;
     }
     
-    // 2. Проверяем количество нулевых разрядов (ТОЛЬКО в используемых разрядах!)
-    const usedDigits = digits.slice(0, this.displayDigitCount); // ← ИСПРАВЛЕНО!
+    // 2. Проверяем количество нулевых разрядов (смягчаем - разрешаем больше)
+    // 🔥 ИСПРАВЛЕНИЕ: Считаем только ИСПОЛЬЗУЕМЫЕ разряды, БЕЗ резервного!
+    const usedDigits = digits.slice(0, this.displayDigitCount);
     const zeroCount = usedDigits.filter(d => d === 0).length;
     if (zeroCount > 0 && zeroCount >= this.displayDigitCount - 1) {
-      // Слишком много нулей (например +0 в двузначном)
+      // Слишком много нулей (например +00 в двузначном)
       if (this.config._zeroDigitsUsed >= this.config.maxZeroDigits) {
         return false;
       }
