@@ -438,10 +438,11 @@ export class MultiDigitGenerator {
       return false;
     }
     
-    // 2. Проверяем количество нулевых разрядов (смягчаем - разрешаем больше)
-    const zeroCount = digits.filter(d => d === 0).length;
+    // 2. Проверяем количество нулевых разрядов (ТОЛЬКО в используемых разрядах!)
+    const usedDigits = digits.slice(0, this.displayDigitCount); // ← ИСПРАВЛЕНО!
+    const zeroCount = usedDigits.filter(d => d === 0).length;
     if (zeroCount > 0 && zeroCount >= this.displayDigitCount - 1) {
-      // Слишком много нулей (например +00 в двузначном)
+      // Слишком много нулей (например +0 в двузначном)
       if (this.config._zeroDigitsUsed >= this.config.maxZeroDigits) {
         return false;
       }
