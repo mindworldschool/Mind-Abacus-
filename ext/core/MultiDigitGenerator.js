@@ -249,7 +249,11 @@ export class MultiDigitGenerator {
 
   /**
    * Генерирует цифры для каждого разряда
-   * ФИЗИЧЕСКАЯ ЛОГИКА: используем действия от baseRule КАК ЕСТЬ!
+   * ПРАВИЛЬНАЯ ЛОГИКА (от пользователя):
+   * 1. Для каждого разряда получаем доступные действия
+   * 2. СКЛЕИВАЕМ все возможные комбинации
+   * 3. Фильтруем: все разряды одного знака
+   * 4. Выбираем случайную комбинацию
    * 
    * @param {Array<number>} states - текущие состояния
    * @param {number} digitCount - сколько разрядов использовать
@@ -258,28 +262,15 @@ export class MultiDigitGenerator {
    * @returns {Object|null}
    */
   _generateDigits(states, digitCount, isFirst, previousSteps) {
-    const digits = Array(this.maxDigitCount).fill(0);
-    const usedDigits = new Set();
-    
-    // Определяем ПРЕДПОЧТИТЕЛЬНЫЙ знак (НЕ обязательный!)
-    let preferredSign = 1;
-    if (!isFirst && previousSteps.length > 0) {
-      const lastStep = previousSteps[previousSteps.length - 1];
-      if (lastStep && lastStep.action) {
-        const lastSign = Math.sign(lastStep.action);
-        preferredSign = -lastSign;
-      }
-    }
-    
-    console.log(`  🎲 Генерация ${digitCount}-значного числа, предпочтительный знак: ${preferredSign > 0 ? '+' : '-'}`);
+    console.log(`  🎲 Генерация ${digitCount}-значного числа из состояний [${states.slice(0, digitCount).join(', ')}]`);
     
     const allowDuplicates = Math.random() < this.config.duplicateDigitProbability
       && this.config._duplicatesUsed < 1;
     
-    // === Собираем ВСЕ физически доступные действия ===
-    const positionActions = {}; // {pos: [action, action, ...]}
+    // === ШАГ 1: Собираем действия для КАЖДОГО разряда ===
+    const actionsPerPosition = [];
     
-    for (let pos = this.displayDigitCount - 1; pos >= 0; pos--) {
+    for (let pos = 0; pos < this.displayDigitCount; pos++) {
       const currentState = states[pos];
       const isFirstForDigit = isFirst && pos === this.displayDigitCount - 1;
       
@@ -290,152 +281,144 @@ export class MultiDigitGenerator {
       );
       
       if (!availableActions || availableActions.length === 0) {
-        console.log(`  ⚠️ Разряд ${pos}: нет доступных действий из состояния ${currentState}`);
+        console.log(`  ⚠️ Разряд ${pos}: нет действий из состояния ${currentState}`);
+        actionsPerPosition[pos] = [];
         continue;
       }
       
-      // Фильтруем действия: убираем 0, проверяем физику
-      const validActions = [];
+      // Извлекаем числовые значения
+      const actions = [];
       for (const action of availableActions) {
         const value = this._getActionValue(action);
-        if (value === 0) continue;
-        
-        const newState = currentState + value;
-        if (newState >= 0 && newState <= 9) {
-          validActions.push(value); // Сохраняем КАК ЕСТЬ (со знаком!)
+        if (value !== 0) {
+          actions.push(value);
         }
       }
       
-      if (validActions.length > 0) {
-        positionActions[pos] = validActions;
-      }
+      actionsPerPosition[pos] = actions;
+      console.log(`  📍 Разряд ${pos} (состояние ${currentState}): [${actions.join(', ')}]`);
     }
     
-    if (Object.keys(positionActions).length === 0) {
-      console.log(`  ❌ Нет доступных действий ни для одного разряда`);
+    // Проверяем что есть хоть какие-то действия
+    const hasAnyActions = actionsPerPosition.some(arr => arr.length > 0);
+    if (!hasAnyActions) {
+      console.log(`  ❌ Нет действий ни для одного разряда`);
       return null;
     }
     
-    // === Пытаемся сгенерировать число ===
-    // Стратегия: сначала пробуем с предпочтительным знаком, потом с любым
+    // === ШАГ 2: СКЛЕИВАЕМ все возможные комбинации ===
+    // ОПТИМИЗАЦИЯ: вместо генерации всех комбинаций (может быть 10^n),
+    // сначала выбираем ЗНАК, потом для каждого разряда выбираем действие
     
-    const tryWithSign = (targetSign) => {
-      const tempDigits = Array(this.maxDigitCount).fill(0);
-      const tempUsed = new Set();
-      let hasAny = false;
+    // Определяем, какие знаки вообще возможны
+    const possibleSigns = new Set();
+    for (const actions of actionsPerPosition) {
+      for (const action of actions) {
+        if (action > 0) possibleSigns.add(1);
+        if (action < 0) possibleSigns.add(-1);
+      }
+    }
+    
+    if (possibleSigns.size === 0) {
+      console.log(`  ❌ Нет действий с ненулевым знаком`);
+      return null;
+    }
+    
+    console.log(`  ✓ Возможные знаки: [${Array.from(possibleSigns).map(s => s > 0 ? '+' : '-').join(', ')}]`);
+    
+    // Пробуем сгенерировать с каждым возможным знаком
+    const signs = Array.from(possibleSigns);
+    
+    // Случайный порядок знаков (для разнообразия)
+    for (let i = signs.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [signs[i], signs[j]] = [signs[j], signs[i]];
+    }
+    
+    for (const targetSign of signs) {
+      console.log(`  🔄 Пробуем знак: ${targetSign > 0 ? '+' : '-'}`);
       
-      for (const posStr in positionActions) {
-        const pos = parseInt(posStr);
-        const actions = positionActions[pos];
+      const digits = Array(this.maxDigitCount).fill(0);
+      const usedDigits = new Set();
+      let success = true;
+      
+      // Для каждого разряда выбираем действие с нужным знаком
+      for (let pos = 0; pos < this.displayDigitCount; pos++) {
+        const actions = actionsPerPosition[pos];
+        if (!actions || actions.length === 0) {
+          // Нет действий для этого разряда - оставляем 0
+          continue;
+        }
         
         // Фильтруем по знаку
         let filtered = actions.filter(a => Math.sign(a) === targetSign);
         
-        // Для первого разряда не можем начинать с минуса
-        if (isFirst && pos === this.displayDigitCount - 1 && filtered.length === 0) {
-          return null;
+        // Если это первый разряд и это первое действие - не можем начинать с минуса
+        if (isFirst && pos === this.displayDigitCount - 1 && filtered.length === 0 && targetSign < 0) {
+          success = false;
+          break;
+        }
+        
+        if (filtered.length === 0) {
+          // Нет действий с нужным знаком для этого разряда
+          // Оставляем 0 и продолжаем
+          continue;
         }
         
         // Фильтруем по уникальности
         if (!allowDuplicates) {
-          const unique = filtered.filter(a => !tempUsed.has(Math.abs(a)));
-          if (unique.length > 0) filtered = unique;
-        }
-        
-        if (filtered.length === 0) {
-          // Нет подходящих - пропускаем этот разряд (будет 0)
-          continue;
+          const unique = filtered.filter(a => !usedDigits.has(Math.abs(a)));
+          if (unique.length > 0) {
+            filtered = unique;
+          }
         }
         
         // Выбираем случайное действие
         const chosen = filtered[Math.floor(Math.random() * filtered.length)];
-        tempDigits[pos] = chosen;
-        tempUsed.add(Math.abs(chosen));
-        hasAny = true;
-      }
-      
-      return hasAny ? { digits: tempDigits, used: tempUsed } : null;
-    };
-    
-    // Пробуем с предпочтительным знаком
-    let result = tryWithSign(preferredSign);
-    
-    // Если не получилось и не первый - пробуем противоположный
-    if (!result && !isFirst) {
-      console.log(`  🔄 Знак ${preferredSign > 0 ? '+' : '-'} невозможен, пробуем ${preferredSign > 0 ? '-' : '+'}`);
-      result = tryWithSign(-preferredSign);
-    }
-    
-    // Если всё ещё не получилось - берём ЛЮБЫЕ действия
-    if (!result) {
-      console.log(`  🔄 Генерируем с любыми знаками`);
-      
-      for (const posStr in positionActions) {
-        const pos = parseInt(posStr);
-        const actions = positionActions[pos];
-        
-        let filtered = actions;
-        if (!allowDuplicates) {
-          const unique = filtered.filter(a => !usedDigits.has(Math.abs(a)));
-          if (unique.length > 0) filtered = unique;
-        }
-        
-        if (filtered.length === 0) continue;
-        
-        const chosen = filtered[Math.floor(Math.random() * filtered.length)];
         digits[pos] = chosen;
         usedDigits.add(Math.abs(chosen));
+        
+        console.log(`    ✓ Разряд ${pos}: выбрано ${chosen > 0 ? '+' : ''}${chosen}`);
       }
       
-      result = { digits, used: usedDigits };
-    }
-    
-    // Применяем результат
-    if (result) {
-      for (let i = 0; i < this.maxDigitCount; i++) {
-        digits[i] = result.digits[i];
+      if (!success) {
+        console.log(`  ❌ Знак ${targetSign > 0 ? '+' : '-'} не подходит`);
+        continue;
       }
-      for (const d of result.used) {
-        usedDigits.add(d);
+      
+      // Проверяем что есть хоть одна ненулевая цифра
+      const hasNonZero = digits.some(d => d !== 0);
+      if (!hasNonZero) {
+        console.log(`  ❌ Все разряды нулевые`);
+        continue;
       }
-    }
-    
-    // Проверяем что есть хоть что-то
-    const hasNonZero = digits.some(d => d !== 0);
-    if (!hasNonZero) {
-      console.log(`  ❌ Все разряды нулевые`);
-      return null;
-    }
-    
-    // Считаем значение и определяем знак
-    let value = 0;
-    let finalSign = 0;
-    for (let pos = 0; pos < this.displayDigitCount; pos++) {
-      const d = digits[pos];
-      if (d !== 0) {
-        value += Math.abs(d) * Math.pow(10, pos);
-        if (finalSign === 0) finalSign = Math.sign(d);
+      
+      // Успех! Считаем значение
+      let value = 0;
+      let finalSign = 0;
+      
+      for (let pos = 0; pos < this.displayDigitCount; pos++) {
+        const d = digits[pos];
+        if (d !== 0) {
+          value += Math.abs(d) * Math.pow(10, pos);
+          if (finalSign === 0) finalSign = Math.sign(d);
+        }
       }
+      
+      console.log(`  ✅ Сгенерировано: ${finalSign > 0 ? '+' : ''}${value}, разряды: [${digits.slice(0, this.displayDigitCount).join(', ')}]`);
+      
+      return {
+        value,
+        sign: finalSign,
+        digits,
+        digitCount,
+        usedDigits: Array.from(usedDigits)
+      };
     }
     
-    // Проверяем что все разряды имеют ОДИНАКОВЫЙ знак
-    for (let pos = 0; pos < this.displayDigitCount; pos++) {
-      const d = digits[pos];
-      if (d !== 0 && Math.sign(d) !== finalSign) {
-        console.log(`  ❌ Разряды имеют РАЗНЫЕ знаки: разряд ${pos} = ${d}, finalSign = ${finalSign}`);
-        return null;
-      }
-    }
-    
-    console.log(`  ✓ Число: ${finalSign > 0 ? '+' : ''}${value}, разряды: [${digits.slice(0, this.displayDigitCount).join(', ')}]`);
-    
-    return {
-      value,
-      sign: finalSign,
-      digits,
-      digitCount,
-      usedDigits: Array.from(usedDigits)
-    };
+    // Не удалось ни с одним знаком
+    console.log(`  ❌ Не удалось сгенерировать ни с одним знаком`);
+    return null;
   }
 
   /**
