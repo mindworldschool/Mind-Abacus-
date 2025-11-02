@@ -445,7 +445,8 @@ export class ExampleGenerator {
       for (const step of example.steps) {
         // Формат от MultiDigitGenerator: { action: 21, states: [...], digits: [1, 2] }
         const value = step.action;
-        const sign = value >= 0 ? '+' : '';
+        // 🔥 ИСПРАВЛЕНИЕ: для отрицательных чисел нужен минус, а не пустая строка!
+        const sign = value >= 0 ? '+' : '-';
         
         formattedSteps.push(`${sign}${Math.abs(value)}`);
       }
