@@ -127,16 +127,16 @@ export class MultiDigitGenerator {
         continue;
       }
       
-      // Применяем действие к каждому разряду
+      // Применяем действие к каждому разряду (только к displayDigitCount!)
       const newStates = [...states];
-      for (let pos = 0; pos < this.maxDigitCount; pos++) {
+      for (let pos = 0; pos < this.displayDigitCount; pos++) {
         const digitAction = multiDigitAction.digits[pos] || 0;
         newStates[pos] += digitAction;
       }
       
-      // Проверяем валидность новых состояний
+      // Проверяем валидность новых состояний (только displayDigitCount!)
       let allValid = true;
-      for (let pos = 0; pos < this.maxDigitCount; pos++) {
+      for (let pos = 0; pos < this.displayDigitCount; pos++) {
         if (newStates[pos] < 0 || newStates[pos] > 9) {
           allValid = false;
           console.warn(`⚠️ Разряд ${pos}: состояние ${newStates[pos]} выходит за 0-9`);
@@ -155,12 +155,12 @@ export class MultiDigitGenerator {
         digits: multiDigitAction.digits
       });
       
-      // Обновляем состояния
-      for (let pos = 0; pos < this.maxDigitCount; pos++) {
+      // Обновляем состояния (только displayDigitCount!)
+      for (let pos = 0; pos < this.displayDigitCount; pos++) {
         states[pos] = newStates[pos];
       }
       
-      console.log(`  ✅ Шаг ${steps.length}/${stepsCount}: ${multiDigitAction.sign > 0 ? '+' : ''}${multiDigitAction.value}, состояния: [${states.slice(0, this.displayDigitCount + 1).join(', ')}]`);
+      console.log(`  ✅ Шаг ${steps.length}/${stepsCount}: ${multiDigitAction.sign > 0 ? '+' : '-'}${multiDigitAction.value}, состояния: [${states.slice(0, this.displayDigitCount).join(', ')}]`);
     }
     
     if (steps.length < stepsCount) {
@@ -405,7 +405,13 @@ export class MultiDigitGenerator {
         }
       }
       
-      console.log(`  ✅ Сгенерировано: ${finalSign > 0 ? '+' : ''}${value}, разряды: [${digits.slice(0, this.displayDigitCount).join(', ')}]`);
+      // Проверка что finalSign определён
+      if (finalSign === 0) {
+        console.log(`  ❌ finalSign = 0 (все разряды нулевые?)`);
+        continue;
+      }
+      
+      console.log(`  ✅ Сгенерировано: ${finalSign > 0 ? '+' : '-'}${value}, разряды: [${digits.slice(0, this.displayDigitCount).join(', ')}]`);
       
       return {
         value,
@@ -442,8 +448,8 @@ export class MultiDigitGenerator {
       this.config._zeroDigitsUsed++;
     }
     
-    // 3. Проверяем, что новые состояния валидны
-    for (let pos = 0; pos < this.maxDigitCount; pos++) {
+    // 3. Проверяем, что новые состояния валидны (только displayDigitCount!)
+    for (let pos = 0; pos < this.displayDigitCount; pos++) {
       const newState = states[pos] + digits[pos];
       if (newState < 0 || newState > 9) {
         return false;
