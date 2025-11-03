@@ -230,7 +230,7 @@ export class MultiDigitGenerator {
     // Минимум: displayDigitCount - 1 (но не меньше 1)
     // Максимум: displayDigitCount
     
-    const minDigits = Math.max(1, this.displayDigitCount - 1)  // ✅ Минимум 1 разряд для переменной разрядности;
+    const minDigits = Math.max(1, this.displayDigitCount - 1);  // ✅ Минимум 1 разряд для переменной разрядности;
     const maxDigits = this.displayDigitCount;
     
     // Если они равны (например для однозначных: min=1, max=1) → возвращаем фиксированное
