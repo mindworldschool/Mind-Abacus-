@@ -225,18 +225,24 @@ export class MultiDigitGenerator {
       return this.displayDigitCount;
     }
     
-    // 🔥 ИСПРАВЛЕНИЕ: Минимум разрядов = displayDigitCount
-    // Для двузначных (displayDigitCount=2) НЕ генерируем однозначные!
-    // Режим переменной разрядности: displayDigitCount разрядов
-    return this.displayDigitCount;
+    // 🔥 РЕЖИМ ПЕРЕМЕННОЙ РАЗРЯДНОСТИ:
+    // Генерируем числа разной длины (например: +123-45+678)
+    // Минимум: displayDigitCount - 1 (но не меньше 2)
+    // Максимум: displayDigitCount
     
-    // ЗАКОММЕНТИРОВАНО: старая логика с 1..displayDigitCount
-    /*
+    const minDigits = Math.max(2, this.displayDigitCount - 1);
+    const maxDigits = this.displayDigitCount;
+    
+    // Если они равны (например для двузначных: min=2, max=2) → возвращаем фиксированное
+    if (minDigits === maxDigits) {
+      return maxDigits;
+    }
+    
+    // Случайный выбор с весами (предпочтение большим разрядностям)
+    // Например для 3-значных: 2 разряда (вес 2) или 3 разряда (вес 3)
     const weights = [];
-    for (let i = 1; i <= this.displayDigitCount; i++) {
-      // Больше вес для больших разрядностей
-      const weight = i * i; // 1, 4, 9, 16, ...
-      weights.push({ count: i, weight });
+    for (let i = minDigits; i <= maxDigits; i++) {
+      weights.push({ count: i, weight: i });
     }
     
     const totalWeight = weights.reduce((sum, w) => sum + w.weight, 0);
@@ -245,12 +251,12 @@ export class MultiDigitGenerator {
     for (const w of weights) {
       random -= w.weight;
       if (random <= 0) {
+        console.log(`  📊 Переменная разрядность: выбрано ${w.count} разрядов (из ${minDigits}-${maxDigits})`);
         return w.count;
       }
     }
     
-    return this.displayDigitCount;
-    */
+    return maxDigits;
   }
 
   /**
@@ -351,18 +357,36 @@ export class MultiDigitGenerator {
     console.log(`  ✓ Возможные знаки: [${Array.from(possibleSigns).map(s => s > 0 ? '+' : '-').join(', ')}]`);
     
     // === ПРИОРИТИЗАЦИЯ ЗНАКОВ ДЛЯ РАЗНООБРАЗИЯ ===
-    // Анализируем последние 2 шага для чередования знаков
     let preferredSign = null;
+    let priorityReason = '';
     
-    if (previousSteps.length >= 2) {
-      // Получаем знаки последних 2 шагов
+    // 1. АНАЛИЗ СОСТОЯНИЙ: избегаем крайних значений (0,0) и (9,9)
+    const usedStates = states.slice(0, this.displayDigitCount);
+    const stateSum = usedStates.reduce((sum, s) => sum + s, 0);
+    const avgState = stateSum / this.displayDigitCount;
+    
+    // Если состояния близки к максимуму (например [9,9] или [8,9]) → приоритет минусу
+    if (avgState >= 7.5 && possibleSigns.has(-1)) {
+      preferredSign = -1;
+      priorityReason = `состояния близки к максимуму (среднее ${avgState.toFixed(1)})`;
+      console.log(`  🎯 Предпочитаем минус: ${priorityReason}`);
+    }
+    // Если состояния близки к минимуму (например [0,0] или [1,0]) → приоритет плюсу
+    else if (avgState <= 1.5 && possibleSigns.has(1) && !isFirst) {
+      preferredSign = 1;
+      priorityReason = `состояния близки к минимуму (среднее ${avgState.toFixed(1)})`;
+      console.log(`  🎯 Предпочитаем плюс: ${priorityReason}`);
+    }
+    // 2. АНАЛИЗ ПОСЛЕДНИХ ШАГОВ: чередование знаков
+    else if (previousSteps.length >= 2) {
       const lastSign = Math.sign(previousSteps[previousSteps.length - 1].action);
       const prevSign = Math.sign(previousSteps[previousSteps.length - 2].action);
       
       // Если последние 2 шага одного знака → предпочесть противоположный
       if (lastSign === prevSign && lastSign !== 0) {
         preferredSign = -lastSign;
-        console.log(`  🎯 Предпочитаем знак ${preferredSign > 0 ? '+' : '-'} (последние 2 шага были ${lastSign > 0 ? '+' : '-'})`);
+        priorityReason = `последние 2 шага были ${lastSign > 0 ? '+' : '-'}`;
+        console.log(`  🎯 Предпочитаем знак ${preferredSign > 0 ? '+' : '-'} (${priorityReason})`);
       }
     }
     
@@ -446,14 +470,15 @@ export class MultiDigitGenerator {
         continue;
       }
       
-      // 🔥 КРИТИЧЕСКАЯ ПРОВЕРКА: В фиксированном режиме старший разряд НЕ может быть 0!
-      // Иначе получится однозначное число вместо двузначного (например -2 вместо -02)
-      if (!this.config.variableDigitCounts) {
-        const highestDigit = digits[this.displayDigitCount - 1];
-        if (highestDigit === 0) {
-          console.log(`  ❌ Старший разряд (pos ${this.displayDigitCount - 1}) нулевой → получится однозначное`);
-          continue;
-        }
+      // 🔥 КРИТИЧЕСКАЯ ПРОВЕРКА: Старший разряд НЕ может быть 0!
+      // Для фиксированной разрядности: проверяем displayDigitCount
+      // Для переменной разрядности: проверяем выбранный digitCount
+      const actualDigitCount = digitCount || this.displayDigitCount;
+      const highestDigit = digits[actualDigitCount - 1];
+      
+      if (highestDigit === 0) {
+        console.log(`  ❌ Старший разряд (pos ${actualDigitCount - 1}) нулевой → получится меньше разрядов`);
+        continue;
       }
       
       // Успех! Считаем значение
