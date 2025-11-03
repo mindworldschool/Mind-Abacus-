@@ -225,8 +225,13 @@ export class MultiDigitGenerator {
       return this.displayDigitCount;
     }
     
-    // Режим переменной разрядности: случайно от 1 до displayDigitCount
-    // С предпочтением более высоких разрядностей
+    // 🔥 ИСПРАВЛЕНИЕ: Минимум разрядов = displayDigitCount
+    // Для двузначных (displayDigitCount=2) НЕ генерируем однозначные!
+    // Режим переменной разрядности: displayDigitCount разрядов
+    return this.displayDigitCount;
+    
+    // ЗАКОММЕНТИРОВАНО: старая логика с 1..displayDigitCount
+    /*
     const weights = [];
     for (let i = 1; i <= this.displayDigitCount; i++) {
       // Больше вес для больших разрядностей
@@ -245,6 +250,7 @@ export class MultiDigitGenerator {
     }
     
     return this.displayDigitCount;
+    */
   }
 
   /**
@@ -344,13 +350,42 @@ export class MultiDigitGenerator {
     
     console.log(`  ✓ Возможные знаки: [${Array.from(possibleSigns).map(s => s > 0 ? '+' : '-').join(', ')}]`);
     
+    // === ПРИОРИТИЗАЦИЯ ЗНАКОВ ДЛЯ РАЗНООБРАЗИЯ ===
+    // Анализируем последние 2 шага для чередования знаков
+    let preferredSign = null;
+    
+    if (previousSteps.length >= 2) {
+      // Получаем знаки последних 2 шагов
+      const lastSign = Math.sign(previousSteps[previousSteps.length - 1].action);
+      const prevSign = Math.sign(previousSteps[previousSteps.length - 2].action);
+      
+      // Если последние 2 шага одного знака → предпочесть противоположный
+      if (lastSign === prevSign && lastSign !== 0) {
+        preferredSign = -lastSign;
+        console.log(`  🎯 Предпочитаем знак ${preferredSign > 0 ? '+' : '-'} (последние 2 шага были ${lastSign > 0 ? '+' : '-'})`);
+      }
+    }
+    
     // Пробуем сгенерировать с каждым возможным знаком
     const signs = Array.from(possibleSigns);
     
-    // Случайный порядок знаков (для разнообразия)
-    for (let i = signs.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [signs[i], signs[j]] = [signs[j], signs[i]];
+    // 🔥 УМНАЯ ПРИОРИТИЗАЦИЯ:
+    // Если есть предпочитаемый знак И он возможен → ставим его первым
+    if (preferredSign !== null && signs.includes(preferredSign)) {
+      // Убираем preferredSign из массива
+      const index = signs.indexOf(preferredSign);
+      if (index > -1) {
+        signs.splice(index, 1);
+      }
+      // Ставим его первым
+      signs.unshift(preferredSign);
+      console.log(`  ✨ Приоритет знаку ${preferredSign > 0 ? '+' : '-'} для разнообразия`);
+    } else {
+      // Иначе случайный порядок знаков (как раньше)
+      for (let i = signs.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [signs[i], signs[j]] = [signs[j], signs[i]];
+      }
     }
     
     for (const targetSign of signs) {
