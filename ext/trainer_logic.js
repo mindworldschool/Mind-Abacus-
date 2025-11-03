@@ -1,4 +1,6 @@
 // ext/trainer_logic.js — Trainer logic (патч B с исправлением навигации и retry)
+// 🔥 ИСПРАВЛЕНО: Добавлена остановка пошагового показа при переходе между экранами
+//
 // Главное отличие от старой версии в репозитории:
 // 1. Мы разделяем переходы:
 //    - onExitTrainer() → вернуться в настройки
@@ -9,6 +11,10 @@
 // 4. finishTraining() теперь НЕ рендерит локальный экран "Итоги сессии" прямо
 //    в тренажёре. Он сохраняет результаты в state и вызывает onShowResultsScreen().
 //    Внешний экран "Результаты" теперь единственный финальный экран.
+// 5. ✅ НОВОЕ: Добавлена остановка анимации (exampleView.stopAnimation()) при:
+//    - Переходе в настройки (кнопка "Выйти")
+//    - Завершении тренировки (finishTraining)
+//    - Начале нового примера (showNextExample)
 //
 // Всё остальное (session.mode, reviewQueue, renderResultsScreen и т.д.) мы
 // сохраняем для совместимости, но теперь они не ломают UX.
@@ -630,6 +636,9 @@ export function mountTrainerUI(container, {
     }
 
     async function showNextExample() {
+      // ✅ ИСПРАВЛЕНИЕ 1: Останавливаем анимацию перед новым примером
+      exampleView.stopAnimation();
+      
       overlay.clear();
       showAbort = true;
       isShowing = false;
@@ -674,38 +683,37 @@ export function mountTrainerUI(container, {
       const showSpeedActive =
         st.showSpeedEnabled && effectiveShowSpeed > 0;
 
-    // Преобразуем шаги для отображения (братские объекты → строки)
-const displaySteps = ex.steps.map(step => {
-  if (typeof step === "string") return step;           // "+3"
-  if (step.step) return step.step;                     // братский: {step: "+1", ...}
-  return String(step);                                 // fallback
-});
+      // Преобразуем шаги для отображения (братские объекты → строки)
+      const displaySteps = ex.steps.map(step => {
+        if (typeof step === "string") return step;           // "+3"
+        if (step.step) return step.step;                     // братский: {step: "+1", ...}
+        return String(step);                                 // fallback
+      });
 
-// как рисуем пример
-if (showSpeedActive || shouldUseDictation) {
-  // диктовка: не показываем список целиком
-  const area = document.getElementById("area-example");
-  if (area) area.innerHTML = "";
-} else {
-  exampleView.render(displaySteps, displayMode);  // 🔥 используем displaySteps
-  requestAnimationFrame(() => {
-    adaptExampleFontSize(actionsLen, maxDigitsInStep);
-  });
-}
+      // как рисуем пример
+      if (showSpeedActive || shouldUseDictation) {
+        // диктовка: не показываем список целиком
+        const area = document.getElementById("area-example");
+        if (area) area.innerHTML = "";
+      } else {
+        exampleView.render(displaySteps, displayMode);
+        requestAnimationFrame(() => {
+          adaptExampleFontSize(actionsLen, maxDigitsInStep);
+        });
+      }
 
       // блокировать ли инпут во время диктовки
       const lockDuringShow = st.lockInputDuringShow !== false;
       if (input) input.disabled = lockDuringShow;
 
-    // === СТАЛО ===
-if (showSpeedActive || shouldUseDictation) {
-  isShowing = true;
-  showAbort = false;
-  await playSequential(
-    displaySteps,                      // используем displaySteps
-    effectiveShowSpeed,
-    { beepOnStep: !!st.beepOnStep }
-  );
+      if (showSpeedActive || shouldUseDictation) {
+        isShowing = true;
+        showAbort = false;
+        await playSequential(
+          displaySteps,
+          effectiveShowSpeed,
+          { beepOnStep: !!st.beepOnStep }
+        );
         if (showAbort) return;
         await delay(
           st.showSpeedPauseAfterChainMs ??
@@ -755,6 +763,7 @@ if (showSpeedActive || shouldUseDictation) {
         showAbort = true;
         isShowing = false;
         overlay.clear();
+        exampleView.stopAnimation();  // ✅ Останавливаем анимацию
       }
 
       const correctAnswer = session.currentExample.answer;
@@ -839,6 +848,9 @@ if (showSpeedActive || shouldUseDictation) {
      *    внешний экран "Результаты" (скрин 2)
      */
     function finishTraining() {
+      // ✅ ИСПРАВЛЕНИЕ 2: Останавливаем анимацию при завершении
+      exampleView.stopAnimation();
+      
       stopAnswerTimer();
       showAbort = true;
       isShowing = false;
@@ -989,6 +1001,9 @@ if (showSpeedActive || shouldUseDictation) {
         document.getElementById("btn-exit-trainer"),
         "click",
         () => {
+          // ✅ ИСПРАВЛЕНИЕ 3: Останавливаем анимацию при выходе
+          exampleView.stopAnimation();
+          
           stopAnswerTimer();
           showAbort = true;
           isShowing = false;
@@ -1057,6 +1072,9 @@ if (showSpeedActive || shouldUseDictation) {
       isShowing = false;
       overlay.clear();
       stopAnswerTimer();
+      
+      // ✅ Останавливаем анимацию при размонтировании
+      exampleView.stopAnimation();
 
       listeners.forEach(({ element, event, handler }) => {
         element.removeEventListener(event, handler);
