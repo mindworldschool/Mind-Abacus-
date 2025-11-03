@@ -434,7 +434,7 @@ export function mountTrainerUI(container, {
 
     const abacus = new Abacus(
       document.getElementById("floating-abacus-container"),
-      abacusColumns
+      { digitCount: abacusColumns }  // ✅ Передаём объект с digitCount
     );
 
     const overlayColor =
@@ -1102,4 +1102,3 @@ function getExampleCount(examplesCfg) {
     ? DEFAULTS.EXAMPLES_COUNT
     : (examplesCfg.count ?? DEFAULTS.EXAMPLES_COUNT);
 }
-
