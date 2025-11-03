@@ -4,6 +4,12 @@
  * ExampleView - компонент для рендеринга математического примера
  * Поддерживает два режима: столбик (по умолчанию) и строка
  * Совместим с новым форматом steps = ["+3", "-1", "+5", ...]
+ * 
+ * 🔥 НОВОЕ:
+ * - Адаптивный размер шрифта в зависимости от длины чисел
+ * - Скролл для длинных списков
+ * - Всегда выравнивание слева
+ * - Белое окно подстраивается под длину чисел
  */
 export class ExampleView {
   constructor(container) {
@@ -46,11 +52,92 @@ export class ExampleView {
       return;
     }
 
+    // 🔥 АДАПТИВНАЯ СТИЛИЗАЦИЯ
+    this._applyAdaptiveStyles(stepsArray);
+
     if (this.displayMode === "column") {
       this.renderColumn(stepsArray);
     } else {
       this.renderInline(stepsArray);
     }
+  }
+
+  /**
+   * 🔥 НОВОЕ: Применяет адаптивные стили в зависимости от длины чисел
+   * @param {Array<string>} steps
+   */
+  _applyAdaptiveStyles(stepsArray) {
+    // Находим максимальную длину числа
+    let maxLength = 0;
+    for (const step of stepsArray) {
+      // Убираем знак + или - и считаем длину
+      const numberStr = step.replace(/[+-]/g, '');
+      maxLength = Math.max(maxLength, numberStr.length);
+    }
+
+    console.log(`📏 Максимальная длина числа: ${maxLength} разрядов, всего действий: ${stepsArray.length}`);
+
+    // 🔥 АДАПТИВНЫЙ РАЗМЕР ШРИФТА
+    let fontSize;
+    if (maxLength <= 1) {
+      fontSize = 72; // Однозначные - БОЛЬШОЙ шрифт
+    } else if (maxLength === 2) {
+      fontSize = 64; // Двузначные
+    } else if (maxLength === 3) {
+      fontSize = 56; // Трёхзначные
+    } else if (maxLength <= 5) {
+      fontSize = 48; // 4-5 разрядов
+    } else if (maxLength <= 7) {
+      fontSize = 40; // 6-7 разрядов
+    } else if (maxLength <= 9) {
+      fontSize = 32; // 8-9 разрядов
+    } else {
+      fontSize = 28; // Больше 9 разрядов
+    }
+
+    // 🔥 АДАПТИВНАЯ ШИРИНА ОКНА
+    // Базовая ширина + ширина на каждый разряд
+    const baseWidth = 200; // Минимальная ширина
+    const widthPerDigit = 32; // Пикселей на каждый разряд (при fontSize=56)
+    const adaptiveWidth = baseWidth + (maxLength * widthPerDigit * (fontSize / 56));
+    
+    // Максимальная ширина - не больше 90% экрана
+    const maxWidth = window.innerWidth * 0.9;
+    const finalWidth = Math.min(adaptiveWidth, maxWidth);
+
+    // 🔥 ВЫСОТА С УЧЁТОМ КОЛИЧЕСТВА ДЕЙСТВИЙ
+    const lineHeight = fontSize * 1.4; // Межстрочный интервал
+    const maxVisibleLines = 12; // Максимум видимых строк
+    const contentHeight = stepsArray.length * lineHeight;
+    const maxHeight = maxVisibleLines * lineHeight;
+
+    // Применяем стили к контейнеру
+    this.container.style.fontSize = `${fontSize}px`;
+    this.container.style.lineHeight = `${lineHeight}px`;
+    this.container.style.width = `${finalWidth}px`;
+    this.container.style.minWidth = `${baseWidth}px`;
+    this.container.style.maxWidth = `${maxWidth}px`;
+    
+    // 🔥 ВСЕГДА ВЫРАВНИВАНИЕ СЛЕВА
+    this.container.style.textAlign = 'left';
+    this.container.style.justifyContent = 'flex-start';
+    
+    // 🔥 СКРОЛЛ ДЛЯ ДЛИННЫХ СПИСКОВ
+    if (stepsArray.length > maxVisibleLines) {
+      this.container.style.maxHeight = `${maxHeight}px`;
+      this.container.style.overflowY = 'auto';
+      this.container.style.overflowX = 'hidden';
+      console.log(`📜 Включён скролл: ${stepsArray.length} действий > ${maxVisibleLines}`);
+    } else {
+      this.container.style.maxHeight = 'none';
+      this.container.style.overflowY = 'visible';
+    }
+
+    // 🔥 ОТСТУПЫ ВНУТРИ ОКНА
+    this.container.style.padding = '20px';
+    this.container.style.boxSizing = 'border-box';
+
+    console.log(`✅ Стили применены: fontSize=${fontSize}px, width=${finalWidth}px, строк=${stepsArray.length}`);
   }
 
   /**
@@ -62,6 +149,11 @@ export class ExampleView {
       const line = document.createElement("div");
       line.className = "example__line";
       line.textContent = step;
+      
+      // 🔥 ВСЕГДА СЛЕВА
+      line.style.textAlign = 'left';
+      line.style.width = '100%';
+      
       this.container.appendChild(line);
     }
   }
@@ -74,6 +166,11 @@ export class ExampleView {
     const line = document.createElement("div");
     line.className = "example__line example__line--inline";
     line.textContent = steps.join(" ");
+    
+    // 🔥 ВСЕГДА СЛЕВА
+    line.style.textAlign = 'left';
+    line.style.width = '100%';
+    
     this.container.appendChild(line);
   }
 
@@ -83,19 +180,9 @@ export class ExampleView {
    * @param {number} lineCount
    */
   adjustFontSize(lineCount) {
-    const lines = this.container.querySelectorAll(".example__line");
-    if (!lines.length) return;
-
-    const vh = window.innerHeight;
-    const clampedLines = Math.min(lineCount, 15);
-    const calculatedSize = (vh * 0.75) / (clampedLines + 2);
-    const fontSize = Math.max(24, Math.min(72, calculatedSize));
-
-    for (const line of lines) {
-      line.style.fontSize = `${fontSize}px`;
-    }
-
-    console.log(`📏 Font: ${fontSize.toFixed(0)}px (${clampedLines} строк)`);
+    // Теперь используется _applyAdaptiveStyles
+    // Эта функция оставлена для совместимости
+    console.log(`📏 adjustFontSize вызван, но используется _applyAdaptiveStyles`);
   }
 
   /**
@@ -113,6 +200,9 @@ export class ExampleView {
       ? steps
       : String(steps).trim().split(/\s+/);
 
+    // 🔥 ПРИМЕНЯЕМ АДАПТИВНЫЕ СТИЛИ ПЕРЕД ПОКАЗОМ
+    this._applyAdaptiveStyles(stepsArray);
+
     const showNext = () => {
       if (index >= stepsArray.length) {
         if (onComplete) onComplete();
@@ -123,13 +213,25 @@ export class ExampleView {
         const line = document.createElement("div");
         line.className = "example__line";
         line.textContent = stepsArray[index];
+        
+        // 🔥 ВСЕГДА СЛЕВА
+        line.style.textAlign = 'left';
+        line.style.width = '100%';
+        
         this.container.appendChild(line);
+        
+        // 🔥 АВТО-СКРОЛЛ К ПОСЛЕДНЕЙ СТРОКЕ
+        if (this.container.scrollHeight > this.container.clientHeight) {
+          this.container.scrollTop = this.container.scrollHeight;
+        }
       } else {
         let line =
           this.container.querySelector(".example__line") ||
           (() => {
             const el = document.createElement("div");
             el.className = "example__line example__line--inline";
+            el.style.textAlign = 'left';
+            el.style.width = '100%';
             this.container.appendChild(el);
             return el;
           })();
@@ -150,5 +252,11 @@ export class ExampleView {
    */
   clear() {
     this.container.innerHTML = "";
+    // Сброс стилей
+    this.container.style.fontSize = '';
+    this.container.style.lineHeight = '';
+    this.container.style.width = '';
+    this.container.style.maxHeight = '';
+    this.container.style.overflowY = '';
   }
 }
