@@ -956,12 +956,9 @@ if (showSpeedActive || shouldUseDictation) {
 
       addListener(
         document.getElementById("btn-close-abacus"),
-      const closeAbacusBtn = document.getElementById("btn-close-abacus");
-      console.log("🔍 Кнопка закрытия абакуса:", closeAbacusBtn);
         "click",
         () => {
           abacusWrapper.classList.remove("visible");
-          console.log("🔴 Клик по кнопке закрытия абакуса");
           const btn = document.getElementById("btn-show-abacus");
           if (btn)
             btn.textContent =
