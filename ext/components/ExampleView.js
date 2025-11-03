@@ -1,20 +1,12 @@
 // ext/components/ExampleView.js - Отображение примера (столбиком/в строку)
+// 🔥 ИСПРАВЛЕНО: Добавлен механизм остановки пошагового показа
 
-/**
- * ExampleView - компонент для рендеринга математического примера
- * Поддерживает два режима: столбик (по умолчанию) и строка
- * Совместим с новым форматом steps = ["+3", "-1", "+5", ...]
- * 
- * 🔥 НОВОЕ:
- * - Адаптивный размер шрифта в зависимости от длины чисел
- * - Скролл для длинных списков
- * - Всегда выравнивание слева
- * - Белое окно подстраивается под длину чисел
- */
 export class ExampleView {
   constructor(container) {
     this.container = container;
     this.displayMode = "column"; // "column" | "inline"
+    this.currentTimer = null;     // ✅ ID текущего таймера
+    this.isAnimating = false;     // ✅ Флаг активной анимации
   }
 
   /**
@@ -33,6 +25,9 @@ export class ExampleView {
    * @param {string} mode - режим отображения (опционально)
    */
   render(steps, mode = null) {
+    // ✅ Останавливаем анимацию если она была
+    this.stopAnimation();
+    
     if (mode) {
       this.setDisplayMode(mode);
     }
@@ -192,6 +187,10 @@ export class ExampleView {
    * @param {Function} onComplete - callback после показа
    */
   renderStepByStep(steps, speed = 1000, onComplete = null) {
+    // ✅ Останавливаем предыдущий показ
+    this.stopAnimation();
+    this.isAnimating = true;  // ✅ Устанавливаем флаг
+    
     this.container.innerHTML = "";
     this.container.className = `example-view example--${this.displayMode}`;
 
@@ -204,7 +203,14 @@ export class ExampleView {
     this._applyAdaptiveStyles(stepsArray);
 
     const showNext = () => {
+      // ✅ ПРОВЕРКА: остановлен ли показ?
+      if (!this.isAnimating) {
+        console.log('⏹️ Пошаговый показ остановлен');
+        return;
+      }
+
       if (index >= stepsArray.length) {
+        this.isAnimating = false;  // ✅ Сброс флага
         if (onComplete) onComplete();
         return;
       }
@@ -241,16 +247,32 @@ export class ExampleView {
       }
 
       index++;
-      setTimeout(showNext, speed);
+      // ✅ СОХРАНЯЕМ ID ТАЙМЕРА
+      this.currentTimer = setTimeout(showNext, speed);
     };
 
     showNext();
   }
 
   /**
+   * ⏹️ НОВОЕ: Остановка пошагового показа
+   */
+  stopAnimation() {
+    if (this.currentTimer) {
+      clearTimeout(this.currentTimer);
+      this.currentTimer = null;
+      console.log('⏹️ Таймер очищен');
+    }
+    this.isAnimating = false;
+  }
+
+  /**
    * Очистка контейнера
    */
   clear() {
+    // ✅ Останавливаем анимацию перед очисткой
+    this.stopAnimation();
+    
     this.container.innerHTML = "";
     // Сброс стилей
     this.container.style.fontSize = '';
