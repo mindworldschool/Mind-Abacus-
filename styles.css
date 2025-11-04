@@ -1061,40 +1061,52 @@ body.game-screen .screen__body {
   }
 }
 /* ===========================================
-   Шапка: новая иерархия текста (Mind Abacus + подзаголовок)
+   Заголовки в шапке: единый H1 с двумя строками
    =========================================== */
 
-/* Главный заголовок Mind Abacus */
+/* Контейнер основного заголовка */
 .app-header__title {
-  font-size: 2.8rem !important;          /* заметно больше */
+  font-family: "Baloo 2", cursive;
   font-weight: 800;
+  font-size: 2.8rem;              /* базовый размер для Mind Abacus */
   color: #fff8ec;
-  text-shadow: 0 3px 8px rgba(0, 0, 0, 0.25); /* лёгкий объем */
-  letter-spacing: 0.015em;
+  line-height: 1.1;
   margin: 0;
-  line-height: 1.05;
+  letter-spacing: 0.015em;
+  text-shadow: 0 3px 8px rgba(0, 0, 0, 0.25); /* лёгкий объём */
 }
 
-/* Подзаголовок: меньше, правее и с отступом сверху */
-.app-header__tagline {
-  font-size: 1.15rem !important;          /* уменьшено */
-  font-weight: 500;
-  margin-top: 6px;                        /* расстояние от Mind Abacus */
-  margin-left: 24px;                      /* смещение вправо */
-  color: rgba(255, 255, 255, 0.88);
+/* Если внутри H1 используется span для второй фразы */
+.app-header__title span {
+  display: block;                 /* вторая строка */
+  font-size: 1.3rem;              /* заметно меньше */
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  margin-top: 6px;                /* расстояние от Mind Abacus */
+  margin-left: 28px;              /* чуть правее */
   letter-spacing: 0.01em;
-  opacity: 0.9;
-  transform: translateY(1px);             /* немного ниже, визуально выровнено */
+  text-shadow: none;              /* без тени, чтобы выглядело легче */
+}
+
+/* Подзаголовок H2 (Тренажёр ментальной арифметики) */
+.app-header__tagline {
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.01em;
 }
 
 /* Мобильная адаптация */
 @media (max-width: 640px) {
   .app-header__title {
-    font-size: 2rem !important;
+    font-size: 2.1rem;
+  }
+  .app-header__title span {
+    font-size: 1rem;
+    margin-left: 14px;
   }
   .app-header__tagline {
-    font-size: 0.95rem !important;
-    margin-left: 12px;
-    margin-top: 4px;
+    font-size: 0.9rem;
   }
 }
