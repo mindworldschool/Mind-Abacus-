@@ -1,7 +1,8 @@
 {
   "language": "Español",
   "header": {
-    "title": "Mind Abacus    Piensa rápido. Cuenta con inteligencia",
+    "titleMain": "Mind Abacus",
+    "titleSub": "Piensa rápido. Cuenta con inteligencia.",
     "tagline": "Entrenador de aritmética mental",
     "steps": {
       "settings": "Ajustes",
