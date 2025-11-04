@@ -794,8 +794,7 @@ input[type="number"]::-webkit-inner-spin-button {
     flex: 1;
     text-align: center;
   }
-}
-
+ }
 /* ========================================
    РАСШИРЕНИЕ ЭКРАНА ТРЕНИРОВКИ НА 90%
    ======================================== */
@@ -864,10 +863,10 @@ body.game-screen .screen__body {
     padding: 20px 16px !important;
   }
 }
-
 /* ========================================
    ОВЕРЛЕЙ ПОКАЗА ШАГОВ (BigStepOverlay)
    ======================================== */
+
 #big-step-overlay {
   position: fixed;
   top: 50%;
@@ -885,11 +884,11 @@ body.game-screen .screen__body {
   z-index: 9999;
   transition: opacity 0.18s ease, transform 0.18s ease, color 0.15s ease;
 }
+
 #big-step-overlay.show {
   opacity: 1;
   transform: translate(-50%, -50%) scale(1.05);
 }
-
 /* ========================================
    ВИЗУАЛ ТАЙМЕРА ОТВЕТА
    ======================================== */
@@ -913,25 +912,32 @@ body.game-screen .screen__body {
   color: var(--color-muted);
   letter-spacing: .02em;
 }
-
 /* === Шапка: финальные размеры и выравнивание === */
 .app-header__title {
-  font-size: 2.2rem !important;
+  font-size: 2.2rem !important;    /* +15% относительно исходных 1.9rem */
   font-family: "Baloo 2", cursive;
   font-weight: 700;
   line-height: 1.1;
   color: #fff8ec;
 }
+
 .app-header__tagline {
-  font-size: 1.5rem !important;
-  margin-left: 10px;
+  font-size: 1.5rem !important;    /* ~на 30% меньше, чем заголовок */
+  margin-left: 10px;               /* немного правее */
   color: rgba(255, 255, 255, 0.85);
   letter-spacing: 0.02em;
   opacity: 0.9;
 }
+
+/* Мобильная адаптация */
 @media (max-width: 640px) {
-  .app-header__title { font-size: 1.85rem !important; }
-  .app-header__tagline { font-size: 1.3rem !important; margin-left: 6px; }
+  .app-header__title {
+    font-size: 1.85rem !important;
+  }
+  .app-header__tagline {
+    font-size: 1.3rem !important;
+    margin-left: 6px;
+  }
 }
 
 /* ===== Toast Notifications ===== */
@@ -946,6 +952,7 @@ body.game-screen .screen__body {
   max-width: 420px;
   pointer-events: none;
 }
+
 .toast {
   display: flex;
   align-items: center;
@@ -960,145 +967,97 @@ body.game-screen .screen__body {
   transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   border-left: 4px solid;
 }
-.toast--show { opacity: 1; transform: translateX(0); }
-.toast--hide { opacity: 0; transform: translateX(120%); }
-.toast--info { border-left-color: #3b82f6; }
-.toast--success { border-left-color: #10b981; }
-.toast--warning { border-left-color: #f59e0b; }
-.toast--error { border-left-color: #ef4444; }
+
+.toast--show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.toast--hide {
+  opacity: 0;
+  transform: translateX(120%);
+}
+
+.toast--info {
+  border-left-color: #3b82f6;
+}
+
+.toast--success {
+  border-left-color: #10b981;
+}
+
+.toast--warning {
+  border-left-color: #f59e0b;
+}
+
+.toast--error {
+  border-left-color: #ef4444;
+}
+
 .toast__icon {
-  font-size: 20px; font-weight: bold; flex-shrink: 0; width: 24px; height: 24px;
-  display: flex; align-items: center; justify-content: center;
-}
-.toast--info .toast__icon { color: #3b82f6; }
-.toast--success .toast__icon { color: #10b981; }
-.toast--warning .toast__icon { color: #f59e0b; }
-.toast--error .toast__icon { color: #ef4444; }
-.toast__message { flex: 1; font-size: 14px; line-height: 1.5; color: var(--color-text); }
-.toast__close {
-  flex-shrink: 0; width: 24px; height: 24px; border: none; background: transparent;
-  font-size: 24px; line-height: 1; color: #999; cursor: pointer; padding: 0;
-  display: flex; align-items: center; justify-content: center; transition: color 0.2s;
-}
-.toast__close:hover { color: var(--color-text); }
-@media (max-width: 640px) {
-  .toast-container { right: 12px; left: 12px; max-width: none; }
-  .toast { padding: 14px 16px; }
-}
-
-/* =================================================================
-   ДОБАВЛЕНО: Компоновка экрана тренировки и центрирование чисел
-   ================================================================= */
-
-/* 1) Двухколоночный лэйаут: слева полотно, справа панель */
-.screen__body{
-  display: grid;
-  grid-template-columns: 1fr min(36vw, 420px);
-  gap: 24px;
-  align-items: start;
-}
-
-/* На узких — одна колонка, панель уходит вниз */
-@media (max-width: 1024px){
-  .screen__body{
-    grid-template-columns: 1fr;
-  }
-}
-
-/* 2) Белый блок-полотно для выражений */
-.trainer-canvas{
-  position: relative;
+  font-size: 20px;
+  font-weight: bold;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: clamp(12px, 3vw, 32px);
-  min-height: 420px;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 4px 22px rgba(0,0,0,.06);
-  overflow: hidden;
-  container-type: inline-size; /* для cqw, не обязательно, но полезно */
 }
 
-/* 3) Внутренний контейнер выражений */
-.expr{
-  width: fit-content;
-  max-width: 100%;
-  text-align: center;
-  white-space: nowrap;
-  line-height: 1.05;
-  margin: 0 auto;
+.toast--info .toast__icon {
+  color: #3b82f6;
 }
 
-/* Вариант А: список строк (колонка) */
-.expr--column{
-  display: grid;
-  justify-items: center;
-  row-gap: clamp(8px, 1.2vw, 14px);
-  font-size: clamp(24px, 3.2vw, 48px);
-}
-.expr--column .line{
-  display: inline-flex;
-  align-items: baseline;
-  gap: 8px;
+.toast--success .toast__icon {
+  color: #10b981;
 }
 
-/* Вариант Б: одно большое число */
-.expr--big{
-  font-weight: 700;
-  font-size: clamp(42px, 10cqw, 160px); /* автоадаптация от ширины полотна */
-  transform-origin: center center;
+.toast--warning .toast__icon {
+  color: #f59e0b;
 }
 
-/* 4) Правая панель */
-.trainer-sidebar{
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 4px 22px rgba(0,0,0,.06);
-  padding: 16px;
+.toast--error .toast__icon {
+  color: #ef4444;
 }
-.trainer-sidebar .answer{
-  display: grid;
-  gap: 12px;
-  margin-bottom: 16px;
+
+.toast__message {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text);
 }
-.trainer-sidebar .answer__input{
-  width: 100%;
-  height: 48px;
-  border-radius: 10px;
-  border: 2px solid #f3d6b8;
-  padding: 0 12px;
-  font-size: 18px;
-}
-.trainer-sidebar .answer__btn{
-  height: 44px;
-  border: 0;
-  border-radius: 12px;
-  background: #ff7a00;
-  color: #fff;
-  font-weight: 700;
+
+.toast__close {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  line-height: 1;
+  color: #999;
   cursor: pointer;
-}
-.trainer-sidebar .stats__header{
+  padding: 0;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin: 12px 0;
-  font-weight: 600;
+  justify-content: center;
+  transition: color 0.2s;
 }
-.trainer-sidebar .stats__grid{
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 8px;
+
+.toast__close:hover {
+  color: var(--color-text);
 }
-.trainer-sidebar .stats__ok,
-.trainer-sidebar .stats__bad{
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 8px;
-  padding: 10px;
-  border-radius: 10px;
-  background: #f8f6f2;
+
+@media (max-width: 640px) {
+  .toast-container {
+    right: 12px;
+    left: 12px;
+    max-width: none;
+  }
+
+  .toast {
+    padding: 14px 16px;
+  }
 }
+
