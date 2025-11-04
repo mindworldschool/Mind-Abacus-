@@ -1060,4 +1060,39 @@ body.game-screen .screen__body {
     padding: 14px 16px;
   }
 }
+/* ===========================================
+   Шапка: корректировка размера и положения надписей
+   =========================================== */
+
+/* 1️⃣ Mind Abacus — делаем крупнее и чуть "объемнее" */
+.app-header__title {
+  font-size: 2.6rem !important;           /* было ~2.2rem — делаем больше */
+  font-weight: 800;
+  color: #fff8ec;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.25); /* лёгкая объемность */
+  letter-spacing: 0.02em;
+}
+
+/* 2️⃣ Подзаголовок — делаем немного меньше, светлее и правее */
+.app-header__tagline {
+  font-size: 1.25rem !important;           /* немного меньше */
+  margin-left: 18px;                       /* смещаем правее от Mind Abacus */
+  color: rgba(255,255,255,0.9);
+  opacity: 0.9;
+  font-weight: 600;
+  letter-spacing: 0.015em;
+  transform: translateY(2px);              /* чуть ниже — гармоничнее */
+}
+
+/* 3️⃣ Мобильная адаптация */
+@media (max-width: 640px) {
+  .app-header__title {
+    font-size: 2rem !important;
+  }
+  .app-header__tagline {
+    font-size: 1rem !important;
+    margin-left: 10px;
+    transform: translateY(1px);
+  }
+}
 
