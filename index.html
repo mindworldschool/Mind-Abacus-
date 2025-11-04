@@ -4,32 +4,55 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mind Abacus</title>
+
+    <!-- Иконка -->
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+
+    <!-- Шрифты -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600&family=Montserrat:wght@400;600&display=swap"
       rel="stylesheet"
     />
+
+    <!-- Стили -->
     <link rel="stylesheet" href="./styles.css" />
-      <link rel="stylesheet" href="./ext/trainer-ext.css" />
+    <link rel="stylesheet" href="./ext/trainer-ext.css" />
   </head>
+
   <body class="game-screen">
-  <header class="app-header">
-    <div class="app-header__brand">
-      <img src="./assets/logo.png" alt="Abacuc logo" class="app-header__logo" />
-      <div class="app-header__titles">
-        <h1 id="appTitle" class="app-header__title">Mind Abacus</h1>
-        <p id="appTagline" class="app-header__tagline">Mental arithmetic trainer</p>
+    <header class="app-header">
+      <div class="app-header__brand">
+        <img
+          src="./assets/logo.png"
+          alt="Mind Abacus logo"
+          class="app-header__logo"
+        />
+
+        <div class="app-header__titles">
+          <!-- Единый H1 с двумя строками -->
+          <h1 id="appTitle" class="app-header__title">
+            Mind Abacus
+            <span>Думай быстро. Считай с умом.</span>
+          </h1>
+
+          <!-- Отдельный подзаголовок H2 -->
+          <h2 id="appTagline" class="app-header__tagline">
+            Тренажёр ментальной арифметики
+          </h2>
+        </div>
       </div>
-    </div>
-    <div id="languageSwitcher" class="app-header__languages"></div>
-  </header>
 
-  <main id="app" class="app-main" role="main"></main>
+      <!-- Переключатель языков -->
+      <div id="languageSwitcher" class="app-header__languages"></div>
+    </header>
 
-  <footer id="appFooter" class="app-footer">MindWorld School © 2025</footer>
+    <main id="app" class="app-main" role="main"></main>
 
-  <script type="module" src="./main.js"></script>
-</body>
+    <footer id="appFooter" class="app-footer">MindWorld School © 2025</footer>
+
+    <!-- Основной JS -->
+    <script type="module" src="./main.js"></script>
+  </body>
 </html>
