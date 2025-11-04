@@ -1,7 +1,8 @@
 {
   "language": "Українська",
   "header": {
-    "title": "Mind Abacus     Думай швидко. Рахуй з розумом.",
+    "titleMain": "Mind Abacus",
+    "titleSub": "Думай швидко. Рахуй з розумом.",
     "tagline": "Тренажер ментальної арифметики",
     "steps": {
       "settings": "Налаштування",
