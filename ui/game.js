@@ -9,52 +9,40 @@ import toast from "./components/Toast.js";
 const CONTEXT = "GameScreen";
 
 /**
- * Ожидаемый интерфейс example:
+ * example:
  *  - display: 'column' | 'big'
- *  - lines?: string[]          // для column
- *  - big?: string              // для big, напр. "+13126"
+ *  - lines?: string[]    // для column
+ *  - big?: string        // для big
  */
 function mountExample(canvasEl, example) {
-  // Очистить «полотно»
   canvasEl.innerHTML = "";
 
-  // Создать контейнер с выражением
   const expr = document.createElement("div");
   expr.className =
     example.display === "column" ? "expr expr--column" : "expr expr--big";
 
   if (example.display === "column") {
-    // построчный вывод: +544, +455, -713...
-    example.lines.forEach((text) => {
+    (example.lines || []).forEach((text) => {
       const line = document.createElement("div");
       line.className = "line";
       line.textContent = text;
       expr.appendChild(line);
     });
   } else {
-    // одно большое число
     expr.textContent = example.big ?? "";
   }
 
   canvasEl.appendChild(expr);
 
-  // Автоматическая подгонка размера (только для большого числа)
+  // Автоподгон только для «большого числа»
   if (example.display === "big") {
-    // Первичная подгонка
-    fitTextToBox(expr, canvasEl, { padding: 24, minScale: 0.6 });
+    const fit = () => fitTextToBox(expr, canvasEl, { padding: 24, minScale: 0.6 });
+    fit();
 
-    // Реакция на изменения размеров
-    const ro = new ResizeObserver(() =>
-      fitTextToBox(expr, canvasEl, { padding: 24, minScale: 0.6 })
-    );
+    const ro = new ResizeObserver(fit);
     ro.observe(canvasEl);
 
-    // На всякий случай — ресайз окна
-    window.addEventListener(
-      "resize",
-      () => fitTextToBox(expr, canvasEl, { padding: 24, minScale: 0.6 }),
-      { passive: true }
-    );
+    window.addEventListener("resize", fit, { passive: true });
   }
 }
 
@@ -71,12 +59,12 @@ export async function renderGame(container, { t, state, navigate }) {
   body.className = "screen__body";
   section.appendChild(body);
 
-  // === ЛЕВАЯ колонка: белое «полотно» для примеров ===
+  // ЛЕВАЯ колонка — «полотно»
   const canvasWrap = document.createElement("div");
-  canvasWrap.className = "trainer-canvas"; // важный класс для стилей центрирования
+  canvasWrap.className = "trainer-canvas";
   body.appendChild(canvasWrap);
 
-  // === ПРАВАЯ колонка: панель ответа (монтируется как раньше) ===
+  // ПРАВАЯ колонка — панель ответа (минимальная разметка)
   const sidebar = document.createElement("div");
   sidebar.className = "trainer-sidebar";
   sidebar.innerHTML = `
@@ -92,12 +80,8 @@ export async function renderGame(container, { t, state, navigate }) {
         <span class="stats__limit">0 / 2</span>
       </div>
       <div class="stats__grid">
-        <div class="stats__ok">
-          <span>✓</span><b class="ok">0</b>
-        </div>
-        <div class="stats__bad">
-          <span>✗</span><b class="bad">0</b>
-        </div>
+        <div class="stats__ok"><span>✓</span><b class="ok">0</b></div>
+        <div class="stats__bad"><span>✗</span><b class="bad">0</b></div>
       </div>
       <div class="progress">
         <div class="progress__ok">${t("game.correct") ?? "Правильно:"} <b>0%</b></div>
@@ -109,15 +93,14 @@ export async function renderGame(container, { t, state, navigate }) {
 
   container.appendChild(section);
 
-  // ==== Подписки на события тренажёра (как и раньше) ====
+  // Навигация к результатам по событию из ядра
   const unsubscribe = eventBus.on(EVENTS.TRAINING_FINISH, (stats) => {
     logger.info(CONTEXT, "Training finished, navigating to results");
     setResults(stats);
     navigate("results");
   });
 
-  // Если в твоей логике уже есть «рендер примера», используй mountExample.
-  // Ниже — демонстрация: становим «колонку» при >1 действия, иначе «одно число».
+  // Демонстрационно: если действий >1 — колонка, иначе одно большое число
   const currentExample = state?.example ?? {
     display: (state?.actionsCount ?? 1) > 1 ? "column" : "big",
     lines:
@@ -128,7 +111,6 @@ export async function renderGame(container, { t, state, navigate }) {
 
   mountExample(canvasWrap, currentExample);
 
-  // При размонтировании
   section.addEventListener("removed", () => {
     unsubscribe?.();
   });
