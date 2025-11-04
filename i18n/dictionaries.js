@@ -3,7 +3,8 @@ export const dictionaries = {
   "en": {
     "language": "English",
     "header": {
-      "title": "Mind Abacus    Think fast. Count smart.",
+      "titleMain": "Mind Abacus",
+      "titleSub": "Think fast. Count smart.",
       "tagline": "Mental arithmetic trainer",
       "steps": {
         "settings": "Settings",
@@ -205,10 +206,12 @@ export const dictionaries = {
       "exitButton": "⏹ Exit"
     }
   },
+
   "es": {
     "language": "Español",
     "header": {
-      "title": "Mind Abacus      Piensa rápido. Cuenta con inteligencia.",
+      "titleMain": "Mind Abacus",
+      "titleSub": "Piensa rápido. Cuenta con inteligencia.",
       "tagline": "Entrenador de aritmética mental",
       "steps": {
         "settings": "Ajustes",
@@ -410,10 +413,12 @@ export const dictionaries = {
       "exitButton": "⏹ Salir"
     }
   },
+
   "ru": {
     "language": "Русский",
     "header": {
-      "title": "Mind Abacus  Думай быстро. Считай с умом.",
+      "titleMain": "Mind Abacus",
+      "titleSub": "Думай быстро. Считай с умом.",
       "tagline": "Тренажёр ментальной арифметики",
       "steps": {
         "settings": "Настройки",
@@ -615,10 +620,12 @@ export const dictionaries = {
       "exitButton": "⏹ Выйти"
     }
   },
+
   "ua": {
     "language": "Українська",
     "header": {
-      "title": "Mind Abacus    Думай швидко. Рахуй з розумом.",
+      "titleMain": "Mind Abacus",
+      "titleSub": "Думай швидко. Рахуй з розумом.",
       "tagline": "Тренажер ментальної арифметики",
       "steps": {
         "settings": "Налаштування",
