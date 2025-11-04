@@ -1,7 +1,8 @@
 {
   "language": "Русский",
   "header": {
-    "title": "Mind Abacus    Думай быстро. Считай с умом.",
+    "titleMain": "Mind Abacus",
+    "titleSub": "Думай быстро. Считай с умом.",
     "tagline": "Тренажёр ментальной арифметики",
     "steps": {
       "settings": "Настройки",
