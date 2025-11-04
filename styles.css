@@ -1060,53 +1060,46 @@ body.game-screen .screen__body {
     padding: 14px 16px;
   }
 }
-/* ===========================================
-   Единый H1 (Mind Abacus + подфраза)
-   =========================================== */
-
+/* Контейнер одной строки */
 .app-header__title {
-  font-family: "Baloo 2", cursive;
-  font-weight: 800;
-  font-size: 2.8rem;              /* крупный размер для Mind Abacus */
-  color: #fff8ec;
-  line-height: 1.1;
-  letter-spacing: 0.015em;
-  text-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+  display: flex;                     /* размещаем две части в одну линию */
+  align-items: baseline;             /* выравниваем по нижней линии */
+  justify-content: center;           /* центрируем весь заголовок */
+  flex-wrap: wrap;                   /* если экран узкий — перенос */
+  gap: 3rem;                         /* расстояние между фразами */
   margin: 0;
+  text-align: center;
 }
 
-/* Вторая строка — «Думай быстро. Считай с умом.» */
-.app-header__title span {
-  display: block;                 /* перенос строки */
-  font-size: 1.2rem;              /* меньше, чем верхняя строка */
+/* Левая часть — Mind Abacus */
+.title-main {
+  font-family: "Baloo 2", cursive;
+  font-size: 2.8rem;
+  font-weight: 800;
+  color: #fff8ec;
+  text-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+  letter-spacing: 0.015em;
+}
+
+/* Правая часть — подфраза */
+.title-sub {
+  font-family: "Montserrat", sans-serif;
+  font-size: 1.4rem;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.9);
-  margin-top: 6px;                /* расстояние между строками */
-  margin-left: 26px;              /* смещение чуть правее */
-  letter-spacing: 0.01em;
-  text-shadow: none;              /* без объёмной тени */
-}
-
-/* Подзаголовок (H2) */
-.app-header__tagline {
-  font-size: 1.05rem;
-  font-weight: 500;
-  margin-top: 8px;
-  color: rgba(255, 255, 255, 0.85);
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
 }
 
 /* Мобильная адаптация */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .app-header__title {
-    font-size: 2.1rem;
+    flex-direction: column;
+    gap: 0.4rem;
   }
-  .app-header__title span {
-    font-size: 1rem;
-    margin-left: 12px;
-    margin-top: 4px;
+  .title-main {
+    font-size: 2rem;
   }
-  .app-header__tagline {
-    font-size: 0.9rem;
+  .title-sub {
+    font-size: 1.05rem;
   }
 }
