@@ -1061,36 +1061,35 @@ body.game-screen .screen__body {
   }
 }
 /* ===========================================
-   Заголовки в шапке: единый H1 с двумя строками
+   Единый H1 (Mind Abacus + подфраза)
    =========================================== */
 
-/* Контейнер основного заголовка */
 .app-header__title {
   font-family: "Baloo 2", cursive;
   font-weight: 800;
-  font-size: 2.8rem;              /* базовый размер для Mind Abacus */
+  font-size: 2.8rem;              /* крупный размер для Mind Abacus */
   color: #fff8ec;
   line-height: 1.1;
-  margin: 0;
   letter-spacing: 0.015em;
-  text-shadow: 0 3px 8px rgba(0, 0, 0, 0.25); /* лёгкий объём */
+  text-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+  margin: 0;
 }
 
-/* Если внутри H1 используется span для второй фразы */
+/* Вторая строка — «Думай быстро. Считай с умом.» */
 .app-header__title span {
-  display: block;                 /* вторая строка */
-  font-size: 1.3rem;              /* заметно меньше */
+  display: block;                 /* перенос строки */
+  font-size: 1.2rem;              /* меньше, чем верхняя строка */
   font-weight: 600;
   color: rgba(255, 255, 255, 0.9);
-  margin-top: 6px;                /* расстояние от Mind Abacus */
-  margin-left: 28px;              /* чуть правее */
+  margin-top: 6px;                /* расстояние между строками */
+  margin-left: 26px;              /* смещение чуть правее */
   letter-spacing: 0.01em;
-  text-shadow: none;              /* без тени, чтобы выглядело легче */
+  text-shadow: none;              /* без объёмной тени */
 }
 
-/* Подзаголовок H2 (Тренажёр ментальной арифметики) */
+/* Подзаголовок (H2) */
 .app-header__tagline {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 500;
   margin-top: 8px;
   color: rgba(255, 255, 255, 0.85);
@@ -1104,7 +1103,8 @@ body.game-screen .screen__body {
   }
   .app-header__title span {
     font-size: 1rem;
-    margin-left: 14px;
+    margin-left: 12px;
+    margin-top: 4px;
   }
   .app-header__tagline {
     font-size: 0.9rem;
