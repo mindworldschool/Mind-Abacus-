@@ -1,7 +1,8 @@
 {
   "language": "English",
   "header": {
-    "title": "Mind Abacus    Think fast. Count smart.",
+    "titleMain": "Mind Abacus",
+    "titleSub": "Think fast. Count smart.",
     "tagline": "Mental arithmetic trainer",
     "steps": {
       "settings": "Settings",
