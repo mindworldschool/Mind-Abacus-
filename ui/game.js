@@ -1,175 +1,135 @@
-// ui/game.js — Training screen with proper routing + retry support
+// ui/game.js
 import { createStepIndicator } from "./helper.js";
-import { setResults, state as globalState, resetResults } from "../core/state.js";
+import { fitTextToBox } from "./utils/fitText.js";
+import { setResults } from "../core/state.js";
 import { eventBus, EVENTS } from "../core/utils/events.js";
 import { logger } from "../core/utils/logger.js";
 import toast from "./components/Toast.js";
 
 const CONTEXT = "GameScreen";
 
+/**
+ * Ожидаемый интерфейс example:
+ *  - display: 'column' | 'big'
+ *  - lines?: string[]          // для column
+ *  - big?: string              // для big, напр. "+13126"
+ */
+function mountExample(canvasEl, example) {
+  // Очистить «полотно»
+  canvasEl.innerHTML = "";
+
+  // Создать контейнер с выражением
+  const expr = document.createElement("div");
+  expr.className =
+    example.display === "column" ? "expr expr--column" : "expr expr--big";
+
+  if (example.display === "column") {
+    // построчный вывод: +544, +455, -713...
+    example.lines.forEach((text) => {
+      const line = document.createElement("div");
+      line.className = "line";
+      line.textContent = text;
+      expr.appendChild(line);
+    });
+  } else {
+    // одно большое число
+    expr.textContent = example.big ?? "";
+  }
+
+  canvasEl.appendChild(expr);
+
+  // Автоматическая подгонка размера (только для большого числа)
+  if (example.display === "big") {
+    // Первичная подгонка
+    fitTextToBox(expr, canvasEl, { padding: 24, minScale: 0.6 });
+
+    // Реакция на изменения размеров
+    const ro = new ResizeObserver(() =>
+      fitTextToBox(expr, canvasEl, { padding: 24, minScale: 0.6 })
+    );
+    ro.observe(canvasEl);
+
+    // На всякий случай — ресайз окна
+    window.addEventListener(
+      "resize",
+      () => fitTextToBox(expr, canvasEl, { padding: 24, minScale: 0.6 }),
+      { passive: true }
+    );
+  }
+}
+
 export async function renderGame(container, { t, state, navigate }) {
-  // Очищаем контейнер
   container.innerHTML = "";
 
-  // Обёртка экрана
   const section = document.createElement("section");
   section.className = "screen game-screen";
 
-  // Индикация шага мастера (навигация по шагам)
   const indicator = createStepIndicator("game", t);
   section.appendChild(indicator);
 
-  // Тело, куда маунтим тренажёр
   const body = document.createElement("div");
   body.className = "screen__body";
   section.appendChild(body);
 
+  // === ЛЕВАЯ колонка: белое «полотно» для примеров ===
+  const canvasWrap = document.createElement("div");
+  canvasWrap.className = "trainer-canvas"; // важный класс для стилей центрирования
+  body.appendChild(canvasWrap);
+
+  // === ПРАВАЯ колонка: панель ответа (монтируется как раньше) ===
+  const sidebar = document.createElement("div");
+  sidebar.className = "trainer-sidebar";
+  sidebar.innerHTML = `
+    <div class="answer">
+      <label class="answer__label">${t("game.answer") ?? "Відповідь:"}</label>
+      <input class="answer__input" type="text" inputmode="numeric" />
+      <button class="answer__btn">${t("game.reply") ?? "Відповісти"}</button>
+    </div>
+
+    <div class="stats">
+      <div class="stats__header">
+        <span>${t("game.actions") ?? "Кількість дій"}</span>
+        <span class="stats__limit">0 / 2</span>
+      </div>
+      <div class="stats__grid">
+        <div class="stats__ok">
+          <span>✓</span><b class="ok">0</b>
+        </div>
+        <div class="stats__bad">
+          <span>✗</span><b class="bad">0</b>
+        </div>
+      </div>
+      <div class="progress">
+        <div class="progress__ok">${t("game.correct") ?? "Правильно:"} <b>0%</b></div>
+        <div class="progress__bad">${t("game.errors") ?? "Помилки:"} <b>0%</b></div>
+      </div>
+    </div>
+  `;
+  body.appendChild(sidebar);
+
   container.appendChild(section);
 
-  // ====== EVENT: TRAINING_FINISH ======
-  // Тренажёр шлёт это событие и добавляет phase:
-  //  - "done" → нормальное завершение сессии
-  //  - "exit" → пользователь нажал "Выйти"
-  //
-  // Здесь мы решаем КУДА уйти, и что сохранить в стейт.
+  // ==== Подписки на события тренажёра (как и раньше) ====
   const unsubscribe = eventBus.on(EVENTS.TRAINING_FINISH, (stats) => {
-    logger.info(CONTEXT, "TRAINING_FINISH event:", stats);
-
-    // Если это нормальный финиш (phase === "done"):
-    // Пишем результаты и идём на экран результатов
-    if (stats.phase === "done") {
-      setResults({
-        success: stats.correct || 0,
-        total: stats.total || 0,
-        wrongExamples: stats.wrongExamples || []
-      });
-
-      // Вырубаем retryMode.enabled = false, если ошибок больше нет
-      if (!stats.wrongExamples || stats.wrongExamples.length === 0) {
-        globalState.retryMode = {
-          enabled: false,
-          examples: []
-        };
-      }
-
-      navigate("results");
-      return;
-    }
-
-    // Если пользователь нажал "⏹ Выйти":
-    // Мы НЕ должны показывать результаты, мы должны вернуться в настройки
-    if (stats.phase === "exit") {
-      // Сбрасываем результаты, чтобы экран результатов не показал мусор
-      resetResults();
-      globalState.retryMode = {
-        enabled: false,
-        examples: []
-      };
-      navigate("settings");
-      return;
-    }
-
-    // fallback: если phase не пришла (на всякий случай)
-    logger.warn(CONTEXT, "Unknown training finish phase, defaulting to results");
-    setResults({
-      success: stats.correct || 0,
-      total: stats.total || 0,
-      wrongExamples: stats.wrongExamples || []
-    });
+    logger.info(CONTEXT, "Training finished, navigating to results");
+    setResults(stats);
     navigate("results");
   });
 
-  try {
-    // Динамически подгружаем тренажёр
-    const module = await import("../ext/trainer_ext.js");
-    if (!module?.mountTrainerUI) {
-      throw new Error("Module trainer_ext.js loaded but mountTrainerUI not found");
-    }
+  // Если в твоей логике уже есть «рендер примера», используй mountExample.
+  // Ниже — демонстрация: становим «колонку» при >1 действия, иначе «одно число».
+  const currentExample = state?.example ?? {
+    display: (state?.actionsCount ?? 1) > 1 ? "column" : "big",
+    lines:
+      state?.lines ??
+      ["+544", "+455", "-713", "-175", "+785", "-315", "-561", "+259", "-129"],
+    big: state?.big ?? "+13126",
+  };
 
-    logger.info(CONTEXT, "Mounting trainer...");
+  mountExample(canvasWrap, currentExample);
 
-    // ВАЖНО 🔥
-    // Тут мы должны передать:
-    //  - настройки для сессии
-    //  - retryMode (enabled/examples)
-    //  - колбэки для навигации
-    //
-    // stateFromCaller приходит сверху (параметр renderGame),
-    // globalState — общий синглтон из core/state.js.
-    //
-    // При повторном запуске после "Исправить ошибки":
-    //   globalState.retryMode.enabled === true
-    //   globalState.retryMode.examples === [ошибочные примеры]
-    //
-    // При обычном запуске:
-    //   retryMode.enabled === false
-    //
-    // Настройки для тренировки берём так:
-    // - если retryMode.enabled === true (режим исправления ошибок),
-    //   используем сохраненные lastSettings, чтобы условия были те же
-    // - иначе ВСЕГДА используем актуальные state.settings
-    const isRetryMode = globalState.retryMode?.enabled === true;
-    const effectiveSettings = isRetryMode 
-      ? (globalState.lastSettings || state.settings)
-      : state.settings;
-    
-    // Сохраняем текущие настройки для возможного retry
-    if (!isRetryMode) {
-      globalState.lastSettings = state.settings;
-    }
-
-    const cleanupTrainer = module.mountTrainerUI(body, {
-      t,
-      state: { settings: effectiveSettings },
-
-      retryMode: globalState.retryMode || {
-        enabled: false,
-        examples: []
-      },
-
-      // Нажатие кнопки "⏹ Выйти" в тренажёре:
-      // должно вернуть ученика на экран настроек
-      onExitTrainer: () => {
-        logger.info(CONTEXT, "Exit pressed → navigate(settings)");
-        resetResults();
-        globalState.retryMode = { enabled: false, examples: [] };
-        navigate("settings");
-      },
-
-      // Завершили серию → показать глобальный экран "Результаты"
-      onShowResultsScreen: () => {
-        logger.info(CONTEXT, "Session done → navigate(results)");
-        navigate("results");
-      }
-    });
-
-    // cleanup
-    return () => {
-      logger.debug(CONTEXT, "Cleaning up game screen");
-      unsubscribe();
-      if (typeof cleanupTrainer === "function") {
-        cleanupTrainer();
-      }
-    };
-  } catch (error) {
-    logger.error(CONTEXT, "Failed to load trainer:", error);
-
-    // безопасный показ ошибки
-    const errorDiv = document.createElement("div");
-    errorDiv.style.cssText = "color:#d93025; padding:20px; font-weight:600;";
-
-    const message = document.createTextNode("Не удалось загрузить тренажёр.");
-    const br = document.createElement("br");
-    const small = document.createElement("small");
-    small.textContent = error.message;
-
-    errorDiv.append(message, br, small);
-    body.appendChild(errorDiv);
-
-    toast.error("Не удалось загрузить тренажёр");
-
-    return () => {
-      unsubscribe();
-    };
-  }
+  // При размонтировании
+  section.addEventListener("removed", () => {
+    unsubscribe?.();
+  });
 }
