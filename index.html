@@ -32,9 +32,9 @@
 
         <div class="app-header__titles">
           <h1 id="appTitle" class="app-header__title">
-  <span class="title-main">Mind Abacus</span>
-  <span class="title-sub">Думай быстро. Считай с умом.</span>
-</h1>
+            <span class="title-main">Mind Abacus</span>
+            <span class="title-sub">Думай быстро. Считай с умом.</span>
+          </h1>
           <h2 id="appTagline" class="app-header__tagline">
             Тренажёр ментальной арифметики
           </h2>
@@ -48,6 +48,35 @@
     <main id="app" class="app-main" role="main"></main>
 
     <footer id="appFooter" class="app-footer">MindWorld School © 2025</footer>
+
+    <!-- Детектор языка -->
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        let lang = params.get("lang");
+
+        // 1. Проверяем URL
+        if (lang !== "ua" && lang !== "en") {
+          // 2. Если нет — пробуем взять из localStorage
+          const saved = localStorage.getItem("mws_lang");
+          if (saved === "ua" || saved === "en") {
+            lang = saved;
+          } else {
+            // 3. Язык по умолчанию
+            lang = "ua";
+          }
+        }
+
+        // 4. Сохраняем язык
+        localStorage.setItem("mws_lang", lang);
+
+        // 5. Передаём язык в main.js
+        window.APP_LANG = lang;
+
+        // 6. Обновляем lang в <html>
+        document.documentElement.lang = lang === "en" ? "en" : "uk";
+      })();
+    </script>
 
     <!-- Основной JS -->
     <script type="module" src="./main.js"></script>
