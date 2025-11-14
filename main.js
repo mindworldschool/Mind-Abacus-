@@ -19,7 +19,7 @@ import { renderResults } from "./ui/results.js";
 import { logger } from "./core/utils/logger.js";
 import toast from "./ui/components/Toast.js";
 
-const CONTEXT = 'Main';
+const CONTEXT = "Main";
 
 const mainContainer = document.getElementById("app");
 const titleElement = document.getElementById("appTitle");
@@ -41,6 +41,8 @@ function updateHeaderTexts() {
   taglineElement.textContent = t("header.tagline");
   footerElement.textContent = t("footer");
   document.title = t("header.title");
+
+  // HTML-lang может быть "ua"/"en" — если нужно "uk"/"en", можно тут доработать
   document.documentElement.lang = getCurrentLanguage();
 }
 
@@ -102,20 +104,45 @@ export function route(name) {
 async function bootstrap() {
   try {
     // Проверка критических DOM элементов
-    if (!mainContainer || !titleElement || !taglineElement ||
-        !languageContainer || !footerElement) {
+    if (
+      !mainContainer ||
+      !titleElement ||
+      !taglineElement ||
+      !languageContainer ||
+      !footerElement
+    ) {
       const missing = [];
-      if (!mainContainer) missing.push('app');
-      if (!titleElement) missing.push('appTitle');
-      if (!taglineElement) missing.push('appTagline');
-      if (!languageContainer) missing.push('languageSwitcher');
-      if (!footerElement) missing.push('appFooter');
+      if (!mainContainer) missing.push("app");
+      if (!titleElement) missing.push("appTitle");
+      if (!taglineElement) missing.push("appTagline");
+      if (!languageContainer) missing.push("languageSwitcher");
+      if (!footerElement) missing.push("appFooter");
 
-      throw new Error(`Missing required DOM elements: ${missing.join(', ')}`);
+      throw new Error(
+        `Missing required DOM elements: ${missing.join(", ")}`
+      );
     }
 
-    logger.info(CONTEXT, 'Application starting...');
-    await initI18n(state.language);
+    logger.info(CONTEXT, "Application starting...");
+
+    // 🔹 Определяем стартовый язык:
+    // 1) приоритет — из window.APP_LANG (передан из index.html с ?lang=ua/en)
+    // 2) иначе — из state.language
+    // 3) fallback — "ua"
+    let initialLang = state.language || "ua";
+
+    if (window.APP_LANG === "ua" || window.APP_LANG === "en") {
+      initialLang = window.APP_LANG;
+      // сохраняем выбор языка в состоянии/хранилище приложения
+      setLanguagePreference(initialLang);
+    }
+
+    // Инициализация i18n с учётом выбранного языка
+    await initI18n(initialLang);
+
+    // На всякий случай синхронизируем i18n с initialLang
+    setLanguage(initialLang);
+
     updateHeaderTexts();
     renderLanguageButtons();
     route(state.route);
@@ -126,10 +153,10 @@ async function bootstrap() {
       renderScreen(state.route);
     });
 
-    logger.info(CONTEXT, 'Application initialized successfully');
+    logger.info(CONTEXT, "Application initialized successfully");
   } catch (error) {
-    logger.error(CONTEXT, 'Failed to initialize application:', error);
-    toast.error('Не удалось загрузить приложение');
+    logger.error(CONTEXT, "Failed to initialize application:", error);
+    toast.error("Не удалось загрузить приложение");
     throw error;
   }
 }
@@ -145,7 +172,7 @@ document.addEventListener("keydown", escapeHandler);
 
 // Cleanup on page unload
 window.addEventListener("beforeunload", () => {
-  logger.debug(CONTEXT, 'Cleaning up before unload');
+  logger.debug(CONTEXT, "Cleaning up before unload");
   if (typeof currentCleanup === "function") {
     currentCleanup();
   }
