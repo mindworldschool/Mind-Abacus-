@@ -16,12 +16,12 @@ function notify() {
   listeners.forEach((listener) => listener(currentLanguage));
 }
 
-// 🔹 Определяем язык: URL → localStorage → default
-function resolveInitialLanguage(defaultLang = "ua") {
+// 🔹 Инициализация i18n с учётом URL и localStorage
+export async function initI18n(defaultLang = "ua") {
   let lang = defaultLang;
 
+  // 1. Пытаемся взять язык из URL (?lang=en / ?lang=ua / ?lang=es / ?lang=ru)
   try {
-    // 1. Пробуем взять из URL ?lang=en / ?lang=ua
     const params = new URLSearchParams(window.location.search);
     const urlLang = params.get("lang");
     if (urlLang && LANG_CODES.includes(urlLang)) {
@@ -34,25 +34,21 @@ function resolveInitialLanguage(defaultLang = "ua") {
       }
     }
   } catch (e) {
-    // ничего страшного, просто идём дальше
+    // если что-то с window/URLSearchParams — просто игнорируем
   }
 
-  // 3. Проверяем, что язык допустимый
+  // 3. Фолбек — если всё равно что-то не то, ставим "ua"
   if (!LANG_CODES.includes(lang)) {
     lang = "ua";
   }
 
-  return lang;
-}
-
-export async function initI18n(defaultLang = "ua") {
-  const lang = resolveInitialLanguage(defaultLang);
   currentLanguage = lang;
 
+  // 4. Сохраняем выбранный язык в localStorage для следующих заходов
   try {
-    localStorage.setItem("mws_lang", lang);
+    localStorage.setItem("mws_lang", currentLanguage);
   } catch (e) {
-    // можно игнорировать
+    // если localStorage недоступен — просто пропускаем
   }
 
   return currentLanguage;
@@ -81,8 +77,9 @@ export function setLanguage(code) {
   }
   currentLanguage = code;
 
+  // при ручном переключении тоже сохраняем язык
   try {
-    localStorage.setItem("mws_lang", code);
+    localStorage.setItem("mws_lang", currentLanguage);
   } catch (e) {}
 
   notify();
