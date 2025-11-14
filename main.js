@@ -19,7 +19,7 @@ import { renderResults } from "./ui/results.js";
 import { logger } from "./core/utils/logger.js";
 import toast from "./ui/components/Toast.js";
 
-const CONTEXT = 'Main';
+const CONTEXT = "Main";
 
 const mainContainer = document.getElementById("app");
 const titleElement = document.getElementById("appTitle");
@@ -102,31 +102,54 @@ export function route(name) {
 async function bootstrap() {
   try {
     // Проверка критических DOM элементов
-    if (!mainContainer || !titleElement || !taglineElement ||
-        !languageContainer || !footerElement) {
+    if (
+      !mainContainer ||
+      !titleElement ||
+      !taglineElement ||
+      !languageContainer ||
+      !footerElement
+    ) {
       const missing = [];
-      if (!mainContainer) missing.push('app');
-      if (!titleElement) missing.push('appTitle');
-      if (!taglineElement) missing.push('appTagline');
-      if (!languageContainer) missing.push('languageSwitcher');
-      if (!footerElement) missing.push('appFooter');
+      if (!mainContainer) missing.push("app");
+      if (!titleElement) missing.push("appTitle");
+      if (!taglineElement) missing.push("appTagline");
+      if (!languageContainer) missing.push("languageSwitcher");
+      if (!footerElement) missing.push("appFooter");
 
-      throw new Error(`Missing required DOM elements: ${missing.join(', ')}`);
+      throw new Error(
+        `Missing required DOM elements: ${missing.join(", ")}`
+      );
     }
 
-    logger.info(CONTEXT, 'Application starting...');
+    logger.info(CONTEXT, "Application starting...");
 
-    // 🔹 ШАГ 1. Инициализируем i18n как раньше — по state.language
-    await initI18n(state.language);
+    // 🔹 1. Определяем язык из URL (?lang=ua / ?lang=en)
+    const params = new URLSearchParams(window.location.search);
+    let initialLang = params.get("lang");
 
-    // 🔹 ШАГ 2. Если внешний язык передан из index.html → принудительно переключаемся
-    if (window.APP_LANG === 'ua' || window.APP_LANG === 'en') {
-      logger.info(CONTEXT, `Overriding language from APP_LANG: ${window.APP_LANG}`);
-      setLanguagePreference(window.APP_LANG);
-      setLanguage(window.APP_LANG);
+    // 🔹 2. Если в URL нет или неправильный — пробуем из state или localStorage
+    if (initialLang !== "ua" && initialLang !== "en") {
+      if (state.language === "ua" || state.language === "en") {
+        initialLang = state.language;
+      } else {
+        const saved = localStorage.getItem("mws_lang");
+        if (saved === "ua" || saved === "en") {
+          initialLang = saved;
+        } else {
+          initialLang = "ua";
+        }
+      }
     }
 
-    // 🔹 Дальше — всё как было
+    // 🔹 3. Сохраняем выбор языка для будущих сессий
+    localStorage.setItem("mws_lang", initialLang);
+    setLanguagePreference(initialLang);
+
+    // 🔹 4. Инициализируем i18n с нужным языком
+    await initI18n(initialLang);
+    // initI18n уже ставит currentLanguage, но на всякий случай синхронизируем:
+    setLanguage(initialLang);
+
     updateHeaderTexts();
     renderLanguageButtons();
     route(state.route);
@@ -137,10 +160,10 @@ async function bootstrap() {
       renderScreen(state.route);
     });
 
-    logger.info(CONTEXT, 'Application initialized successfully');
+    logger.info(CONTEXT, "Application initialized successfully");
   } catch (error) {
-    logger.error(CONTEXT, 'Failed to initialize application:', error);
-    toast.error('Не удалось загрузить приложение');
+    logger.error(CONTEXT, "Failed to initialize application:", error);
+    toast.error("Не удалось загрузить приложение");
     throw error;
   }
 }
@@ -156,7 +179,7 @@ document.addEventListener("keydown", escapeHandler);
 
 // Cleanup on page unload
 window.addEventListener("beforeunload", () => {
-  logger.debug(CONTEXT, 'Cleaning up before unload');
+  logger.debug(CONTEXT, "Cleaning up before unload");
   if (typeof currentCleanup === "function") {
     currentCleanup();
   }
