@@ -16,8 +16,45 @@ function notify() {
   listeners.forEach((listener) => listener(currentLanguage));
 }
 
+// 🔹 Определяем язык: URL → localStorage → default
+function resolveInitialLanguage(defaultLang = "ua") {
+  let lang = defaultLang;
+
+  try {
+    // 1. Пробуем взять из URL ?lang=en / ?lang=ua
+    const params = new URLSearchParams(window.location.search);
+    const urlLang = params.get("lang");
+    if (urlLang && LANG_CODES.includes(urlLang)) {
+      lang = urlLang;
+    } else {
+      // 2. Если в URL нет — пробуем из localStorage
+      const saved = localStorage.getItem("mws_lang");
+      if (saved && LANG_CODES.includes(saved)) {
+        lang = saved;
+      }
+    }
+  } catch (e) {
+    // ничего страшного, просто идём дальше
+  }
+
+  // 3. Проверяем, что язык допустимый
+  if (!LANG_CODES.includes(lang)) {
+    lang = "ua";
+  }
+
+  return lang;
+}
+
 export async function initI18n(defaultLang = "ua") {
-  currentLanguage = LANG_CODES.includes(defaultLang) ? defaultLang : "ua";
+  const lang = resolveInitialLanguage(defaultLang);
+  currentLanguage = lang;
+
+  try {
+    localStorage.setItem("mws_lang", lang);
+  } catch (e) {
+    // можно игнорировать
+  }
+
   return currentLanguage;
 }
 
@@ -43,6 +80,11 @@ export function setLanguage(code) {
     return;
   }
   currentLanguage = code;
+
+  try {
+    localStorage.setItem("mws_lang", code);
+  } catch (e) {}
+
   notify();
 }
 
