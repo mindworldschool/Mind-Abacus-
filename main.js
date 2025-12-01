@@ -37,10 +37,15 @@ const screens = {
 let currentCleanup = null;
 
 function updateHeaderTexts() {
-  titleElement.textContent = t("header.title");
+  const titleMain = document.querySelector('.title-main');
+  const titleSub = document.querySelector('.title-sub');
+
+  if (titleMain) titleMain.textContent = t("header.titleMain");
+  if (titleSub) titleSub.textContent = t("header.titleSub");
+
   taglineElement.textContent = t("header.tagline");
   footerElement.textContent = t("footer");
-  document.title = t("header.title");
+  document.title = t("header.titleMain");
   document.documentElement.lang = getCurrentLanguage();
 }
 
@@ -123,17 +128,18 @@ async function bootstrap() {
 
     logger.info(CONTEXT, "Application starting...");
 
-    // 🔹 1. Определяем язык из URL (?lang=ua / ?lang=en)
+    // 🔹 1. Определяем язык из URL (?lang=ua / ?lang=en / ?lang=ru / ?lang=es)
+    const SUPPORTED_LANGS = ["ua", "en", "ru", "es"];
     const params = new URLSearchParams(window.location.search);
     let initialLang = params.get("lang");
 
     // 🔹 2. Если в URL нет или неправильный — пробуем из state или localStorage
-    if (initialLang !== "ua" && initialLang !== "en") {
-      if (state.language === "ua" || state.language === "en") {
+    if (!SUPPORTED_LANGS.includes(initialLang)) {
+      if (SUPPORTED_LANGS.includes(state.language)) {
         initialLang = state.language;
       } else {
         const saved = localStorage.getItem("mws_lang");
-        if (saved === "ua" || saved === "en") {
+        if (SUPPORTED_LANGS.includes(saved)) {
           initialLang = saved;
         } else {
           initialLang = "ua";

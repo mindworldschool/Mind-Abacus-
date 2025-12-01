@@ -52,29 +52,48 @@
     <!-- Детектор языка -->
     <script>
       (function () {
+        const SUPPORTED_LANGS = ["ua", "en", "ru", "es"];
         const params = new URLSearchParams(window.location.search);
         let lang = params.get("lang");
 
-        // 1. Проверяем URL
-        if (lang !== "ua" && lang !== "en") {
-          // 2. Если нет — пробуем взять из localStorage
-          const saved = localStorage.getItem("mws_lang");
-          if (saved === "ua" || saved === "en") {
-            lang = saved;
-          } else {
-            // 3. Язык по умолчанию
-            lang = "ua";
+        // 1. Проверяем параметр lang в URL
+        if (!SUPPORTED_LANGS.includes(lang)) {
+          // 2. Если нет — пробуем определить по referrer
+          const referrer = document.referrer;
+          if (referrer) {
+            if (referrer.includes("/en/")) {
+              lang = "en";
+            } else if (referrer.includes("/ru/")) {
+              lang = "ru";
+            } else if (referrer.includes("/es/")) {
+              lang = "es";
+            } else if (referrer.includes("mindworldschool.com")) {
+              // Украинская версия на основном домене без префикса
+              lang = "ua";
+            }
+          }
+
+          // 3. Если не определили — пробуем взять из localStorage
+          if (!SUPPORTED_LANGS.includes(lang)) {
+            const saved = localStorage.getItem("mws_lang");
+            if (SUPPORTED_LANGS.includes(saved)) {
+              lang = saved;
+            } else {
+              // 4. Язык по умолчанию
+              lang = "ua";
+            }
           }
         }
 
-        // 4. Сохраняем язык
+        // 5. Сохраняем язык
         localStorage.setItem("mws_lang", lang);
 
-        // 5. Передаём язык в main.js
+        // 6. Передаём язык в main.js
         window.APP_LANG = lang;
 
-        // 6. Обновляем lang в <html>
-        document.documentElement.lang = lang === "en" ? "en" : "uk";
+        // 7. Обновляем lang в <html>
+        const langMap = { ua: "uk", en: "en", ru: "ru", es: "es" };
+        document.documentElement.lang = langMap[lang] || "uk";
       })();
     </script>
 

@@ -829,4 +829,5 @@ export const dictionaries = {
   }
 };
 
-export const LANG_CODES = Object.keys(dictionaries);
+// Explicitly set language order: UA, EN, RU, ES
+export const LANG_CODES = ["ua", "en", "ru", "es"];
