@@ -61,14 +61,15 @@
           // 2. Если нет — пробуем определить по referrer
           const referrer = document.referrer;
           if (referrer) {
-            if (referrer.includes("/ua/") || referrer.includes("/uk/")) {
-              lang = "ua";
-            } else if (referrer.includes("/en/")) {
+            if (referrer.includes("/en/")) {
               lang = "en";
             } else if (referrer.includes("/ru/")) {
               lang = "ru";
             } else if (referrer.includes("/es/")) {
               lang = "es";
+            } else if (referrer.includes("mindworldschool.com")) {
+              // Украинская версия на основном домене без префикса
+              lang = "ua";
             }
           }
 
